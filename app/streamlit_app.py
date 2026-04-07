@@ -477,16 +477,16 @@ def _tab_predict():
         st.markdown("**Reinforcement**")
         n_bars = st.number_input("# Tensile Bars",    1, 8, 3, step=1)
         db     = st.number_input("Bar Diameter (mm)", 6, 32, 16, step=2)
-        pten   = st.number_input("ρ tension (%)",     0.1, 5.0, 1.5, step=0.1)
+        pten   = st.number_input("rho tension (%)",   0.1, 5.0, 1.5, step=0.1)
         fy     = st.number_input("fy (MPa)",          226, 650, 460, step=5)
     with c3:
         st.markdown("**Concrete & Corrosion**")
         fc       = st.number_input("f'c (MPa)",        20,  80, 32, step=1)
         wc       = st.number_input("W/C Ratio",        0.30, 0.70, 0.45, step=0.01)
-        eta_m    = st.number_input("ηm — Mass Loss (%)",0.0, 64.0, 10.0, step=0.5)
-        s_stirr  = st.number_input("Stirrup Spacing (mm)",50, 300, 150, step=10)
-        ds_stirr = st.number_input("Stirrup Dia. (mm)",   6,  16,  8,  step=2)
-        fy_s     = st.number_input("fy stirrups (MPa)",  226, 650, 420, step=5)
+        eta_m    = st.number_input("eta_m — Mass Loss (%)", 0.0, 64.0, 10.0, step=0.5)
+        s_stirr  = st.number_input("Stirrup Spacing (mm)", 50, 300, 150, step=10)
+        ds_stirr = st.number_input("Stirrup Dia. (mm)",    6,  16,  8,  step=2)
+        fy_s     = st.number_input("fy stirrups (MPa)",   226, 650, 420, step=5)
         shear_x  = st.number_input("Shear Span x (mm)", 100, 2000, 800, step=50)
 
     st.markdown("---")
@@ -511,14 +511,14 @@ def _tab_predict():
             "Bottom Cover to Ctr of Tension Bar (mm)" : cv,
             "# Tensile Bars"                          : n_bars,
             "Diameter Tensile Bars, db,t (mm)"        : db,
-            "Tension Reinforcement Ratio, pten (%)\"  : pten,
+            "Tension Reinforcement Ratio, pten (%)"   : pten,
             "fy Longitudinal Bars (Tensile), (MPa) "  : fy,
             "f'c (MPa)"                               : fc,
             "W/C Ratio"                               : wc,
             "Stirrup Spacing, s (mm) "                : s_stirr,
             "Stirrup Diameter, ds (mm)"               : ds_stirr,
             "fy,s Stirrup Bars"                       : fy_s,
-            "Mass Loss (Tensile bars), \u03b7m (%)\"   : eta_m,
+            "Mass Loss (Tensile bars), \u03b7m (%)"   : eta_m,
             "Shear Span, x (mm)"                      : shear_x,
         }
         cat_vals = {
@@ -844,7 +844,6 @@ def _tab_equation():
             if rmse: st.metric("RMSE (kN·m)", f"{rmse:.3f}")
             if mape: st.metric("MAPE",        f"{mape:.1f}%")
 
-        # Use plain st.markdown (NO unsafe_allow_html) to avoid ** rendering as docstring
         st.markdown(f"✅ **Pros:** {eq['pros']}")
         st.markdown(f"❌ **Cons:** {eq['cons']}")
         st.markdown(f"💡 **Recommended use:** {eq['use_case']}")
@@ -867,8 +866,8 @@ def _tab_equation():
     calc_inputs = {}
     defaults = {"d":300,"eta_m":10.0,"fy":460,"rho_t":1.5,
                 "d_b":16.0,"b":150,"fc":32,"rho":1.5}
-    labels   = {"d":"d (mm)","eta_m":"ηm (%)","fy":"fy (MPa)",
-                "rho_t":"ρt (%)","d_b":"db (mm)","b":"b (mm)",
+    labels   = {"d":"d (mm)","eta_m":"eta_m (%)","fy":"fy (MPa)",
+                "rho_t":"rho_t (%)","d_b":"db (mm)","b":"b (mm)",
                 "fc":"f'c (MPa)"}
     for i, var in enumerate(needed):
         with calc_cols[i % min(len(needed), 4)]:
@@ -930,7 +929,7 @@ def _tab_equation():
                 M = float("nan")
 
             if np.isnan(M) or np.isinf(M) or M < 0:
-                st.error("⚠️ Result undefined for these inputs (log argument ≤ 0 or negative result). Try larger d value.")
+                st.error("⚠️ Result undefined for these inputs (log argument <= 0 or negative result). Try larger d value.")
             else:
                 st.success(f"**Mmax ≈ {M:.2f} kN·m** (Eq.{eid} — {chosen_eq['name'][:40]}...)")
                 st.info(
@@ -946,8 +945,8 @@ def _tab_equation():
     st.markdown("""
 | Goal | Recommended Equation | Why |
 |------|---------------------|-----|
-| Design code / journal (main) | Eq.12 (complexity 19) | Best R²/simplicity trade-off; 5 variables; sqrt(ηm) physically motivated |
-| Maximum physical completeness | Eq.17 (complexity 25) | Only one with f'c; ηm/√f'c is dimensionally sound |
+| Design code / journal (main) | Eq.12 (complexity 19) | Best R²/simplicity trade-off; 5 variables; sqrt(eta_m) physically motivated |
+| Maximum physical completeness | Eq.17 (complexity 25) | Only one with f'c; eta_m/sqrt(f'c) is dimensionally sound |
 | Teaching / quick check | Eq.4 (complexity 7)  | 2 variables; immediately interpretable |
 | Uncorroded beams | Eq.11 (complexity 18) | Clean 3-term product; no corrosion needed |
     """)
