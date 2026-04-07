@@ -86,7 +86,7 @@ st.markdown("""
 
 @st.cache_resource(show_spinner=False)
 def _load_model():
-    path = MODELS_DIR / "best_mlp.pkl"
+    path = MODELS_DIR / "best_model.pkl"
     if not path.exists():
         return None
     return joblib.load(path)
@@ -127,7 +127,7 @@ def _sidebar():
     st.sidebar.markdown(f"## {APP_ICON} {APP_TITLE}")
     st.sidebar.markdown(
         "PhD Research Pipeline — Neural Network × NSGA-III\n"
-        "Predicts residual capacity R(%) of corroded RC beams."
+        "Predicts Predicted Mmax (kN·m) of corroded RC beams."
     )
     st.sidebar.markdown("---")
 
@@ -277,7 +277,7 @@ def _tab_predict():
                 mode  = "gauge+number+delta",
                 value = round(r_pct, 1),
                 delta = {"reference": 100, "valueformat": ".1f"},
-                title = {"text": "Residual Capacity R(%)"},
+                title = {"text": "Predicted Mmax (kN·m)"},
                 gauge = {
                     "axis"  : {"range": [0, 130]},
                     "bar"   : {"color": "#1A3A5C"},
