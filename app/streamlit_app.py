@@ -126,7 +126,7 @@ EQ_CATALOGUE = [
     {
         "id": 5,
         "complexity": 8,
-        "name": "Reinforcement ratio × depth",
+        "name": "Reinforcement ratio x depth",
         "sympy": "sqrt(rho_t) * (0.330*d - 42.26)",
         "latex": r"M = \sqrt{\rho_t}(0.330\,d - 42.26)",
         "variables": ["rho_t", "d"],
@@ -136,13 +136,13 @@ EQ_CATALOGUE = [
         "fc_aware": False,
         "pros": "First to include reinforcement ratio. Square-root form is physically meaningful.",
         "cons": "No corrosion, no yield strength.",
-        "use_case": "Proof of concept for ρ importance.",
+        "use_case": "Proof of concept for rho importance.",
         "r2_approx": 0.69,
     },
     {
         "id": 6,
         "complexity": 9,
-        "name": "(fy·ρt) power-law with depth",
+        "name": "(fy x rho_t) power-law with depth",
         "sympy": "(fy * rho_t) ** log(log(0.025*d))",
         "latex": r"M = (f_y \rho_t)^{\log\log(0.025\,d)}",
         "variables": ["fy", "rho_t", "d"],
@@ -150,15 +150,15 @@ EQ_CATALOGUE = [
         "fy_aware": True,
         "rho_aware": True,
         "fc_aware": False,
-        "pros": "Introduces double-log scaling — dimensionally elegant. Combines fy and ρ naturally.",
-        "cons": "No corrosion. log(log(·)) can be undefined for small d values.",
+        "pros": "Introduces double-log scaling — dimensionally elegant. Combines fy and rho naturally.",
+        "cons": "No corrosion. log(log()) can be undefined for small d values.",
         "use_case": "Good baseline for uncorroded beams.",
         "r2_approx": 0.78,
     },
     {
         "id": 7,
         "complexity": 11,
-        "name": "(fy·ρt) power / bar diameter",
+        "name": "(fy x rho_t) power / bar diameter",
         "sympy": "(fy*rho_t)**log(log(0.029*d)) / d_b",
         "latex": r"M = \frac{(f_y\rho_t)^{\log\log(0.029\sqrt{d})}}{d_b}",
         "variables": ["fy", "rho_t", "d", "d_b"],
@@ -174,7 +174,7 @@ EQ_CATALOGUE = [
     {
         "id": 8,
         "complexity": 13,
-        "name": "(fy·ρt + offset) power / d_b",
+        "name": "(fy x rho_t + offset) power / d_b",
         "sympy": "(fy*rho_t + 46.0)**log(log(0.028*d)) / d_b",
         "latex": r"M = \frac{(f_y\rho_t + 46.0)^{\log\log(0.028\,d)}}{d_b}",
         "variables": ["fy", "rho_t", "d", "d_b"],
@@ -182,7 +182,7 @@ EQ_CATALOGUE = [
         "fy_aware": True,
         "rho_aware": True,
         "fc_aware": False,
-        "pros": "Additive offset stabilises prediction at low ρ.",
+        "pros": "Additive offset stabilises prediction at low rho.",
         "cons": "Offset of 46 has no physical meaning. No corrosion.",
         "use_case": "Marginal improvement over Eq.7 only.",
         "r2_approx": 0.81,
@@ -190,7 +190,7 @@ EQ_CATALOGUE = [
     {
         "id": 9,
         "complexity": 15,
-        "name": "(fy·ρt + b-term) power / d_b",
+        "name": "(fy x rho_t + b-term) power / d_b",
         "sympy": "(0.235*b + fy*rho_t)**log(log(0.028*d)) / d_b",
         "latex": r"M = \frac{(0.235b + f_y\rho_t)^{\log\log(0.028\,d)}}{d_b}",
         "variables": ["fy", "rho_t", "d", "d_b", "b"],
@@ -206,7 +206,7 @@ EQ_CATALOGUE = [
     {
         "id": 10,
         "complexity": 17,
-        "name": "fy power × ρt (corrosion in exponent)",
+        "name": "fy power x rho_t (corrosion in exponent)",
         "sympy": "0.074*b + rho_t*(fy**log(log(0.023*(d-eta_m))) - 2.824)",
         "latex": r"M = 0.074b + \rho_t\left(f_y^{\log\log[0.023(d-\eta_m)]} - 2.82\right)",
         "variables": ["fy", "rho_t", "d", "d_b", "b", "eta_m"],
@@ -222,7 +222,7 @@ EQ_CATALOGUE = [
     {
         "id": 11,
         "complexity": 18,
-        "name": "fy power × (ρt - d_b) [no corrosion]",
+        "name": "fy power x (rho_t - d_b) [no corrosion]",
         "sympy": "1.947*fy**(1.424*log(log(0.240*sqrt(d))))*(-d_b+rho_t+2.137)",
         "latex": r"M = 1.947\,f_y^{1.424\log\log(0.240\sqrt{d})}(-d_b+\rho_t+2.137)",
         "variables": ["fy", "rho_t", "d", "d_b"],
@@ -230,7 +230,7 @@ EQ_CATALOGUE = [
         "fy_aware": True,
         "rho_aware": True,
         "fc_aware": False,
-        "pros": "Clean 3-term product. Net reinforcement term (ρt - d_b) captures bar geometry elegantly.",
+        "pros": "Clean 3-term product. Net reinforcement term (rho_t - d_b) captures bar geometry elegantly.",
         "cons": "Missing corrosion — major limitation for corroded beams.",
         "use_case": "Uncorroded beams with variable bar sizes.",
         "r2_approx": 0.87,
@@ -238,7 +238,7 @@ EQ_CATALOGUE = [
     {
         "id": 12,
         "complexity": 19,
-        "name": "★ RECOMMENDED — fy power × corrosion × reinforcement",
+        "name": "RECOMMENDED — fy power x corrosion x reinforcement",
         "sympy": "fy**log(log(0.182*sqrt(d))) * (14.5-sqrt(eta_m)) * (-d_b+rho_t+2.69)",
         "latex": r"M = f_y^{\log\log(0.182\sqrt{d})}\cdot(14.5-\sqrt{\eta_m})\cdot(\rho_t - d_b + 2.69)",
         "variables": ["fy", "d", "eta_m", "rho_t", "d_b"],
@@ -247,15 +247,15 @@ EQ_CATALOGUE = [
         "rho_aware": True,
         "fc_aware": False,
         "pros": (
-            "Best complexity/accuracy trade-off (complexity 19, R²=0.933). "
+            "Best complexity/accuracy trade-off (complexity 19, R2=0.933). "
             "All four key structural variables present. "
-            "sqrt(ηm) term is physically meaningful — damage grows as square root of mass loss. "
+            "sqrt(eta_m) term is physically meaningful — damage grows as square root of mass loss. "
             "Only 5 variables — easy hand calculation."
         ),
         "cons": (
             "No f'c — concrete strength absent. "
-            "log(log(·)) hard to compute without calculator. "
-            "Constant 14.5 and 2.69 require re-calibration for different steel grades."
+            "log(log()) hard to compute without calculator. "
+            "Constants 14.5 and 2.69 require re-calibration for different steel grades."
         ),
         "use_case": "Primary design-code candidate. Best for journal publication and code calibration.",
         "r2_approx": 0.9328,
@@ -266,7 +266,7 @@ EQ_CATALOGUE = [
     {
         "id": 13,
         "complexity": 20,
-        "name": "fy power × corrosion × exp(-d_b)",
+        "name": "fy power x corrosion x exp(-d_b)",
         "sympy": "fy**log(log(0.183*sqrt(d)))*(15.09-sqrt(eta_m))*(rho_t+4.46*exp(-d_b))",
         "latex": r"M = f_y^{\log\log(0.183\sqrt{d})}(15.09-\sqrt{\eta_m})(\rho_t+4.46e^{-d_b})",
         "variables": ["fy", "d", "eta_m", "rho_t", "d_b"],
@@ -282,7 +282,7 @@ EQ_CATALOGUE = [
     {
         "id": 14,
         "complexity": 22,
-        "name": "fy power × corrosion × exp(-d_b) + offset",
+        "name": "fy power x corrosion x exp(-d_b) + offset",
         "sympy": "fy**log(log(0.185*sqrt(d)))*((13.87-sqrt(eta_m))*(rho_t+4.07*exp(-d_b))+1.76)",
         "latex": r"M = f_y^{\log\log(0.185\sqrt{d})}\left[(13.87-\sqrt{\eta_m})(\rho_t+4.07e^{-d_b})+1.76\right]",
         "variables": ["fy", "d", "eta_m", "rho_t", "d_b"],
@@ -291,7 +291,7 @@ EQ_CATALOGUE = [
         "rho_aware": True,
         "fc_aware": False,
         "pros": "Offset +1.76 prevents under-prediction at zero corrosion.",
-        "cons": "Marginal improvement over Eq.13 (R² difference <0.001). Added complexity unjustified.",
+        "cons": "Marginal improvement over Eq.13 (R2 difference <0.001). Added complexity unjustified.",
         "use_case": "Use Eq.12 or Eq.13 instead.",
         "r2_approx": 0.935,
     },
@@ -306,7 +306,7 @@ EQ_CATALOGUE = [
         "fy_aware": True,
         "rho_aware": True,
         "fc_aware": False,
-        "pros": "Corrosion now linear (0.045·ηm) — simpler than sqrt form. Double exponent 1.227 adds flexibility.",
+        "pros": "Corrosion now linear (0.045 x eta_m) — simpler than sqrt form. Double exponent 1.227 adds flexibility.",
         "cons": "Linear corrosion less physically motivated than sqrt. Two empirical exponents reduce interpretability.",
         "use_case": "Sensitivity study on corrosion linearity assumption.",
         "r2_approx": 0.936,
@@ -314,7 +314,7 @@ EQ_CATALOGUE = [
     {
         "id": 16,
         "complexity": 24,
-        "name": "Power-chain with sqrt(ηm/11.2)",
+        "name": "Power-chain with sqrt(eta_m) scaled",
         "sympy": "fy**(1.208*log(log(0.216*sqrt(d))))*(5.12-0.299*sqrt(eta_m))*(rho_t+3.80*exp(-d_b))",
         "latex": r"M = f_y^{1.208\log\log(0.216\sqrt{d})}(5.12-0.299\sqrt{\eta_m})(\rho_t+3.80e^{-d_b})",
         "variables": ["fy", "d", "eta_m", "rho_t", "d_b"],
@@ -322,7 +322,7 @@ EQ_CATALOGUE = [
         "fy_aware": True,
         "rho_aware": True,
         "fc_aware": False,
-        "pros": "Scaled sqrt corrosion (0.299√ηm) — coefficient now dimensionless, better calibration.",
+        "pros": "Scaled sqrt corrosion (0.299 x sqrt(eta_m)) — coefficient now dimensionless, better calibration.",
         "cons": "Four free constants; requires re-calibration for different datasets.",
         "use_case": "Dataset-specific calibration study.",
         "r2_approx": 0.937,
@@ -330,7 +330,7 @@ EQ_CATALOGUE = [
     {
         "id": 17,
         "complexity": 25,
-        "name": "★ MOST PHYSICAL — includes f'c",
+        "name": "MOST PHYSICAL — includes f'c",
         "sympy": "(6.58-sqrt(eta_m/sqrt(fc)))*(rho_t+3.85*exp(-d_b))*(fy**log(log(0.209*sqrt(d))))**1.177",
         "latex": r"M = \left(6.58-\sqrt{\frac{\eta_m}{\sqrt{f'_c}}}\right)(\rho_t+3.85e^{-d_b})\left[f_y^{\log\log(0.209\sqrt{d})}\right]^{1.177}",
         "variables": ["fy", "d", "eta_m", "rho_t", "d_b", "fc"],
@@ -340,7 +340,7 @@ EQ_CATALOGUE = [
         "fc_aware": True,
         "pros": (
             "Only equation with f'c — most physically complete. "
-            "ηm/√f'c term is physically meaningful: corrosion damage is relative to concrete quality. "
+            "eta_m/sqrt(f'c) term is physically meaningful: corrosion damage is relative to concrete quality. "
             "Covers all 5 key structural variables."
         ),
         "cons": (
@@ -353,9 +353,9 @@ EQ_CATALOGUE = [
     },
 ]
 
-# Map complexity → approximate R² from JSON loss data
+# Map complexity -> approximate R2 from JSON loss data
 _R2_MAP = {
-    1:  0.00,  # constant
+    1:  0.00,
     2:  0.43,
     3:  0.508,
     4:  0.534,
@@ -454,7 +454,7 @@ def _tab_predict():
                 unsafe_allow_html=True)
     st.markdown(
         "Enter corroded RC beam parameters. "
-        "Model: <b>CatBoost (R² = 0.987 on test set)</b>.",
+        "Model: <b>CatBoost (R² = 0.987 on test set)</b>.",
         unsafe_allow_html=True)
 
     model    = _load_model()
@@ -511,14 +511,14 @@ def _tab_predict():
             "Bottom Cover to Ctr of Tension Bar (mm)" : cv,
             "# Tensile Bars"                          : n_bars,
             "Diameter Tensile Bars, db,t (mm)"        : db,
-            "Tension Reinforcement Ratio, pten (%)"   : pten,
+            "Tension Reinforcement Ratio, pten (%)\"  : pten,
             "fy Longitudinal Bars (Tensile), (MPa) "  : fy,
             "f'c (MPa)"                               : fc,
             "W/C Ratio"                               : wc,
             "Stirrup Spacing, s (mm) "                : s_stirr,
             "Stirrup Diameter, ds (mm)"               : ds_stirr,
             "fy,s Stirrup Bars"                       : fy_s,
-            "Mass Loss (Tensile bars), \u03b7m (%)"    : eta_m,
+            "Mass Loss (Tensile bars), \u03b7m (%)\"   : eta_m,
             "Shear Span, x (mm)"                      : shear_x,
         }
         cat_vals = {
@@ -724,7 +724,7 @@ def _tab_equation():
         """
     )
 
-    # ── 1. Complexity vs R² Pareto frontier ──────────────────
+    # -- 1. Complexity vs R2 Pareto frontier
     st.markdown("---")
     st.markdown("### 📈 Pareto Frontier — Complexity vs. Accuracy")
     comp_vals = [e["complexity"] for e in EQ_CATALOGUE]
@@ -736,11 +736,9 @@ def _tab_equation():
         for e in EQ_CATALOGUE
     ]
     fig_pareto = go.Figure()
-    # grey line
     fig_pareto.add_trace(go.Scatter(
         x=comp_vals, y=r2_vals, mode="lines",
         line=dict(color="#CFD8DC", dash="dot", width=1), showlegend=False))
-    # dots
     fig_pareto.add_trace(go.Scatter(
         x=comp_vals, y=r2_vals, mode="markers+text",
         text=[f"Eq.{e['id']}" for e in EQ_CATALOGUE],
@@ -748,12 +746,10 @@ def _tab_equation():
         marker=dict(size=10, color=colors_eq, line=dict(width=1, color="white")),
         hovertext=names_eq, hoverinfo="text+y", showlegend=False,
     ))
-    # benchmark lines
     fig_pareto.add_hline(y=0.8839, line_dash="dot",  line_color="#F57C00",
                          annotation_text="ACI 318-19 (R²=0.8839)")
     fig_pareto.add_hline(y=0.972,  line_dash="dash", line_color="red",
                          annotation_text="L2 SOTA target (0.972)")
-    # star markers for recommended
     for eid, col in [(12, "#2E7D32"), (17, "#9C27B0")]:
         eq = next(e for e in EQ_CATALOGUE if e["id"]==eid)
         fig_pareto.add_trace(go.Scatter(
@@ -774,7 +770,7 @@ def _tab_equation():
         "🔵 Blue = Corrosion-aware  |  ⚫ Grey = No corrosion term"
     )
 
-    # ── 2. Summary comparison table ──────────────────────────
+    # -- 2. Summary comparison table
     st.markdown("---")
     st.markdown("### 📋 Complete Equation Comparison Table")
     aci_r2 = 0.8839
@@ -784,9 +780,9 @@ def _tab_equation():
         table_rows.append({
             "ID"          : f"{'★ ' if e['id'] in (12,17) else ''}Eq.{e['id']}",
             "Complexity"  : e["complexity"],
-            "Name"        : e["name"].replace("★ RECOMMENDED — ","★ ").replace("★ MOST PHYSICAL — ","★ "),
-            "R² (approx)": round(e["r2_approx"], 4),
-            "ΔR² vs ACI" : f"{delta:+.4f}",
+            "Name"        : e["name"].replace("RECOMMENDED — ","★ ").replace("MOST PHYSICAL — ","★ "),
+            "R² (approx)" : round(e["r2_approx"], 4),
+            "ΔR² vs ACI"  : f"{delta:+.4f}",
             "ηm term"     : "✅" if e["corrosion_aware"] else "❌",
             "fy term"     : "✅" if e["fy_aware"]        else "❌",
             "ρ term"      : "✅" if e["rho_aware"]       else "❌",
@@ -795,11 +791,10 @@ def _tab_equation():
         })
     st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
 
-    # ── 3. Individual equation cards ─────────────────────────
+    # -- 3. Individual equation cards
     st.markdown("---")
     st.markdown("### 🔬 Detailed Analysis — Each Equation")
 
-    # Filter controls
     f1, f2, f3 = st.columns(3)
     show_corr_only = f1.checkbox("Show corrosion-aware only", value=False)
     show_fy_only   = f2.checkbox("Show fy-aware only",        value=False)
@@ -813,13 +808,15 @@ def _tab_equation():
     for eq in filtered:
         is_rec = eq["id"] in (12, 17)
         card_class = "eq-best" if is_rec else "eq-card"
-        label = ""
-        if eq["id"] == 12: label = "<b>⭐ RECOMMENDED — Best complexity/accuracy trade-off</b><br>"
-        if eq["id"] == 17: label = "<b>⭐ MOST PHYSICAL — Only equation with f'c</b><br>"
+        label_html = ""
+        if eq["id"] == 12:
+            label_html = "<b>⭐ RECOMMENDED — Best complexity/accuracy trade-off</b><br>"
+        if eq["id"] == 17:
+            label_html = "<b>⭐ MOST PHYSICAL — Only equation with f'c</b><br>"
         st.markdown(
-            f'<div class="{card_class}">{label}'
+            f'<div class="{card_class}">{label_html}'
             f'<b>Eq.{eq["id"]} — Complexity {eq["complexity"]} — '
-            f'{eq["name"].replace("★ RECOMMENDED — ","").replace("★ MOST PHYSICAL — ","")}</b>'
+            f'{eq["name"].replace("RECOMMENDED — ","").replace("MOST PHYSICAL — ","")}</b>'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -828,13 +825,13 @@ def _tab_equation():
             st.latex(eq["latex"])
             st.markdown(f"**Variables:** `{'`, `'.join(eq['variables'])}`")
             cov_badges = ""
-            for flag, label_f in [
-                ("corrosion_aware","ηm"),
-                ("fy_aware","fy"),
-                ("rho_aware","ρ"),
-                ("fc_aware","f'c"),
+            for flag, lbl in [
+                ("corrosion_aware", "ηm"),
+                ("fy_aware", "fy"),
+                ("rho_aware", "ρ"),
+                ("fc_aware", "f'c"),
             ]:
-                cov_badges += ("✅ " if eq[flag] else "❌ ") + label_f + "  "
+                cov_badges += ("✅ " if eq[flag] else "❌ ") + lbl + "  "
             st.markdown(cov_badges)
         with col_right:
             r2_v  = eq.get("r2_approx", None)
@@ -846,15 +843,14 @@ def _tab_equation():
                 st.metric("R²", f"{r2_v:.4f}", delta_v)
             if rmse: st.metric("RMSE (kN·m)", f"{rmse:.3f}")
             if mape: st.metric("MAPE",        f"{mape:.1f}%")
-        st.markdown(
-            f"<span class='pros'>✅ **Pros:** {eq['pros']}</span><br>"
-            f"<span class='cons'>❌ **Cons:** {eq['cons']}</span><br>"
-            f"💡 **Recommended use:** {eq['use_case']}",
-            unsafe_allow_html=True,
-        )
+
+        # Use plain st.markdown (NO unsafe_allow_html) to avoid ** rendering as docstring
+        st.markdown(f"✅ **Pros:** {eq['pros']}")
+        st.markdown(f"❌ **Cons:** {eq['cons']}")
+        st.markdown(f"💡 **Recommended use:** {eq['use_case']}")
         st.markdown("---")
 
-    # ── 4. Interactive calculator ─────────────────────────────
+    # -- 4. Interactive calculator
     st.markdown("### 🧮 Interactive Hand-Calculator")
     st.markdown(
         "Select any equation and enter beam parameters to compute **Mmax** "
@@ -937,7 +933,6 @@ def _tab_equation():
                 st.error("⚠️ Result undefined for these inputs (log argument ≤ 0 or negative result). Try larger d value.")
             else:
                 st.success(f"**Mmax ≈ {M:.2f} kN·m** (Eq.{eid} — {chosen_eq['name'][:40]}...)")
-                # compare with CatBoost and ACI context
                 st.info(
                     f"📊 Context: CatBoost R²=0.987 | This equation R²≈{chosen_eq['r2_approx']:.4f} | "
                     f"ACI R²=0.8839"
@@ -945,56 +940,35 @@ def _tab_equation():
         except Exception as ex:
             st.error(f"Calculation error: {ex}")
 
-    # ── 5. Final recommendation & future roadmap ─────────────
+    # -- 5. Final recommendation & future roadmap
     st.markdown("---")
     st.markdown("### 🏁 Final Recommendation for Supervisor")
     st.markdown("""
 | Goal | Recommended Equation | Why |
 |------|---------------------|-----|
-| **Design code / journal (main)** | **Eq.12** (complexity 19) | Best R²/simplicity trade-off; 5 variables; sqrt(ηm) physically motivated |
-| **Maximum physical completeness** | **Eq.17** (complexity 25) | Only one with f'c; ηm/√f'c is dimensionally sound |
-| **Teaching / quick check** | **Eq.4** (complexity 7)  | 2 variables; immediately interpretable |
-| **Uncorroded beams** | **Eq.11** (complexity 18) | Clean 3-term product; no corrosion needed |
+| Design code / journal (main) | Eq.12 (complexity 19) | Best R²/simplicity trade-off; 5 variables; sqrt(ηm) physically motivated |
+| Maximum physical completeness | Eq.17 (complexity 25) | Only one with f'c; ηm/√f'c is dimensionally sound |
+| Teaching / quick check | Eq.4 (complexity 7)  | 2 variables; immediately interpretable |
+| Uncorroded beams | Eq.11 (complexity 18) | Clean 3-term product; no corrosion needed |
     """)
 
     st.markdown("---")
     st.markdown("### 🚀 How to Get Stronger Equations in the Next Run")
     st.markdown("""
-**The limitations of current equations are clear:**
+The limitations of current equations are clear:
 - No equation achieves R² > 0.94 (vs CatBoost 0.987 — gap of 0.047)
 - Concrete strength f'c appears in only 1 of 19 equations
 - Stirrup parameters (ds, s, fy_s) absent from all equations
-- log(log(·)) structure is hard to compute manually
+- log(log()) structure is hard to compute manually
 
-**Strategies to discover stronger equations next time:**
+Strategies to discover stronger equations next time:
 
-1. **Expand the feature set fed to PySR**
-   - Currently PySR receives only: `d, eta_m, fy, rho_t, d_b, b, fc`
-   - Add: `As = n_bars × π(db/2)²`, `a = As·fy/(0.85·f'c·b)`, `d-a/2` (ACI lever arm)
-   - These ACI-derived features pre-compute the physics, letting PySR discover corrections
-
-2. **Seed PySR with ACI structure**
-   - Fix the base as `As·fy·(d - a/2)` and let PySR find only the **correction factor**
-   - This forces physically meaningful forms and avoids dimensionally inconsistent constants
-
-3. **Increase PySR iterations and populations**
-   - Current: 200 iterations × 40 populations
-   - Target: 500+ iterations × 100 populations (needs GPU or cloud)
-   - Constraint: add dimensional analysis operators
-
-4. **Use physics-guided operators**
-   - Restrict operators to those appearing in ACI/EC2: `×, ÷, √, ²`
-   - Remove `log(log(·))` — it is numerically unstable and hard to use manually
-   - Result: simpler, more portable equations
-
-5. **Expand the database**
-   - Current: 804 specimens
-   - Target: 1500+ specimens by adding Cairns (2005), Zhu (2022), Xu (2023) datasets
-   - More data = PySR finds more generalizable relationships
-
-6. **Multi-objective PySR**
-   - Simultaneously minimise: loss, complexity, AND physical constraint violation
-   - Enforces `M > 0`, `∂M/∂fy > 0`, `∂M/∂ηm < 0` during evolution
+1. **Expand the feature set fed to PySR** — Add As, a (ACI lever arm), d-a/2 as pre-computed physics features
+2. **Seed PySR with ACI structure** — Fix base as As·fy·(d - a/2) and let PySR find only the correction factor
+3. **Increase PySR iterations** — Current: 200 × 40 populations → Target: 500+ × 100 populations
+4. **Use physics-guided operators** — Restrict to ACI/EC2 operators: ×, ÷, √, ² only
+5. **Expand the database** — Current: 804 → Target: 1500+ specimens
+6. **Multi-objective PySR** — Simultaneously minimise loss, complexity, and physical constraint violations
     """)
 
 
@@ -1035,7 +1009,7 @@ def main():
                 unsafe_allow_html=True)
     st.markdown(
         '<p class="sub-header">'
-        "PhD Research — CatBoost (R² = 0.987) × SHAP × PySR Symbolic Regression"
+        "PhD Research — CatBoost (R² = 0.987) × SHAP × PySR Symbolic Regression"
         "</p>", unsafe_allow_html=True,
     )
     tabs = st.tabs([
