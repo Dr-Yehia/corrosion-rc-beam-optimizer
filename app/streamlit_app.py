@@ -460,11 +460,8 @@ def _tab_predict():
         try:
             row    = np.array([all_vals.get(c, 0.0) for c in all_cols], dtype=float).reshape(1, -1)
             row_sc = scaler_X.transform(row) if scaler_X else row
-            y_sc   = model.predict(row_sc)
-            mmax_pred = (
-                scaler_y.inverse_transform(y_sc.reshape(-1, 1)).ravel()[0]
-                if scaler_y else float(y_sc[0])
-            )
+            mmax_pred = float(model.predict(row_sc)[0]) if hasattr(model.predict(row_sc), '__len__') else float(model.predict(row_sc))
+            
             from aci_calculator import aci_moment_capacity
             mn_aci = aci_moment_capacity(b=b, d=d, n_bars=n_bars, db_mm=db, fy=fy, fc=fc, eta_m=eta_m)
 
