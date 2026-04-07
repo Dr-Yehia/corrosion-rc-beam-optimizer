@@ -21,14 +21,53 @@ from config import (
 
 
 # ────────────────────────────────────────────────────────────
+# COLUMN NAME NORMALIZER
+# ────────────────────────────────────────────────────────────
+def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Fix encoding artefacts in column names that arise when a CSV
+    written on Windows is read on Linux (UTF-8 vs latin-1 mismatch).
+    Known replacements:
+        'ÃÂ·m'  → 'ηm'   (eta)
+        'ÃÂ¼'   → 'μ'    (mu)
+        'ÃÂ'    → 'Δ'    (delta)
+    """
+    rename = {}
+    for col in df.columns:
+        new = col
+        new = new.replace('\u00c3\u00a2\u00c2\u00b7', 'η')   # eta η
+        new = new.replace('\u00c3\u0192\u00c2\u00b7', 'η')   # alt eta
+        new = new.replace('\u00c3\u00a2\u00c2\u00bc', 'μ')   # mu
+        new = new.replace('\u00c3\u0192\u00c2\u00bc', 'μ')   # alt mu
+        new = new.replace('\u00c3\u00a2\u00c2', '\u0394')       # delta
+        # Broader catch: re-encode from latin-1 to utf-8 if needed
+        try:
+            new = col.encode('latin-1').decode('utf-8')
+        except (UnicodeDecodeError, UnicodeEncodeError):
+            pass
+        if new != col:
+            rename[col] = new
+    if rename:
+        logger.info(f"Column names fixed (encoding): {list(rename.values())}")
+        df = df.rename(columns=rename)
+    return df
+
+
+# ────────────────────────────────────────────────────────────
 # 1. LOAD
 # ────────────────────────────────────────────────────────────
 def load_raw_data(path: Path = DATA_RAW) -> pd.DataFrame:
-    """Load the raw CSV database with correct encoding."""
+    """Load the raw CSV database, trying multiple encodings."""
     logger.info(f"Loading raw data from: {path}")
-    df = pd.read_csv(path, encoding="utf-8-sig")
-    logger.info(f"Raw data loaded — shape: {df.shape}")
-    return df
+    for enc in ["utf-8-sig", "utf-8", "latin-1", "cp1252"]:
+        try:
+            df = pd.read_csv(path, encoding=enc)
+            logger.info(f"Raw data loaded (encoding={enc}) — shape: {df.shape}")
+            df = _normalize_columns(df)
+            return df
+        except UnicodeDecodeError:
+            continue
+    raise RuntimeError(f"Cannot decode {path} with any known encoding.")
 
 
 # ────────────────────────────────────────────────────────────
