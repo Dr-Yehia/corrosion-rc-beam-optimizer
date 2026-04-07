@@ -1,7 +1,6 @@
 # ============================================================
 # src/config.py
 # Corrosion RC Beam Optimizer — Central Configuration
-# All constants, paths, hyperparameters, and benchmark targets
 # ============================================================
 
 from pathlib import Path
@@ -15,7 +14,6 @@ FIGURES_DIR = RESULTS_DIR / "figures"
 EQ_DIR      = RESULTS_DIR / "equations"
 LOG_DIR     = ROOT_DIR / "results" / "logs"
 
-# Auto-create output directories if they don't exist
 for _dir in [MODELS_DIR, FIGURES_DIR, EQ_DIR, LOG_DIR]:
     _dir.mkdir(parents=True, exist_ok=True)
 
@@ -29,7 +27,6 @@ RANDOM_STATE = 42
 # ── Target Variable & Features ───────────────────────────────
 TARGET_COL = "Residual Capacity, R (%)"
 
-# Input features used in model training
 FEATURE_COLS = [
     "Width (mm)",
     "Depth (mm)",
@@ -44,11 +41,10 @@ FEATURE_COLS = [
     "Stirrup Spacing, s (mm) ",
     "Stirrup Diameter, ds (mm)",
     "fy,s Stirrup Bars",
-    "Mass Loss (Tensile bars), ηm (%)",
+    "Mass Loss (Tensile bars), \u03b7m (%)",
     "Shear Span, x (mm)",
 ]
 
-# ACI 318-19 required columns (for benchmark calculation)
 ACI_COLS = [
     "Width (mm)",
     "Depth (mm)",
@@ -56,7 +52,7 @@ ACI_COLS = [
     "# Tensile Bars",
     "fy Longitudinal Bars (Tensile), (MPa) ",
     "f'c (MPa)",
-    "Mass Loss (Tensile bars), ηm (%)",
+    "Mass Loss (Tensile bars), \u03b7m (%)",
     "Mmax,exp (kNm)",
 ]
 
@@ -64,56 +60,55 @@ ACI_COLS = [
 TEST_SIZE        = 0.20
 VALIDATION_SIZE  = 0.10
 
-# ── ACI Benchmark Targets ────────────────────────────────────
-# Layer 1: Beat ACI 318-19 with statistical significance
+# ── Benchmark Targets ────────────────────────────────────────
 ACI_R2_BASELINE  = 0.50
-L1_TARGET_R2     = 0.85
+L1_TARGET_R2     = 0.85     # Beat ACI 318-19
 L1_LABEL         = "ACI 318-19 Benchmark"
-
-# Layer 2: Beat best published ML model (Zhang et al., 2025)
-L2_TARGET_R2     = 0.970
+L2_TARGET_R2     = 0.970    # Beat Zhang et al. (2025) SOTA
 L2_LABEL         = "Zhang et al. (2025) SOTA"
-
-# Both layers must be broken simultaneously
 BREAK_BOTH       = True
 
-# ── Neural Network (MLP) ─────────────────────────────────────
-NN_HIDDEN_LAYERS  = [64, 32]
-NN_DROPOUT        = 0.2
-NN_LEARNING_RATE  = 0.001
-NN_EPOCHS         = 500
+# ── Neural Network (MLP) — UPGRADED ──────────────────────────
+# Deeper architecture + stronger regularisation + early stopping
+NN_HIDDEN_LAYERS  = [256, 128, 64, 32]   # deeper than before [64,32]
+NN_DROPOUT        = 0.3                  # used if torch backend added
+NN_LEARNING_RATE  = 0.0005               # slower = more stable
+NN_EPOCHS         = 1000                 # more headroom
 NN_BATCH_SIZE     = 32
-NN_PATIENCE       = 30
+NN_PATIENCE       = 50                   # early stop patience
+NN_L2_ALPHA       = 5e-4                 # stronger L2 regularisation
+NN_VALIDATION_FRAC= 0.15                 # 15% for early-stop validation
 
 # ── Genetic Algorithm — NSGA-III ─────────────────────────────
-GA_POPULATION_SIZE    = 100
-GA_MAX_GENERATIONS    = 500
-GA_CONSISTENCY_WINDOW = 30
-GA_ELITE_SIZE         = 10
-GA_CROSSOVER_RATE     = 0.90
-GA_MUTATION_RATE      = 0.10
-GA_MAX_RUNS           = 10
+# Smaller pop/gen for Phase-2 speed; GA role is hyperparameter search
+GA_POPULATION_SIZE    = 50     # was 100 — halved for speed
+GA_MAX_GENERATIONS    = 100    # was 500 — enough to converge
+GA_CONSISTENCY_WINDOW = 20     # was 30
+GA_ELITE_SIZE         = 5      # was 10
+GA_CROSSOVER_RATE     = 0.85
+GA_MUTATION_RATE      = 0.15   # slightly higher for diversity
+GA_MAX_RUNS           = 5      # was 10
 GA_N_OBJECTIVES       = 3
 GA_N_PARTITIONS       = 12
 
-# Chromosome gene bounds
+# Chromosome gene bounds (what GA optimises)
 GENE_BOUNDS = {
     "Width (mm)"                              : (100, 350),
     "Depth (mm)"                              : (100, 500),
     "fy Longitudinal Bars (Tensile), (MPa) "  : (226, 650),
     "f'c (MPa)"                               : (20,  80),
-    "Mass Loss (Tensile bars), ηm (%)"        : (0,   64),
+    "Mass Loss (Tensile bars), \u03b7m (%)"   : (0,   64),
 }
 
-# ── Fitness Function Weights ──────────────────────────────────
-W1 = 0.50   # R² accuracy
-W2 = 0.30   # ACI improvement  (Mpred/MACI → 1.0)
-W3 = 0.20   # Physics penalty
+# ── Fitness Function Weights ─────────────────────────────────
+W1 = 0.60   # R² accuracy        (increased — main objective)
+W2 = 0.25   # ACI improvement
+W3 = 0.15   # Physics penalty    (reduced — less restrictive)
 
 # ── PySR Symbolic Regression ─────────────────────────────────
-PYSR_NITERATIONS   = 100
-PYSR_MAXSIZE       = 20
-PYSR_POPULATIONS   = 30
+PYSR_NITERATIONS   = 200
+PYSR_MAXSIZE       = 25
+PYSR_POPULATIONS   = 40
 PYSR_BINARY_OPS    = ["+", "-", "*", "/", "^"]
 PYSR_UNARY_OPS     = ["sqrt", "log", "exp"]
 PYSR_OUTPUT_FILE   = EQ_DIR / "best_equation.txt"
@@ -129,17 +124,17 @@ BOOTSTRAP_N        = 1000
 WILCOXON_ALPHA     = 0.05
 
 # ── PDF Report ───────────────────────────────────────────────
-REPORT_TITLE       = "Corrosion RC Beam Optimizer — Scientific Report"
+REPORT_TITLE       = "Corrosion RC Beam Optimizer \u2014 Scientific Report"
 REPORT_FILE        = RESULTS_DIR / "Final_Report.pdf"
-REPORT_AUTHOR      = "PhD Research — Corrosion RC Beam Optimization"
+REPORT_AUTHOR      = "PhD Research \u2014 Corrosion RC Beam Optimization"
 LOG_FILE           = LOG_DIR / "run_log.txt"
 
 # ── Streamlit App ────────────────────────────────────────────
 APP_TITLE          = "Corrosion RC Beam Optimizer"
-APP_ICON           = "🏗️"
+APP_ICON           = "\U0001f3d7\ufe0f"
 APP_LAYOUT         = "wide"
 
-# ── Saved Model Paths ─────────────────────────────────────────
+# ── Saved Model Paths ────────────────────────────────────────
 MODEL_MLP_PKL      = MODELS_DIR / "best_mlp.pkl"
 MODEL_MLP_PT       = MODELS_DIR / "best_mlp.pt"
 MODEL_GA_PKL       = MODELS_DIR / "best_ga_model.pkl"
