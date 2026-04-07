@@ -3,7 +3,7 @@
 # Corrosion RC Beam Optimizer — Interactive Streamlit UI
 #
 # Tabs:
-#   1. 🏗️  Predict    ─ single beam R(%) prediction
+#   1. 🏗️  Predict    ─ single beam Mmax (kN·m) prediction
 #   2. 🧬  GA Run     ─ live NSGA-III optimisation dashboard
 #   3. 📊  Results    ─ model metrics & benchmark comparison
 #   4. 🤖  SHAP       ─ feature importance viewer
@@ -127,7 +127,7 @@ def _sidebar():
     st.sidebar.markdown(f"## {APP_ICON} {APP_TITLE}")
     st.sidebar.markdown(
         "PhD Research Pipeline — Neural Network × NSGA-III\n"
-        "Predicts Predicted Mmax (kN·m) of corroded RC beams."
+        "Predicts **Mmax (kN·m)** of corroded RC beams."
     )
     st.sidebar.markdown("---")
 
@@ -156,12 +156,12 @@ def _sidebar():
 
 def _tab_predict():
     st.markdown(
-        '<p class="main-header">🏗️ Beam R(%) Predictor</p>',
+        '<p class="main-header">🏗️ Beam Mmax (kN·m) Predictor</p>',
         unsafe_allow_html=True,
     )
     st.markdown(
         "Enter your corroded RC beam parameters below. "
-        "The model predicts the <b>Residual Flexural Capacity R(%)</b>.",
+        "The model predicts the <b>Maximum Flexural Capacity Mmax (kN·m)</b>.",
         unsafe_allow_html=True,
     )
 
@@ -192,7 +192,7 @@ def _tab_predict():
 
     with col3:
         st.markdown("**Concrete & Corrosion**")
-        fc       = st.number_input("f’c (MPa)",        20,  80, 32, step=1)
+        fc       = st.number_input("f'c (MPa)",        20,  80, 32, step=1)
         wc       = st.number_input("W/C Ratio",        0.30, 0.70, 0.45, step=0.01)
         eta_m    = st.number_input("ηm — Mass Loss (%)", 0.0, 64.0, 10.0, step=0.5)
         s_stirr  = st.number_input("Stirrup Spacing (mm)", 50, 300, 150, step=10)
@@ -201,8 +201,33 @@ def _tab_predict():
         shear_x  = st.number_input("Shear Span x (mm)",   100, 2000, 800, step=50)
 
     st.markdown("---")
-    if st.button("🔍  Predict R(%)", type="primary", use_container_width=True):
-        # Build input vector in the exact FEATURE_COLS order
+
+    # ── Categorical inputs (shown as selectboxes) ─────────────
+    st.markdown("**Bar & Test Configuration**")
+    cc1, cc2, cc3 = st.columns(3)
+    with cc1:
+        bar_type = st.selectbox(
+            "Longitudinal Bar Type",
+            options=["Deformed (D)", "Plain (P)"],
+            index=0,
+        )
+    with cc2:
+        test_type = st.selectbox(
+            "Test Configuration",
+            options=["SS_FPB_MONO", "SS_TPB", "Other"],
+            index=0,
+        )
+    with cc3:
+        corr_method = st.selectbox(
+            "Corrosion Method",
+            options=["Impressed Current (IC)", "Accelerated (AC)", "Natural (C)"],
+            index=0,
+        )
+
+    st.markdown("---")
+    if st.button("🔍  Predict Mmax (kN·m)", type="primary", use_container_width=True):
+
+        # ── 15 numeric features ───────────────────────────────
         input_dict = {
             "Width (mm)"                                     : b,
             "Depth (mm)"                                     : d,
@@ -220,28 +245,39 @@ def _tab_predict():
             "Mass Loss (Tensile bars), \u03b7m (%)"           : eta_m,
             "Shear Span, x (mm)"                             : shear_x,
         }
-        # Engineered features
+
+        # ── 3 engineered features ─────────────────────────────
         input_dict["corr_severity_idx"] = eta_m * (fy / max(fc, 1))
         input_dict["d_b_ratio"]         = d / max(b, 1)
         input_dict["eta_d_interaction"] = eta_m * d
-                
-        # Add categorical features with default values (most common in dataset)
-        input_dict["Longitudinal Bar Type_D"] = 1  # Deformed
-        input_dict["Longitudinal Bar Type_P"] = 0
-        input_dict["Test Type and Configuration_SS_FPB_MONO"] = 1  # Most common
-        input_dict["Test Type and Configuration_SS_TPB"] = 0
-        input_dict["Corrosion Method_IC"] = 1  # Impressed current (most common)
-        input_dict["Corrosion Method_AC"] = 0
-        input_dict["Corrosion Method_C"] = 0
 
-        # Align with training columns
+        # ── 5 one-hot categorical features ────────────────────
+        input_dict["Longitudinal Bar Type_D"] = 1 if "D" in bar_type else 0
+        input_dict["Longitudinal Bar Type_P"] = 1 if "P" in bar_type else 0
+
+        input_dict["Test Type and Configuration_SS_FPB_MONO"] = 1 if test_type == "SS_FPB_MONO" else 0
+        input_dict["Test Type and Configuration_SS_TPB"]      = 1 if test_type == "SS_TPB"      else 0
+
+        input_dict["Corrosion Method_IC"] = 1 if "IC" in corr_method else 0
+        input_dict["Corrosion Method_AC"] = 1 if "AC" in corr_method else 0
+        input_dict["Corrosion Method_C"]  = 1 if corr_method == "Natural (C)" else 0
+
+        # ── Build ordered feature vector (23 columns) ─────────
+        model_cols = (
+            FEATURE_COLS
+            + ["corr_severity_idx", "d_b_ratio", "eta_d_interaction"]
+            + [
+                "Longitudinal Bar Type_D",
+                "Longitudinal Bar Type_P",
+                "Test Type and Configuration_SS_FPB_MONO",
+                "Test Type and Configuration_SS_TPB",
+                "Corrosion Method_IC",
+                "Corrosion Method_AC",
+                "Corrosion Method_C",
+            ]
+        )
+
         try:
-            model_cols = (
-                FEATURE_COLS +
-                ["corr_severity_idx", "d_b_ratio", "eta_d_interaction"] + 
-                ["Longitudinal Bar Type_D",                 "Test Type and Configuration_SS_FPB_MONO", "Test Type and Configuration_SS_TPB",
-                 "Test Type and Configuration_SS_TPB",            )
-                             "Corrosion Method_IC", "Corrosion Method_AC", "Corrosion Method_C"]
             row = np.array(
                 [input_dict.get(c, 0.0) for c in model_cols],
                 dtype=float
@@ -253,69 +289,69 @@ def _tab_predict():
                 row_sc = row
 
             y_pred_sc = model.predict(row_sc)
-            r_pct     = (
+            mmax_pred = (
                 scaler_y.inverse_transform(y_pred_sc.reshape(-1, 1)).ravel()[0]
                 if scaler_y else float(y_pred_sc[0])
             )
 
-            # ACI benchmark prediction
+            # ── ACI benchmark prediction ───────────────────────
             from aci_calculator import aci_moment_capacity
-            mn = aci_moment_capacity(
+            mn_aci = aci_moment_capacity(
                 b=b, d=d, n_bars=n_bars, db_mm=db,
                 fy=fy, fc=fc, eta_m=eta_m,
             )
 
+            # ── Display metrics ────────────────────────────────
             col_r, col_m, col_c = st.columns(3)
             col_r.metric(
-                label="📊 Predicted R(%)",
-                value=f"{r_pct:.1f} %",
-                delta=(
-                    f"{r_pct - 100:.1f}% vs Control"
-                    if r_pct != 100 else ""
-                ),
+                label="📊 Predicted Mmax (kN·m)",
+                value=f"{mmax_pred:.2f} kN·m",
+                delta=f"{mmax_pred - mn_aci:+.2f} vs ACI",
             )
             col_m.metric(
                 label="📏 ACI Mn (kN·m)",
-                value=f"{mn:.2f} kN·m",
+                value=f"{mn_aci:.2f} kN·m",
             )
             col_c.metric(
                 label="🧠 Corrosion Severity Index",
                 value=f"{input_dict['corr_severity_idx']:.2f}",
             )
 
-            # Gauge chart
+            # ── Gauge chart ────────────────────────────────────
             fig = go.Figure(go.Indicator(
                 mode  = "gauge+number+delta",
-                value = round(r_pct, 1),
-                delta = {"reference": 100, "valueformat": ".1f"},
+                value = round(mmax_pred, 2),
+                delta = {"reference": mn_aci, "valueformat": ".2f"},
                 title = {"text": "Predicted Mmax (kN·m)"},
                 gauge = {
-                    "axis"  : {"range": [0, 130]},
+                    "axis"  : {"range": [0, max(mmax_pred * 1.5, mn_aci * 1.5, 50)]},
                     "bar"   : {"color": "#1A3A5C"},
                     "steps" : [
-                        {"range": [0,   50], "color": "#FFCDD2"},
-                        {"range": [50,  80], "color": "#FFF9C4"},
-                        {"range": [80, 130], "color": "#C8E6C9"},
+                        {"range": [0,   mn_aci * 0.5], "color": "#FFCDD2"},
+                        {"range": [mn_aci * 0.5, mn_aci], "color": "#FFF9C4"},
+                        {"range": [mn_aci, mn_aci * 1.5], "color": "#C8E6C9"},
                     ],
                     "threshold": {
-                        "line" : {"color": "red", "width": 3},
-                        "value": 100,
+                        "line" : {"color": "orange", "width": 3},
+                        "value": mn_aci,
                     },
                 },
             ))
-            fig.update_layout(height=320, margin=dict(t=30,b=10,l=20,r=20))
+            fig.update_layout(height=320, margin=dict(t=30, b=10, l=20, r=20))
             st.plotly_chart(fig, use_container_width=True)
 
-            # Interpretation
-            if r_pct >= 90:
-                st.success(f"✅ Beam retains {r_pct:.1f}% of original capacity — Low risk.")
-            elif r_pct >= 60:
-                st.warning(f"⚠️ Beam retains {r_pct:.1f}% — Moderate corrosion damage.")
+            # ── Interpretation ─────────────────────────────────
+            ratio = mmax_pred / max(mn_aci, 1)
+            if ratio >= 0.90:
+                st.success(f"✅ Predicted Mmax ({mmax_pred:.2f} kN·m) is close to ACI estimate — Low corrosion impact.")
+            elif ratio >= 0.60:
+                st.warning(f"⚠️ Predicted Mmax ({mmax_pred:.2f} kN·m) is significantly below ACI — Moderate damage.")
             else:
-                st.error(f"❌ Beam retains only {r_pct:.1f}% — Severe damage. Inspection required.")
+                st.error(f"❌ Predicted Mmax ({mmax_pred:.2f} kN·m) is far below ACI — Severe corrosion damage. Inspection required.")
 
         except Exception as e:
             st.error(f"Prediction error: {e}")
+            st.info(f"Debug — feature vector length: {len(model_cols)} | Expected by model: check model_cols list above.")
 
 
 # ============================================================
@@ -361,10 +397,7 @@ def _tab_ga_dashboard():
 
     st.markdown("---")
 
-    # Fitness progression across runs
-    runs  = [e["run"]     for e in hof]
-    fitns = [e["fitness"] for e in hof]
-    r2s   = [e["metrics"].get("R2", 0) for e in hof]
+    r2s = [e["metrics"].get("R2", 0) for e in hof]
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
@@ -384,7 +417,6 @@ def _tab_ga_dashboard():
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # Hall of Fame table
     st.markdown("### Hall of Fame")
     df_hof = pd.DataFrame([
         {
@@ -412,7 +444,6 @@ def _tab_results():
         unsafe_allow_html=True,
     )
 
-    # Load saved metrics
     mlp_m  = _load_json(MODELS_DIR / "mlp_metrics.json")
     aci_m  = _load_json(MODELS_DIR / "aci_benchmark_metrics.json")
 
@@ -420,7 +451,6 @@ def _tab_results():
         st.info("No results found. Run the pipeline first.")
         return
 
-    # Side-by-side comparison
     col1, col2 = st.columns(2)
 
     with col1:
@@ -444,13 +474,12 @@ def _tab_results():
             l1 = t.get("L1_broken", False)
             l2 = t.get("L2_broken", False)
             st.markdown(
-                f"**L1 (ACI):** {'\u2705' if l1 else '\u274c'}    "
+                f"**L1 (ACI):** {'\u2705' if l1 else '\u274c'}    "
                 f"**L2 (SOTA):** {'\u2705' if l2 else '\u274c'}"
             )
 
     st.markdown("---")
 
-    # K-Fold CV
     if mlp_m and "cv" in mlp_m:
         st.markdown("### 10-Fold Cross-Validation")
         cv = mlp_m["cv"]
@@ -459,7 +488,6 @@ def _tab_results():
         c2.metric("CV R\u00b2 Std",  cv.get("cv_R2_std",    "—"))
         c3.metric("CV RMSE Mean", cv.get("cv_RMSE_mean", "—"))
 
-    # Radar chart — model vs ACI
     if mlp_m and aci_m:
         st.markdown("### 📍 Performance Radar")
         categories = ["R\u00b2", "1-MAPE/100", "1-RMSE/50"]
@@ -502,9 +530,9 @@ def _tab_shap():
         unsafe_allow_html=True,
     )
 
-    bar_path     = FIGURES_DIR / "shap_importance.png"
-    beeswarm_path= FIGURES_DIR / "shap_beeswarm.png"
-    top5_path    = MODELS_DIR  / "top5_shap_features.json"
+    bar_path      = FIGURES_DIR / "shap_importance.png"
+    beeswarm_path = FIGURES_DIR / "shap_beeswarm.png"
+    top5_path     = MODELS_DIR  / "top5_shap_features.json"
 
     if top5_path.exists():
         top5 = _load_json(top5_path)
@@ -557,7 +585,7 @@ def _tab_equation():
     with open(txt_path) as f:
         eq_text = f.read()
 
-    st.markdown("### Discovered Equation (plain)")
+    st.markdown("### Best Discovered Equation (plain text)")
     st.code(eq_text, language="python")
 
     if latex_path.exists():
@@ -566,7 +594,7 @@ def _tab_equation():
         st.markdown("### LaTeX Format")
         clean = eq_latex.replace("% ", "").strip()
         for line in clean.split("\n"):
-            if line.startswith("R"):
+            if line.startswith("M") or line.startswith("R"):
                 st.latex(line)
 
     if json_path.exists():
@@ -578,15 +606,29 @@ def _tab_equation():
         c2.metric("RMSE", m.get("RMSE", "—"))
         c3.metric("MAPE", f"{m.get('MAPE', '?')} %")
 
-        sts = [
+        for label, ok in [
             ("🏅 L1 (ACI) ",   m.get("L1_broken", False)),
             ("🏆 L2 (SOTA)", m.get("L2_broken", False)),
-        ]
-        for label, ok in sts:
+        ]:
             if ok:
                 st.success(f"{label}: Broken ✅")
             else:
                 st.warning(f"{label}: Not yet broken")
+
+        # Show all equations table
+        all_eqs = eq_data.get("all_equations", [])
+        if all_eqs:
+            st.markdown("### All PySR Equations (Hall of Fame)")
+            df_eq = pd.DataFrame([
+                {
+                    "Complexity": e.get("complexity"),
+                    "Loss":       round(e.get("loss", 0), 4),
+                    "Score":      round(e.get("score", 0), 4),
+                    "Equation":   e.get("sympy_format", e.get("equation", "")),
+                }
+                for e in all_eqs
+            ])
+            st.dataframe(df_eq, use_container_width=True, hide_index=True)
 
 
 # ============================================================
@@ -619,7 +661,6 @@ def _tab_report():
             "Run `python src/main.py` to generate it."
         )
 
-    # Regenerate button
     st.markdown("---")
     if st.button("🔄 Regenerate Report Now", use_container_width=True):
         with st.spinner("Building PDF — please wait ..."):
