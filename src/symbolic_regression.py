@@ -102,14 +102,13 @@ def build_pysr_model() -> "PySRRegressor":
         populations      = PYSR_POPULATIONS,
         binary_operators = PYSR_BINARY_OPS,
         unary_operators  = PYSR_UNARY_OPS,
-        model_selection  = "best",        # best complexity-accuracy trade-off
-        loss             = "loss(x, y) = (x - y)^2",   # MSE
+        model_selection  = "best",
+        elementwise_loss = "loss(x, y) = (x - y)^2",
         verbosity        = 1,
         random_state     = RANDOM_STATE,
-        deterministic    = True,
+        deterministic    = False,
         parallelism      = "multithreading",
-        turbo            = True,          # Julia-level speed optimisation
-        output_jax_format= False,
+        turbo            = True,
         extra_sympy_mappings={},
     )
     logger.info("PySR model configured.")
