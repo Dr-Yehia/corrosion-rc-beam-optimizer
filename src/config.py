@@ -1,8 +1,8 @@
 # ============================================================
 # src/config.py  —  Corrosion RC Beam Optimizer
 # ============================================================
-# v4 — Target changed to Mmax,exp (kNm) to match Zhang et al.
-#       Added CatBoost + Optuna configuration
+# v5 — Dead variables removed (NN_DROPOUT, VALIDATION_SIZE, PHI_FLEXURE)
+#       Values now match README exactly (W1/W2/W3, GA params)
 # ============================================================
 from pathlib import Path
 
@@ -12,7 +12,7 @@ RESULTS_DIR = ROOT_DIR / "final_results"
 MODELS_DIR  = RESULTS_DIR / "models"
 FIGURES_DIR = RESULTS_DIR / "figures"
 EQ_DIR      = RESULTS_DIR / "equations"
-LOG_DIR     = ROOT_DIR / "results" / "logs"
+LOG_DIR     = RESULTS_DIR / "logs"   # FIX: was ROOT_DIR/"results"/"logs" — now consistent with RESULTS_DIR
 
 for _dir in [MODELS_DIR, FIGURES_DIR, EQ_DIR, LOG_DIR]:
     _dir.mkdir(parents=True, exist_ok=True)
@@ -50,9 +50,9 @@ FEATURE_COLS = [
 
 # ── Categorical features ─────────────────────────────────────
 CAT_COLS = [
-    "Longitudinal Bar Type",          # D / P
-    "Test Type and Configuration",    # SS_FPB_MONO / SS_TPB / ...
-    "Corrosion Method",               # IC / AC / C
+    "Longitudinal Bar Type",
+    "Test Type and Configuration",
+    "Corrosion Method",
 ]
 
 # ── ACI reference columns (for benchmark comparison) ─────────
@@ -67,22 +67,25 @@ ACI_COLS = [
     "Mmax,exp (kNm)",
 ]
 
-TEST_SIZE        = 0.20
-VALIDATION_SIZE  = 0.10
+TEST_SIZE    = 0.20
+# NOTE: VALIDATION_SIZE removed — it was defined but never used in split_data.
+#       If a validation split is needed in the future, add it explicitly there.
 
 # ── Benchmark Targets ────────────────────────────────────────
 # L1: Beat ACI 318-19 (R² ≈ 0.867 on Mmax prediction)
 # L2: Beat Zhang et al. 2025 PSO-CatBoost (R² = 0.972 on Test)
 ACI_R2_BASELINE  = 0.867
-L1_TARGET_R2     = 0.90      # Comfortably beat ACI 318-19
+L1_TARGET_R2     = 0.90
 L1_LABEL         = "ACI 318-19 Benchmark"
-L2_TARGET_R2     = 0.972     # Beat Zhang et al. (2025) SOTA
+L2_TARGET_R2     = 0.972
 L2_LABEL         = "Zhang et al. (2025) SOTA"
 BREAK_BOTH       = True
 
-# ── MLP (kept for GA fitness evaluation — lightweight) ───────
+# ── MLP (lightweight baseline + GA fitness) ──────────────────
+# Architecture matches README: [128, 64, 32]
+# NOTE: NN_DROPOUT removed — MLPRegressor (sklearn) does not support
+#       dropout natively. Use PyTorch-based model if dropout is needed.
 NN_HIDDEN_LAYERS   = [128, 64, 32]
-NN_DROPOUT         = 0.2
 NN_LEARNING_RATE   = 0.001
 NN_EPOCHS          = 500
 NN_BATCH_SIZE      = 32
@@ -112,19 +115,20 @@ GBR_MAX_DEPTH      = 5
 GBR_LEARNING_RATE  = 0.05
 GBR_SUBSAMPLE      = 0.8
 
-# CatBoost (NEW — same algorithm Zhang et al. used)
+# CatBoost — same algorithm as Zhang et al. (2025)
 CAT_ITERATIONS     = 2000
-CAT_DEPTH           = 8
+CAT_DEPTH          = 8
 CAT_LEARNING_RATE  = 0.05
 CAT_L2_REG         = 3.0
 CAT_EARLY_STOP     = 100
 
-# ── Optuna (NEW — automatic hyperparameter tuning) ───────────
-OPTUNA_N_TRIALS    = 100     # number of tuning trials
-OPTUNA_CV_FOLDS    = 5       # CV folds during tuning
-OPTUNA_TIMEOUT     = 600     # max seconds for tuning (10 min)
+# ── Optuna ───────────────────────────────────────────────────
+OPTUNA_N_TRIALS    = 100
+OPTUNA_CV_FOLDS    = 5
+OPTUNA_TIMEOUT     = 600
 
-# ── GA — NSGA-III (optimises ensemble hyperparams) ───────────
+# ── GA — NSGA-III ────────────────────────────────────────────
+# These values match the README exactly.
 GA_POPULATION_SIZE    = 40
 GA_MAX_GENERATIONS    = 80
 GA_CONSISTENCY_WINDOW = 15
@@ -135,6 +139,14 @@ GA_MAX_RUNS           = 3
 GA_N_OBJECTIVES       = 3
 GA_N_PARTITIONS       = 12
 
+# Objective weights — W1+W2+W3 = 1.0
+# FIX (v5): values were inconsistent with README in v4.
+# Correct values: W1=0.60, W2=0.25, W3=0.15 (as actually used and validated).
+# README updated to reflect these values.
+W1 = 0.60   # R²_test weight
+W2 = 0.25   # ACI improvement weight
+W3 = 0.15   # Physics penalty weight
+
 GENE_BOUNDS = {
     "Width (mm)"                              : (100, 350),
     "Depth (mm)"                              : (100, 500),
@@ -142,10 +154,6 @@ GENE_BOUNDS = {
     "f'c (MPa)"                               : (20,  80),
     "Mass Loss (Tensile bars), \u03b7m (%)"   : (0,   64),
 }
-
-W1 = 0.60
-W2 = 0.25
-W3 = 0.15
 
 # ── PySR ─────────────────────────────────────────────────────
 PYSR_NITERATIONS   = 200
@@ -171,6 +179,10 @@ LOG_FILE           = LOG_DIR / "run_log.txt"
 APP_TITLE          = "Corrosion RC Beam Optimizer"
 APP_ICON           = "\U0001f3d7\ufe0f"
 APP_LAYOUT         = "wide"
+
+# NOTE: PHI_FLEXURE = 0.90 removed — aci_calculator.py computes
+#       nominal Mn (no phi factor) for direct comparison with
+#       experimental results. Removing avoids confusion.
 
 MODEL_MLP_PKL      = MODELS_DIR / "best_mlp.pkl"
 MODEL_MLP_PT       = MODELS_DIR / "best_mlp.pt"

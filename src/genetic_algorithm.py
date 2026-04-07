@@ -4,9 +4,11 @@
 # NSGA-III Multi-Objective Genetic Algorithm
 # Objectives : maximise R², minimise RMSE, maximise CV-R²
 # Fitness    : W1·R² + W2·(Mpred/MACI→1) − W3·penalty
-# Strategy   : Elitism (top-10) + Crossover + Mutation
+# Strategy   : Elitism (top-5) + Crossover + Mutation
 # Stopping   : Benchmark broken (L1+L2) OR convergence → restart
 #              Max restarts = GA_MAX_RUNS
+# v2 — FIX: nsga3_selection rank sort sign corrected (+rank not -rank)
+#      FIX: CV data leakage — use X_train only (not X_train+X_test)
 # ============================================================
 
 import numpy as np
@@ -32,7 +34,6 @@ from config import (
 )
 from neural_network import build_mlp, train_mlp, evaluate_model, predict
 
-# Optional: pymoo NSGA-III reference points
 try:
     from pymoo.util.ref_dirs import get_reference_directions
     PYMOO_AVAILABLE = True
@@ -51,11 +52,11 @@ np.random.seed(RANDOM_STATE)
 
 class Individual:
     """
-    Represents one chromosome in the population.
+    One chromosome in the population.
     genes   : dict  {feature_name: value}
     fitness : float (higher = better)
     metrics : dict  {R2, RMSE, CV_R2, penalty}
-    _model  : trained MLPRegressor (cached after fitness evaluation)
+    _model  : trained MLPRegressor (cached)
     """
     __slots__ = ["genes", "fitness", "metrics", "rank", "crowding", "_model"]
 
@@ -77,7 +78,6 @@ class Individual:
 # ============================================================
 
 def _random_genes() -> dict:
-    """Sample a random chromosome within GENE_BOUNDS."""
     genes = {}
     for feature, (lo, hi) in GENE_BOUNDS.items():
         genes[feature] = float(np.random.uniform(lo, hi))
@@ -85,10 +85,6 @@ def _random_genes() -> dict:
 
 
 def initialise_population(size: int = GA_POPULATION_SIZE) -> list:
-    """
-    Create a fresh random population of `size` individuals.
-    Called at the start of every new Run.
-    """
     population = [Individual(_random_genes()) for _ in range(size)]
     logger.info(f"Population initialised — {size} random individuals.")
     return population
@@ -109,16 +105,16 @@ def fitness_function(
     aci_mae:  float,
 ) -> float:
     """
-    Evaluate one individual’s fitness.
-
     FF = W1 · R²_test
-       + W2 · clamp(Mpred/MACI_ratio, 0, 2) / 2     ← ACI improvement
-       − W3 · physics_penalty                         ← constraint violation
+       + W2 · clamp(RMSE_improvement, 0, 1)
+       − W3 · physics_penalty
 
     Physics penalties:
-        +0.20  if R² < 0  (inverted predictions)
+        +0.20  if R² < 0
         +0.10  if RMSE > 2 × ACI_RMSE
-        +0.05  if any predicted R(%) outside [0, 130]
+        +0.05  if any predicted Mmax outside [0, 135 kNm]
+
+    CV note: cross_val_score uses X_train ONLY to avoid data leakage.
     """
     model = build_mlp()
     try:
@@ -138,13 +134,15 @@ def fitness_function(
     r2   = r2_score(y_true, y_pred)
     rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
 
-    # CV generalisation score (3-fold fast)
+    # FIX (v2): CV generalisation score — use X_train ONLY.
+    # Previous version used np.vstack([X_train, X_test]) which caused
+    # data leakage: test samples could appear in CV training folds.
     from sklearn.model_selection import cross_val_score
     cv_model  = build_mlp()
-    X_all     = np.vstack([X_train, X_test])
-    y_all     = np.concatenate([y_train, y_test])
-    cv_scores = cross_val_score(cv_model, X_all, y_all, cv=3, scoring="r2", n_jobs=-1)
-    cv_r2     = float(np.mean(cv_scores))
+    cv_scores = cross_val_score(
+        cv_model, X_train, y_train, cv=3, scoring="r2", n_jobs=-1
+    )
+    cv_r2 = float(np.mean(cv_scores))
 
     # ACI improvement term
     aci_improvement = min(rmse / max(aci_rmse, 1e-6), 2.0)
@@ -159,7 +157,6 @@ def fitness_function(
     if np.any(y_pred < 0) or np.any(y_pred > 135):
         penalty += 0.05
 
-    # Composite fitness
     fitness = W1 * max(r2, 0.0) + W2 * aci_score - W3 * penalty
 
     individual.fitness = fitness
@@ -249,6 +246,12 @@ def crowding_distance(population: list, front: list) -> None:
 
 
 def nsga3_selection(population: list, n_select: int) -> list:
+    """
+    FIX (v2): sort key was (-rank, -crowding).
+    Correct NSGA-III rule: lower rank = better (Front 1 beats Front 2).
+    Ties in rank are broken by HIGHER crowding distance.
+    Corrected sort key: (+rank, -crowding).
+    """
     fronts   = non_dominated_sort(population)
     selected = []
     for front in fronts:
@@ -257,7 +260,8 @@ def nsga3_selection(population: list, n_select: int) -> list:
             selected.extend(front)
         else:
             remaining = n_select - len(selected)
-            front.sort(key=lambda i: (-population[i].rank, -population[i].crowding))
+            # FIXED: rank ascending (+), crowding descending (-)
+            front.sort(key=lambda i: (population[i].rank, -population[i].crowding))
             selected.extend(front[:remaining])
             break
     return [population[i] for i in selected]
@@ -341,14 +345,14 @@ def _update_hall_of_fame(hof: list, best: Individual,
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     with open(HALL_OF_FAME_PATH, "w") as f:
         json.dump(hof, f, indent=2)
-    logger.info(f"Hall of Fame updated — best overall fitness: "
+    logger.info(f"Hall of Fame updated — best fitness: "
                 f"{hof[0]['fitness']:.4f} "
                 f"(R²={hof[0]['metrics'].get('R2', 0):.4f})")
     return hof
 
 
 # ============================================================
-# 7. LIVE LOG PANEL
+# 7. LIVE LOG
 # ============================================================
 
 def _log_generation(run_id, gen, best, l1_broken, l2_broken, elapsed) -> str:
@@ -387,7 +391,6 @@ def run_nsga3(
 
     hall_of_fame   = []
     global_best    = None
-    success        = False
     t_start_global = time.time()
 
     logger.info("=" * 60)
@@ -412,7 +415,6 @@ def run_nsga3(
 
         for gen in range(1, GA_MAX_GENERATIONS + 1):
 
-            # Evaluate fitness
             for ind in population:
                 if ind.fitness == -np.inf:
                     fitness_function(
@@ -420,7 +422,6 @@ def run_nsga3(
                         scaler_y, aci_rmse, aci_mae
                     )
 
-            # Best this generation
             population.sort(key=lambda x: x.fitness, reverse=True)
             best_this_gen = population[0]
 
@@ -429,19 +430,16 @@ def run_nsga3(
 
             fitness_history.append(best_this_gen.fitness)
 
-            # Check benchmark
             r2_val    = best_this_gen.metrics.get("R2", 0.0)
             l1_broken = r2_val >= L1_TARGET_R2
             l2_broken = r2_val >= L2_TARGET_R2
 
-            # Live log
             elapsed = time.time() - t_run_start
             if gen == 1 or gen % 10 == 0 or l1_broken or l2_broken:
                 line = _log_generation(run_id, gen, best_this_gen,
                                        l1_broken, l2_broken, elapsed)
                 log_lines.append(line)
 
-            # STOP: both benchmarks broken
             if BREAK_BOTH and l1_broken and l2_broken:
                 logger.success(
                     f"\n{'*'*60}\n BENCHMARK BROKEN \u2713\u2713\n"
@@ -470,14 +468,10 @@ def run_nsga3(
                     "total_runs"     : run_id,
                 }
 
-            # NSGA-III selection
             n_survive = GA_POPULATION_SIZE // 2
             survivors = nsga3_selection(population, n_survive)
+            elites    = population[:GA_ELITE_SIZE]
 
-            # Elitism
-            elites = population[:GA_ELITE_SIZE]
-
-            # Crossover + Mutation
             n_offspring = GA_POPULATION_SIZE - GA_ELITE_SIZE
             offspring   = produce_offspring(
                 survivors, n_offspring,
@@ -489,11 +483,9 @@ def run_nsga3(
 
             population = elites + offspring
 
-            # Convergence check
             if _is_converged(fitness_history, GA_CONSISTENCY_WINDOW):
                 logger.info(
-                    f"[Run {run_id} | Gen {gen}] Convergence detected "
-                    f"({GA_CONSISTENCY_WINDOW} gens no improvement). "
+                    f"[Run {run_id} | Gen {gen}] Convergence detected. "
                     f"Best R²={r2_val:.4f}. Starting new run ..."
                 )
                 log_lines.append(
@@ -502,7 +494,6 @@ def run_nsga3(
                 )
                 break
 
-        # End of run
         if run_best is not None:
             hall_of_fame = _update_hall_of_fame(
                 hall_of_fame, run_best, run_id, len(fitness_history)
@@ -510,7 +501,6 @@ def run_nsga3(
             if global_best is None or run_best.fitness > global_best.fitness:
                 global_best = deepcopy(run_best)
 
-    # All runs exhausted
     best_r2 = global_best.metrics.get("R2", 0.0) if global_best else 0.0
     msg = (
         f"\n{'!'*60}\n"
@@ -547,10 +537,10 @@ if __name__ == "__main__":
     from data_preprocessing import run_preprocessing, load_raw_data as _load, clean_data as _clean
     from aci_calculator import compute_aci_predictions, evaluate_aci_benchmark
 
-    data       = run_preprocessing(save_clean=True)
-    df_raw     = _load()
-    df_clean   = _clean(df_raw)
-    df_aci     = compute_aci_predictions(df_clean)
+    data        = run_preprocessing(save_clean=True)
+    df_raw      = _load()
+    df_clean    = _clean(df_raw)
+    df_aci      = compute_aci_predictions(df_clean)
     aci_metrics = evaluate_aci_benchmark(df_aci)
 
     log_lines = []
@@ -562,7 +552,7 @@ if __name__ == "__main__":
         log_lines = log_lines,
     )
 
-    print(f"\nSuccess : {results['success']}")
+    print(f"\nSuccess    : {results['success']}")
     if results['best_individual']:
-        print(f"Best R² : {results['best_individual'].metrics.get('R2', 0):.4f}")
+        print(f"Best R²    : {results['best_individual'].metrics.get('R2', 0):.4f}")
     print(f"Total runs : {results['total_runs']}")
