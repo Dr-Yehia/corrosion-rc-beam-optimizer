@@ -57,7 +57,7 @@ def _configure_logging() -> None:
         format  = "{time:YYYY-MM-DD HH:mm:ss} | {level:<8} | {message}",
         level   = "DEBUG",
         rotation= "10 MB",
-        retention="5 files",
+        retention= 5,
         encoding= "utf-8",
     )
     logger.info(f"Logging configured → {LOG_FILE}")
