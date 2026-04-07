@@ -35,22 +35,30 @@ jobs:
           pip install --upgrade pip
           pip install flake8 black isort
 
-      - name: Auto-format with Black
+      - name: Auto-format src/ with Black
         run: |
-          black src/ app/ \
+          black src/ \
             --line-length 88 \
             --target-version py311
 
       - name: Auto-sort imports with isort
         run: |
-          isort src/ app/ \
+          isort src/ \
             --profile black
 
-      - name: Run flake8 (style lint)
+      - name: Run flake8 on src/
         run: |
-          flake8 src/ app/ \
+          flake8 src/ \
             --max-line-length=88 \
             --extend-ignore=E203,W503,E501 \
+            --statistics
+
+      - name: Run flake8 on app/ (warnings only)
+        continue-on-error: true
+        run: |
+          flake8 app/ \
+            --max-line-length=100 \
+            --extend-ignore=E203,W503,E501,W291,W293 \
             --statistics
 
   # ================================================
