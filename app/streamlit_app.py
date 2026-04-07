@@ -521,7 +521,7 @@ def _tab_ensemble():
         return
 
     rows = []
-    
+
     # Optional: Read MLP first
     if mlp and "test" in mlp:
         rows.append({
@@ -888,9 +888,9 @@ def _tab_equation():
             rho_v = v.get("rho_t", 1.5); db_v = v.get("d_b", 16)
             b_v = v.get("b", 150); fc_v = v.get("fc", 32)
             
-            # Note: PySR was trained on RAW features, but `d_b` inside PySR actually refers 
+            # Note: PySR was trained on RAW features, but `d_b` inside PySR actually refers
             # to the `d_b_ratio` (d/b) column, not the reinforcement bar diameter (db,t)!
-            # We must map this correctly if the equation uses the variable 'd_b'
+            # We must map this correctly if the equation uses the variable `d_b`
             py_db = d_v / max(b_v, 1)
 
             eid = chosen_eq["id"]
