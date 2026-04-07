@@ -1,0 +1,222 @@
+# ============================================================
+# .github/workflows/ci.yml
+# Corrosion RC Beam Optimizer — Continuous Integration
+# Triggers: push / pull_request on main and develop branches
+#
+# Jobs:
+#   1. lint     ─ flake8 + isort + black (check mode)
+#   2. test     ─ pytest with coverage report
+#   3. pipeline ─ smoke test: phases 0+1 only (no DB needed)
+# ============================================================
+
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+
+  # ════════════════════════════════════════════════
+  # JOB 1 ─ Linting & Code Style
+  # ════════════════════════════════════════════════
+  lint:
+    name: 🔍 Lint & Style Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install lint tools
+        run: |
+          pip install --upgrade pip
+          pip install flake8 black isort
+
+      - name: Run Black (format check)
+        run: |
+          black --check --diff src/ app/ tests/ \
+            --line-length 88 \
+            --target-version py311
+
+      - name: Run isort (import sort check)
+        run: |
+          isort --check-only --diff src/ app/ tests/ \
+            --profile black
+
+      - name: Run flake8 (style lint)
+        run: |
+          flake8 src/ app/ tests/ \
+            --max-line-length=88 \
+            --extend-ignore=E203,W503,E501 \
+            --statistics
+
+  # ════════════════════════════════════════════════
+  # JOB 2 ─ Unit Tests with Coverage
+  # ════════════════════════════════════════════════
+  test:
+    name: ✅ Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install \
+            numpy pandas scipy scikit-learn joblib \
+            loguru pytest pytest-cov
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-fail-under=60 \
+            -v
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        if: success()
+        with:
+          files: coverage.xml
+          flags: unittests
+          fail_ci_if_error: false
+
+  # ════════════════════════════════════════════════
+  # JOB 3 ─ Smoke Test (Preprocessing + ACI only)
+  # ════════════════════════════════════════════════
+  smoke:
+    name: 💨 Smoke Test
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install core dependencies
+        run: |
+          pip install --upgrade pip
+          pip install \
+            numpy pandas scipy scikit-learn joblib loguru
+
+      - name: Generate synthetic test database
+        run: |
+          python - <<'EOF'
+          import numpy as np
+          import pandas as pd
+          from pathlib import Path
+
+          Path("data").mkdir(exist_ok=True)
+          rng = np.random.default_rng(42)
+          n   = 100
+
+          df = pd.DataFrame({
+              "Width (mm)"                                     : rng.integers(100, 350, n),
+              "Depth (mm)"                                     : rng.integers(150, 500, n),
+              "Test Length (mm)"                               : rng.integers(1000, 4000, n),
+              "Bottom Cover to Ctr of Tension Bar (mm)"        : rng.integers(20, 55, n),
+              "# Tensile Bars"                                 : rng.integers(2, 6, n),
+              "Diameter Tensile Bars, db,t (mm)"               : rng.choice([10,12,16,20], n),
+              "Tension Reinforcement Ratio, pten (%)"          : rng.uniform(0.3, 3.0, n),
+              "fy Longitudinal Bars (Tensile), (MPa) "         : rng.uniform(300, 600, n),
+              "f'c (MPa)"                                      : rng.uniform(20, 60, n),
+              "W/C Ratio"                                      : rng.uniform(0.35, 0.65, n),
+              "Stirrup Spacing, s (mm) "                       : rng.integers(75, 250, n),
+              "Stirrup Diameter, ds (mm)"                      : rng.choice([6, 8, 10], n),
+              "fy,s Stirrup Bars"                              : rng.uniform(280, 500, n),
+              "Mass Loss (Tensile bars), \u03b7m (%)"           : rng.uniform(0, 40, n),
+              "Shear Span, x (mm)"                             : rng.integers(200, 1500, n),
+              "Mmax,exp (kNm)"                                 : rng.uniform(10, 150, n),
+              "Residual Capacity, R (%)"                       : rng.uniform(30, 110, n),
+          })
+          df.to_csv("data/Database.csv", index=False)
+          print(f"Synthetic DB: {len(df)} rows")
+          EOF
+
+      - name: Smoke test ─ Preprocessing module
+        run: |
+          python -c "
+          import sys; sys.path.insert(0,'src')
+          from data_preprocessing import run_preprocessing
+          data = run_preprocessing(save_clean=True)
+          assert data['X_train'].shape[0] > 0
+          assert data['X_test'].shape[0]  > 0
+          print('Preprocessing OK ✓')
+          "
+
+      - name: Smoke test ─ ACI Calculator module
+        run: |
+          python -c "
+          import sys; sys.path.insert(0,'src')
+          from data_preprocessing import load_raw_data, clean_data
+          from aci_calculator import compute_aci_predictions, evaluate_aci_benchmark
+          df = clean_data(load_raw_data())
+          df_aci = compute_aci_predictions(df)
+          m = evaluate_aci_benchmark(df_aci)
+          assert 'R2' in m
+          print(f'ACI OK ✓  R2={m[\"R2\"]}')
+          "
+
+      - name: Smoke test ─ Neural Network module
+        run: |
+          python -c "
+          import sys; sys.path.insert(0,'src')
+          from data_preprocessing import run_preprocessing
+          from neural_network import build_mlp, train_mlp, evaluate_model
+          data  = run_preprocessing(save_clean=False)
+          model = build_mlp()
+          model = train_mlp(model, data['X_train'], data['y_train'])
+          m     = evaluate_model(model, data['X_test'], data['y_test'],
+                                 data['scaler_y'], 'Test')
+          assert m['R2'] is not None
+          print(f'MLP OK ✓  R2={m[\"R2\"]}')
+          "
+
+  # ════════════════════════════════════════════════
+  # JOB 4 ─ Status Badge Summary
+  # ════════════════════════════════════════════════
+  summary:
+    name: 🏁 Pipeline Summary
+    runs-on: ubuntu-latest
+    needs: [lint, test, smoke]
+    if: always()
+
+    steps:
+      - name: Report overall status
+        run: |
+          echo "============================"
+          echo " CI Pipeline Complete"
+          echo "============================"
+          echo " lint  : ${{ needs.lint.result }}"
+          echo " test  : ${{ needs.test.result }}"
+          echo " smoke : ${{ needs.smoke.result }}"
+          echo "============================"
