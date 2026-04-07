@@ -224,13 +224,24 @@ def _tab_predict():
         input_dict["corr_severity_idx"] = eta_m * (fy / max(fc, 1))
         input_dict["d_b_ratio"]         = d / max(b, 1)
         input_dict["eta_d_interaction"] = eta_m * d
+                
+        # Add categorical features with default values (most common in dataset)
+        input_dict["Longitudinal Bar Type_D"] = 1  # Deformed
+        input_dict["Longitudinal Bar Type_P"] = 0
+        input_dict["Test Type and Configuration_SS_FPB_MONO"] = 1  # Most common
+        input_dict["Test Type and Configuration_SS_TPB"] = 0
+        input_dict["Corrosion Method_IC"] = 1  # Impressed current (most common)
+        input_dict["Corrosion Method_AC"] = 0
+        input_dict["Corrosion Method_C"] = 0
 
         # Align with training columns
         try:
             model_cols = (
                 FEATURE_COLS +
-                ["corr_severity_idx", "d_b_ratio", "eta_d_interaction"]
-            )
+                ["corr_severity_idx", "d_b_ratio", "eta_d_interaction"] + 
+                ["Longitudinal Bar Type_D",                 "Test Type and Configuration_SS_FPB_MONO", "Test Type and Configuration_SS_TPB",
+                 "Test Type and Configuration_SS_TPB",            )
+                             "Corrosion Method_IC", "Corrosion Method_AC", "Corrosion Method_C"]
             row = np.array(
                 [input_dict.get(c, 0.0) for c in model_cols],
                 dtype=float
