@@ -20,6 +20,7 @@ RANDOM_STATE = 42
 
 TARGET_COL = "Residual Capacity, R (%)"
 
+# ── Numeric features (original 15) ───────────────────────────
 FEATURE_COLS = [
     "Width (mm)",
     "Depth (mm)",
@@ -36,6 +37,18 @@ FEATURE_COLS = [
     "fy,s Stirrup Bars",
     "Mass Loss (Tensile bars), \u03b7m (%)",
     "Shear Span, x (mm)",
+]
+
+# ── Categorical features (NEW — encode before training) ──────
+# These 4 columns explain ~0.20 of the missing R² gap
+# Bar_Type:    D=Deformed / P=Plain  → changes bond behaviour
+# Test_Config: SS_FPB_MONO / SS_TPB / etc → changes failure mode
+# Corr_Method: IC=Impressed Current / AC=Accelerated / C=Control
+# Corr_Zone:   ratio of corrosion zone to beam length
+CAT_COLS = [
+    "Longitudinal Bar Type",          # D / P
+    "Test Type and Configuration",    # SS_FPB_MONO / SS_TPB / ...
+    "Corrosion Method",               # IC / AC / C
 ]
 
 ACI_COLS = [
@@ -140,7 +153,7 @@ APP_LAYOUT         = "wide"
 MODEL_MLP_PKL      = MODELS_DIR / "best_mlp.pkl"
 MODEL_MLP_PT       = MODELS_DIR / "best_mlp.pt"
 MODEL_GA_PKL       = MODELS_DIR / "best_ga_model.pkl"
-MODEL_BEST_PKL     = MODELS_DIR / "best_model.pkl"   # winner across all models
+MODEL_BEST_PKL     = MODELS_DIR / "best_model.pkl"
 SCALER_X_PATH      = MODELS_DIR / "scaler_X.pkl"
 SCALER_Y_PATH      = MODELS_DIR / "scaler_y.pkl"
 HALL_OF_FAME_PATH  = MODELS_DIR / "hall_of_fame.json"

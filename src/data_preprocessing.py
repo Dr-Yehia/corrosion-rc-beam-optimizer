@@ -1,12 +1,13 @@
 # ============================================================
 # src/data_preprocessing.py
 # Corrosion RC Beam Optimizer
-# Full pipeline: load → clean → engineer → scale → split
+# Full pipeline: load → clean → engineer → encode → scale → split
 #
-# Key fixes (v2):
-#   1. Remove extreme outliers  (R < 20% or R > 110%)
-#   2. Log1p-transform ηm       (highly right-skewed)
-#   3. RobustScaler             (robust to remaining outliers)
+# v3 changes:
+#   + Encode 3 categorical features (Bar_Type, Test_Config, Corr_Method)
+#   + Added corr_zone_ratio numeric feature
+#   + Reverted outlier removal (outliers are real data)
+#   + Kept log1p(ηm) and RobustScaler
 # ============================================================
 
 import re
@@ -15,17 +16,17 @@ import numpy as np
 import joblib
 from pathlib import Path
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import RobustScaler
+from sklearn.preprocessing import RobustScaler, LabelEncoder
 from loguru import logger
 
 import sys
 sys.path.append(str(Path(__file__).resolve().parent))
 from config import (
-    DATA_RAW, DATA_CLEAN, FEATURE_COLS, TARGET_COL,
+    DATA_RAW, DATA_CLEAN, FEATURE_COLS, CAT_COLS, TARGET_COL,
     TEST_SIZE, RANDOM_STATE, SCALER_X_PATH, SCALER_Y_PATH
 )
 
-ETA_COL = 'Mass Loss (Tensile bars), ηm (%)'
+ETA_COL = 'Mass Loss (Tensile bars), \u03b7m (%)'
 
 
 # ============================================================
@@ -96,15 +97,20 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     logger.info("Starting data cleaning ...")
     df = df.copy()
 
-    # Select required columns
+    # Select required columns: numeric + categorical + target + ACI extras
     aci_extra     = ['Mmax,exp (kNm)', ETA_COL]
-    required_cols = list(dict.fromkeys(FEATURE_COLS + [TARGET_COL] + aci_extra))
-    available     = [c for c in required_cols if c in df.columns]
-    missing_cols  = set(required_cols) - set(available)
+    cat_available = [c for c in CAT_COLS if c in df.columns]
+    required_cols = list(dict.fromkeys(
+        FEATURE_COLS + cat_available + [TARGET_COL] + aci_extra
+    ))
+    available    = [c for c in required_cols if c in df.columns]
+    missing_cols = set(required_cols) - set(available)
     if missing_cols:
         logger.warning(f"Missing expected columns: {missing_cols}")
     df = df[available].copy()
-    logger.info(f"Columns selected: {df.shape[1]}")
+    logger.info(f"Columns selected: {df.shape[1]} "
+                f"({len(cat_available)} categorical + "
+                f"{len([c for c in FEATURE_COLS if c in available])} numeric)")
 
     # Drop rows with missing target
     before = len(df)
@@ -119,13 +125,20 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
             df[col] = df[col].fillna(med)
             logger.info(f"  Imputed '{col}' ({n_null} nulls) with median = {med:.3f}")
 
-    # ── Physical filters ─────────────────────────────────────
+    # Impute missing categorical features with mode
+    for col in cat_available:
+        n_null = int(df[col].isnull().sum())
+        if n_null > 0:
+            mode_val = df[col].mode()[0]
+            df[col] = df[col].fillna(mode_val)
+            logger.info(f"  Imputed '{col}' ({n_null} nulls) with mode = '{mode_val}'")
+
+    # Physical filters
     if ETA_COL in df.columns:
         before = len(df)
         df = df[(df[ETA_COL] >= 0) & (df[ETA_COL] <= 64)]
-        logger.info(f"Physical filter (ηm 0-64%): removed {before - len(df)} rows.")
+        logger.info(f"Physical filter (\u03b7m 0-64%): removed {before - len(df)} rows.")
 
-    # Standard physical bounds
     before = len(df)
     df = df[(df[TARGET_COL] > 0) & (df[TARGET_COL] <= 130.1)]
     logger.info(f"Physical filter (R 0-130%): removed {before - len(df)} rows.")
@@ -133,15 +146,6 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     for col in ['Width (mm)', 'Depth (mm)']:
         if col in df.columns:
             df = df[df[col] > 0]
-
-    # ── FIX 1: Remove statistical outliers in target ─────────
-    # R < 20% = extreme failure, R > 110% = measurement anomaly
-    # These 11 specimens (~1.4%) disproportionately hurt Test R²
-    before = len(df)
-    df = df[(df[TARGET_COL] >= 20) & (df[TARGET_COL] <= 110)]
-    removed = before - len(df)
-    logger.info(f"Outlier filter (R 20-110%): removed {removed} rows "
-                f"→ {len(df)} specimens remain.")
 
     df = df.reset_index(drop=True)
     logger.info(f"Clean data shape: {df.shape}")
@@ -158,17 +162,16 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     d   = 'Depth (mm)'
     b   = 'Width (mm)'
 
-    # ── FIX 2: Log1p-transform ηm (right-skewed, range 0-64) ─
-    # log1p(0)=0, log1p(64)≈4.17 → near-normal distribution
+    # Log1p-transform ηm (right-skewed)
     if ETA_COL in df.columns:
         df['eta_log'] = np.log1p(df[ETA_COL])
-        logger.info("Applied log1p transform to ηm → 'eta_log'")
+        logger.info("Applied log1p transform to \u03b7m → 'eta_log'")
 
     if all(c in df.columns for c in [ETA_COL, fy, fc, d, b]):
         df['corr_severity_idx'] = df[ETA_COL] * (df[fy] / df[fc])
         df['d_b_ratio']         = df[d]        / df[b]
-        df['eta_d_interaction'] = df['eta_log'] * df[d]   # use log version
-        logger.info('Feature engineering: 4 derived features added (incl. eta_log).')
+        df['eta_d_interaction'] = df['eta_log'] * df[d]
+        logger.info('Numeric feature engineering: 4 derived features added.')
     else:
         miss = [c for c in [ETA_COL, fy, fc, d, b] if c not in df.columns]
         logger.warning(f'Feature engineering skipped — missing: {miss}')
@@ -177,13 +180,40 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ============================================================
-# 5. SCALE  (FIX 3: RobustScaler)
+# 5. ENCODE CATEGORICALS  (NEW)
+# ============================================================
+def encode_categoricals(df: pd.DataFrame, save: bool = True) -> pd.DataFrame:
+    """
+    Label-encode categorical columns.
+    XGBoost / RF handle integer-encoded categoricals natively.
+    Saves encoder mapping to results/models/ for reproducibility.
+    """
+    import json
+    from config import MODELS_DIR
+
+    df = df.copy()
+    encoders = {}
+    cat_available = [c for c in CAT_COLS if c in df.columns]
+
+    for col in cat_available:
+        le = LabelEncoder()
+        df[col] = le.fit_transform(df[col].astype(str))
+        encoders[col] = list(le.classes_)
+        logger.info(f"Encoded '{col}': {dict(enumerate(le.classes_))}")
+
+    if save and encoders:
+        enc_path = MODELS_DIR / "cat_encoders.json"
+        with open(enc_path, 'w') as f:
+            json.dump(encoders, f, indent=2)
+        logger.info(f"Encoder mapping saved → {enc_path}")
+
+    return df
+
+
+# ============================================================
+# 6. SCALE  (RobustScaler)
 # ============================================================
 def scale_features(X_train, X_test, y_train, y_test, save: bool = True):
-    """
-    RobustScaler uses median + IQR instead of mean + std.
-    Much less sensitive to remaining outliers.
-    """
     scaler_X = RobustScaler()
     scaler_y = RobustScaler()
 
@@ -197,19 +227,21 @@ def scale_features(X_train, X_test, y_train, y_test, save: bool = True):
     if save:
         joblib.dump(scaler_X, SCALER_X_PATH)
         joblib.dump(scaler_y, SCALER_Y_PATH)
-        logger.info(f"Scalers saved → {SCALER_X_PATH}, {SCALER_Y_PATH}")
+        logger.info(f"Scalers saved \u2192 {SCALER_X_PATH}, {SCALER_Y_PATH}")
 
     return X_train_sc, X_test_sc, y_train_sc, y_test_sc, scaler_X, scaler_y
 
 
 # ============================================================
-# 6. SPLIT
+# 7. SPLIT
 # ============================================================
 def split_data(df: pd.DataFrame):
     base_features = [c for c in FEATURE_COLS if c in df.columns]
+    cat_available = [c for c in CAT_COLS     if c in df.columns]
     engineered    = ['eta_log', 'corr_severity_idx',
                      'd_b_ratio', 'eta_d_interaction']
-    feature_cols  = base_features + [c for c in engineered if c in df.columns]
+    feature_cols  = (base_features + cat_available +
+                     [c for c in engineered if c in df.columns])
 
     X      = df[feature_cols]
     y      = df[TARGET_COL]
@@ -222,6 +254,10 @@ def split_data(df: pd.DataFrame):
         stratify     = y_bins,
     )
 
+    logger.info(f"Features total: {len(feature_cols)} "
+                f"({len(base_features)} numeric + "
+                f"{len(cat_available)} categorical + "
+                f"{len([c for c in engineered if c in df.columns])} engineered)")
     logger.info(f"Train: {len(X_train)} | Test: {len(X_test)}")
     logger.info(f"y_train — mean: {y_train.mean():.2f}, std: {y_train.std():.2f}")
     logger.info(f"y_test  — mean: {y_test.mean():.2f},  std: {y_test.std():.2f}")
@@ -229,31 +265,32 @@ def split_data(df: pd.DataFrame):
 
 
 # ============================================================
-# 7. FULL PIPELINE
+# 8. FULL PIPELINE
 # ============================================================
 def run_preprocessing(save_clean: bool = True) -> dict:
-    logger.info('═' * 50)
+    logger.info('\u2550' * 50)
     logger.info(' Starting Preprocessing Pipeline')
-    logger.info('═' * 50)
+    logger.info('\u2550' * 50)
 
     df_raw   = load_raw_data()
     inspect_data(df_raw)
     df_clean = clean_data(df_raw)
     df_feat  = engineer_features(df_clean)
+    df_enc   = encode_categoricals(df_feat, save=True)
 
     if save_clean:
-        df_feat.to_csv(DATA_CLEAN, index=False)
-        logger.info(f"Clean data saved → {DATA_CLEAN}  ({len(df_feat)} rows)")
+        df_enc.to_csv(DATA_CLEAN, index=False)
+        logger.info(f"Clean data saved \u2192 {DATA_CLEAN}  ({len(df_enc)} rows)")
 
-    X_train, X_test, y_train, y_test = split_data(df_feat)
+    X_train, X_test, y_train, y_test = split_data(df_enc)
 
     (X_train_sc, X_test_sc,
      y_train_sc, y_test_sc,
      scaler_X, scaler_y) = scale_features(X_train, X_test, y_train, y_test)
 
-    logger.info('═' * 50)
-    logger.info(' Preprocessing complete ✓')
-    logger.info('═' * 50)
+    logger.info('\u2550' * 50)
+    logger.info(' Preprocessing complete \u2713')
+    logger.info('\u2550' * 50)
 
     return {
         'X_train'      : X_train_sc,
@@ -267,13 +304,13 @@ def run_preprocessing(save_clean: bool = True) -> dict:
         'scaler_X'     : scaler_X,
         'scaler_y'     : scaler_y,
         'feature_cols' : X_train.columns.tolist(),
-        'df_clean'     : df_feat,
+        'df_clean'     : df_enc,
     }
 
 
 if __name__ == '__main__':
     results = run_preprocessing(save_clean=True)
-    print(f"\n✅ Preprocessing done.")
+    print(f"\n\u2705 Preprocessing done.")
     print(f"   Train samples : {results['X_train'].shape[0]}")
     print(f"   Test  samples : {results['X_test'].shape[0]}")
     print(f"   Features used : {len(results['feature_cols'])}")
