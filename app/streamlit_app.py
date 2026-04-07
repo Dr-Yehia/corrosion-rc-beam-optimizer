@@ -515,11 +515,25 @@ def _tab_ensemble():
     st.markdown("All 5 models trained on 804 beams. **CatBoost** selected as final predictor.")
 
     ens = _load_json(str(MODELS_DIR / "ensemble_metrics.json"))
+    mlp = _load_json(str(MODELS_DIR / "mlp_metrics.json"))
     if not ens:
         st.info("ensemble_metrics.json not found.")
         return
 
     rows = []
+    
+    # Optional: Read MLP first
+    if mlp and "test" in mlp:
+        rows.append({
+            "Model"    : "MLP Baseline",
+            "Train R²" : round(mlp.get("train", {}).get("R2", 0), 4),
+            "Test R²"  : round(mlp.get("test", {}).get("R2", 0), 4),
+            "RMSE"     : round(mlp.get("test", {}).get("RMSE", 0), 4),
+            "MAE"      : round(mlp.get("test", {}).get("MAE", 0), 4),
+            "L1 ✓"    : "✅" if mlp.get("test", {}).get("L1_broken") else "❌",
+            "L2 ✓"    : "✅" if mlp.get("test", {}).get("L2_broken") else "❌",
+        })
+
     for name, m in ens.get("models", {}).items():
         rows.append({
             "Model"    : ("⭐ " if name == "CatBoost" else "") + name,
@@ -873,6 +887,11 @@ def _tab_equation():
             d_v = v.get("d", 300); eta_v = v.get("eta_m", 10); fy_v = v.get("fy", 460)
             rho_v = v.get("rho_t", 1.5); db_v = v.get("d_b", 16)
             b_v = v.get("b", 150); fc_v = v.get("fc", 32)
+            
+            # Note: PySR was trained on RAW features, but `d_b` inside PySR actually refers 
+            # to the `d_b_ratio` (d/b) column, not the reinforcement bar diameter (db,t)!
+            # We must map this correctly if the equation uses the variable 'd_b'
+            py_db = d_v / max(b_v, 1)
 
             eid = chosen_eq["id"]
             M = float("nan")
@@ -890,7 +909,7 @@ def _tab_equation():
                 M = (fy_v * rho_v) ** np.log(arg) if arg > 0 else float("nan")
             elif eid == 6:
                 arg = np.log(0.029 * d_v)
-                M = (fy_v * rho_v) ** np.log(arg) / db_v if arg > 0 else float("nan")
+                M = (fy_v * rho_v) ** np.log(arg) / py_db if arg > 0 else float("nan")
             elif eid == 7:
                 arg = 0.023 * (d_v - eta_v)
                 if arg > 0:
@@ -898,19 +917,20 @@ def _tab_equation():
             elif eid == 8:
                 arg = np.log(0.182 * np.sqrt(d_v))
                 if arg > 0:
-                    M = fy_v ** np.log(arg) * (14.5 - np.sqrt(eta_v)) * (-db_v + rho_v + 2.69)
+                    M = fy_v ** np.log(arg) * (14.5 - np.sqrt(eta_v)) * (-py_db + rho_v + 2.69)
             elif eid == 9:
                 arg = np.log(0.209 * np.sqrt(d_v))
                 if arg > 0:
                     M = ((6.58 - np.sqrt(eta_v / np.sqrt(fc_v))) *
-                         (rho_v + 3.85 * np.exp(-db_v)) *
+                         (rho_v + 3.85 * np.exp(-py_db)) *
                          (fy_v ** np.log(arg)) ** 1.177)
 
             if np.isnan(M) or np.isinf(M) or M < 0:
-                st.error("⚠️ Undefined for these inputs. Try larger d.")
+                st.error("⚠️ Undefined for these inputs. Result may evaluate to negative or NaN depending on bounds. Are measurements realistic?")
             else:
                 st.success(f"**Mmax ≈ {M:.2f} kN·m** (Eq.{eid})")
-                st.info(f"CatBoost R²=0.987 | This equation R²≈{chosen_eq['r2_approx']:.4f} | ACI R²=0.884")
+                st.info(f"💡 Note: `d_b` in the equation denotes depth/width ratio (`d/b = {py_db:.2f}`), *not* bar diameter.")
+                st.caption(f"CatBoost R²=0.987 | This equation R²≈{chosen_eq['r2_approx']:.4f} | ACI R²=0.884")
         except Exception as ex:
             st.error(f"Calculation error: {ex}")
 

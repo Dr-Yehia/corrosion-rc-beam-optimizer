@@ -1,0 +1,280 @@
+Cloning into 'corrosion-rc-beam-optimizer'...
+remote: Enumerating objects: 143, done.
+remote: Counting objects: 100% (143/143), done.
+remote: Compressing objects: 100% (114/114), done.
+remote: Total 143 (delta 67), reused 18 (delta 10), pack-reused 0 (from 0)
+Receiving objects: 100% (143/143), 1.81 MiB | 5.02 MiB/s, done.
+Resolving deltas: 100% (67/67), done.
+07:24:31 | INFO     | Logging configured → /content/corrosion-rc-beam-optimizer/results/logs/run_log.txt
+07:24:31 | INFO     | =================================================================
+07:24:31 | INFO     |  Corrosion RC Beam Optimizer (v4)
+07:24:31 | INFO     |  Target: Mmax,exp (kN·m)
+07:24:31 | INFO     |  Started: 2026-04-07 07:24:31
+07:24:31 | INFO     |  Python : 3.12.13
+07:24:31 | INFO     | =================================================================
+07:24:31 | INFO     | Phases to run: [0, 1, 2, 5, 6]
+07:24:33 | INFO     | ══════════════════════════════════════════════════
+07:24:33 | INFO     |  Starting Preprocessing Pipeline
+07:24:33 | INFO     | ══════════════════════════════════════════════════
+07:24:33 | INFO     | Loading raw data from: /content/corrosion-rc-beam-optimizer/data/Database.csv
+07:24:33 | INFO     | Raw data loaded (encoding=utf-8-sig) — shape: (804, 60)
+07:24:33 | INFO     | Column names normalised: ['No.', 'Mass Loss (Tensile bars), ηm (%)', 'Mmax,exp (kNm)', 'Mmax,exp (kNm)']
+07:24:33 | INFO     | After column fix — shape: (804, 59)
+07:24:33 | INFO     | === Dataset Inspection ===
+07:24:33 | INFO     |   Rows    : 804
+07:24:33 | INFO     |   Columns : 59
+07:24:33 | INFO     |   Missing %:
+Comments                                         7.09
+fy Longitudinal Bars (Tensile), (MPa)            0.87
+fsu Long Bars, (MPa)                             4.48
+Stirrup Bar Type                                22.64
+fy,s Stirrup Bars                               14.80
+Max Aggregate Size (mm)                         19.53
+Cathode Type                                     7.09
+Corrosion Current Density, Icorr (ÃÂ¼A/cm2)     9.58
+Duration, (days)                                12.56
+Wet/Dry Cyclic Ratio (days)                     91.04
+Mass Loss (Tensile bars), ηm (%)                 1.62
+Average Sample Length, (mm)                      0.87
+Py (kN)                                         17.91
+Pmax (kN)                                        1.00
+Residual Capacity, R (%)                         1.74
+ÃÂy (mm)                                      13.43
+ÃÂult (mm)                                    15.55
+Elastic Stiffness, k (kN/mm)                    13.43
+Displacement Ductility, ÃÂ¼ÃÂ                15.55
+Extra Notes                                      7.46
+07:24:33 | INFO     | Starting data cleaning ...
+07:24:33 | INFO     | Columns selected: 20 (3 categorical + 15 numeric)
+07:24:33 | INFO     | Dropped 0 rows with missing target (Mmax,exp (kNm)).
+07:24:33 | INFO     |   Imputed 'fy Longitudinal Bars (Tensile), (MPa) ' (7 nulls) with median = 374.860
+07:24:33 | INFO     |   Imputed 'fy,s Stirrup Bars' (119 nulls) with median = 250.000
+07:24:33 | INFO     |   Imputed 'Mass Loss (Tensile bars), ηm (%)' (13 nulls) with median = 6.980
+07:24:33 | INFO     | Physical filter (ηm 0-64%): removed 0 rows.
+07:24:33 | INFO     | Physical filter (Mmax > 0): removed 0 rows.
+07:24:33 | INFO     | Clean data shape: (804, 20)
+07:24:33 | INFO     | Applied log1p transform to ηm → 'eta_log'
+07:24:33 | INFO     | Feature engineering: 5 derived features added.
+07:24:33 | INFO     | Encoded 'Longitudinal Bar Type': {0: 'D', 1: 'P'}
+07:24:33 | INFO     | Encoded 'Test Type and Configuration': {0: 'SS-FPB-MONO', 1: 'SS_CONT_TPB_MONO', 2: 'SS_FPB_MONO', 3: 'SS_FPB_MONO_SUST', 4: 'SS_FPB_MONO_SUST_PREC', 5: 'SS_TPB_MONO', 6: 'SS_TPB_MONO_SUST'}
+07:24:33 | INFO     | Encoded 'Corrosion Method': {0: 'C', 1: 'EI', 2: 'IC', 3: 'N'}
+07:24:33 | INFO     | Encoder mapping saved → /content/corrosion-rc-beam-optimizer/results/models/cat_encoders.json
+07:24:33 | INFO     | Clean data saved → /content/corrosion-rc-beam-optimizer/data/clean_data.csv  (804 rows)
+07:24:33 | INFO     | Features total: 23 (15 numeric + 3 categorical + 5 engineered)
+07:24:33 | INFO     | Train: 643 | Test: 161
+07:24:33 | INFO     | y_train — mean: 22.50, std: 23.79
+07:24:33 | INFO     | y_test  — mean: 23.48,  std: 25.70
+07:24:33 | INFO     | Scalers saved → /content/corrosion-rc-beam-optimizer/results/models/scaler_X.pkl, /content/corrosion-rc-beam-optimizer/results/models/scaler_y.pkl
+07:24:33 | INFO     | ══════════════════════════════════════════════════
+07:24:33 | INFO     |  Preprocessing complete ✓
+07:24:33 | INFO     | ══════════════════════════════════════════════════
+07:24:33 | INFO     | 
+============================================================
+07:24:33 | INFO     |  Phase 0 ─ ACI 318-19 Benchmark
+07:24:33 | INFO     | ============================================================
+07:24:33 | INFO     | ══════════════════════════════════════
+07:24:33 | INFO     |  ACI 318-19 Benchmark Results
+07:24:33 | INFO     | ══════════════════════════════════════
+07:24:33 | INFO     |   Specimens     : 804
+07:24:33 | INFO     |   R²            : 0.8839
+07:24:33 | INFO     |   RMSE          : 8.2289 kN·m
+07:24:33 | INFO     |   MAE           : 5.0617 kN·m
+07:24:33 | INFO     |   MAPE          : 29.9 %
+07:24:33 | INFO     |   Ratio mean    : 1.1845  (target = 1.0)
+07:24:33 | INFO     |   Ratio std     : 0.5874
+07:24:33 | INFO     |   Ratio range   : 0.2735 – 5.2832
+07:24:33 | INFO     |   Underestimates: 48.5 % of specimens
+07:24:33 | INFO     | ══════════════════════════════════════
+07:24:33 | INFO     | ACI results saved → /content/corrosion-rc-beam-optimizer/results/models/aci_benchmark_predictions.csv
+07:24:33 | INFO     | ACI metrics saved → /content/corrosion-rc-beam-optimizer/results/models/aci_benchmark_metrics.json
+07:24:33 | INFO     | ACI baseline ─ R²=0.8839  RMSE=8.2289  Ratio=1.1845
+07:24:33 | INFO     | 
+============================================================
+07:24:33 | INFO     |  Phase 1A ─ MLP Baseline Training
+07:24:33 | INFO     | ============================================================
+07:24:33 | INFO     | ══════════════════════════════════════
+07:24:33 | INFO     |  Phase 1A — MLP Baseline
+07:24:33 | INFO     | ══════════════════════════════════════
+07:24:33 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:24:33 | INFO     | Training MLP ...
+07:24:35 | INFO     | MLP training complete — iterations: 104
+07:24:35 | INFO     | Final training loss: 0.006202
+07:24:35 | INFO     | [Train] R²=0.9882  RMSE=2.5836  MAE=1.3976  MAPE=9.76%  L1:✓  L2:✓
+07:24:35 | INFO     | [Test] R²=0.9695  RMSE=4.4713  MAE=2.3420  MAPE=13.18%  L1:✓  L2:✗
+07:24:35 | INFO     | Running 10-Fold CV (MLP) ...
+07:24:35 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:24:37 | INFO     |   Fold  1 — R²=0.9713  RMSE=0.1570
+07:24:37 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:24:41 | INFO     |   Fold  2 — R²=0.9654  RMSE=0.1613
+07:24:41 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:24:43 | INFO     |   Fold  3 — R²=0.9701  RMSE=0.1518
+07:24:43 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:24:44 | INFO     |   Fold  4 — R²=0.9582  RMSE=0.2021
+07:24:44 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:24:46 | INFO     |   Fold  5 — R²=0.9724  RMSE=0.1825
+07:24:46 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:24:47 | INFO     |   Fold  6 — R²=0.9811  RMSE=0.1338
+07:24:47 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:24:49 | INFO     |   Fold  7 — R²=0.9819  RMSE=0.1554
+07:24:49 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:24:51 | INFO     |   Fold  8 — R²=0.9501  RMSE=0.1986
+07:24:51 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:24:53 | INFO     |   Fold  9 — R²=0.9632  RMSE=0.1526
+07:24:53 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:24:56 | INFO     |   Fold 10 — R²=0.9577  RMSE=0.1644
+07:24:56 | INFO     | CV complete — R² = 0.9671 ± 0.0097
+07:24:56 | INFO     | Model saved → /content/corrosion-rc-beam-optimizer/results/models/best_mlp.pkl
+07:24:56 | INFO     | Metrics saved → /content/corrosion-rc-beam-optimizer/results/models/mlp_metrics.json
+07:24:56 | INFO     | ✓ L1 broken. Ensemble expected to break L2.
+07:24:56 | INFO     | ══════════════════════════════════════
+07:24:56 | INFO     |  Phase 1A Complete
+07:24:56 | INFO     | ══════════════════════════════════════
+07:24:56 | INFO     | 
+============================================================
+07:24:56 | INFO     |  Phase 1B ─ Ensemble Model Training
+07:24:56 | INFO     | ============================================================
+07:24:56 | INFO     | ══════════════════════════════════════════════════
+07:24:56 | INFO     |  Phase 1B — Ensemble Model Training
+07:24:56 | INFO     |  Target: Mmax,exp (kN·m)
+07:24:56 | INFO     |  Models: XGBoost + RF + GBR + CatBoost(Optuna) + Stacking
+07:24:56 | INFO     | ══════════════════════════════════════════════════
+07:24:56 | INFO     | Training XGBoost ...
+07:24:56 | INFO     | [XGBoost-Train] R²=0.9949  RMSE=1.6932  MAE=0.9355  MAPE=8.73%  L1:✓  L2:✓
+07:24:56 | INFO     | [XGBoost-Test] R²=0.9861  RMSE=3.0188  MAE=1.7695  MAPE=11.61%  L1:✓  L2:✓
+07:24:56 | INFO     | XGBoost saved.
+07:24:56 | INFO     | Training Random Forest ...
+07:24:59 | INFO     | [RF-Train] R²=0.9875  RMSE=2.6525  MAE=1.2026  MAPE=7.14%  L1:✓  L2:✓
+07:24:59 | INFO     | [RF-Test] R²=0.9810  RMSE=3.5296  MAE=1.9594  MAPE=10.74%  L1:✓  L2:✓
+07:24:59 | INFO     | Random Forest saved.
+07:24:59 | INFO     | Training Gradient Boosting ...
+07:25:01 | INFO     | [GBR-Train] R²=0.9992  RMSE=0.6844  MAE=0.3495  MAPE=3.65%  L1:✓  L2:✓
+07:25:01 | INFO     | [GBR-Test] R²=0.9831  RMSE=3.3333  MAE=1.7878  MAPE=10.48%  L1:✓  L2:✓
+07:25:01 | INFO     | Gradient Boosting saved.
+07:25:02 | INFO     | ════════════════════════════════════════
+07:25:02 | INFO     |  CatBoost + Optuna Hyperparameter Tuning
+07:25:02 | INFO     | ════════════════════════════════════════
+07:25:02 | INFO     | Optuna tuning: 100 trials, 5-fold CV, timeout=600s
+/usr/local/lib/python3.12/dist-packages/joblib/externals/loky/process_executor.py:782: UserWarning: A worker stopped while some jobs were given to the executor. This can be caused by a too short worker timeout or by a memory leak.
+  warnings.warn(
+07:35:07 | INFO     | Optuna best trial: R²=0.9589
+07:35:07 | INFO     | Optuna best params: {'iterations': 699, 'depth': 4, 'learning_rate': 0.13817632190380563, 'l2_leaf_reg': 4.893839213882899, 'subsample': 0.6842767605966842, 'colsample_bylevel': 0.9740684426357914, 'min_child_samples': 15}
+07:35:07 | INFO     | Training CatBoost with params: {'iterations': 699, 'depth': 4, 'learning_rate': 0.13817632190380563, 'l2_leaf_reg': 4.893839213882899, 'subsample': 0.6842767605966842, 'colsample_bylevel': 0.9740684426357914, 'min_child_samples': 15}
+07:35:08 | INFO     | [CatBoost-Train] R²=0.9931  RMSE=1.9793  MAE=1.2156  MAPE=9.98%  L1:✓  L2:✓
+07:35:08 | INFO     | [CatBoost-Test] R²=0.9870  RMSE=2.9210  MAE=1.7452  MAPE=10.07%  L1:✓  L2:✓
+07:35:08 | INFO     | CatBoost saved.
+07:35:08 | INFO     | Training Stacking Ensemble ...
+07:35:49 | INFO     | [Stacking-Train] R²=0.9990  RMSE=0.7517  MAE=0.4153  MAPE=3.68%  L1:✓  L2:✓
+07:35:50 | INFO     | [Stacking-Test] R²=0.9845  RMSE=3.1907  MAE=1.6600  MAPE=8.80%  L1:✓  L2:✓
+07:35:50 | INFO     | Stacking Ensemble saved.
+07:35:50 | INFO     | 🏆 Best model: CatBoost  Test R²=0.987
+07:35:59 | INFO     | CV R² (CatBoost) = 0.9713 ± 0.0086
+07:35:59 | INFO     | CV per fold: [np.float64(0.9814), np.float64(0.9674), np.float64(0.9669), np.float64(0.9542), np.float64(0.9739), np.float64(0.9746), np.float64(0.9829), np.float64(0.9683), np.float64(0.9802), np.float64(0.9627)]
+07:35:59 | INFO     | Best model saved → /content/corrosion-rc-beam-optimizer/results/models/best_model.pkl
+07:35:59 | INFO     | ⭐⭐⭐ BOTH BENCHMARKS BROKEN! ⭐⭐⭐
+07:35:59 | INFO     | Ensemble metrics saved → /content/corrosion-rc-beam-optimizer/results/models/ensemble_metrics.json
+07:35:59 | INFO     | ══════════════════════════════════════════════════
+07:35:59 | INFO     |  Phase 1B Complete
+07:35:59 | INFO     | ══════════════════════════════════════════════════
+07:35:59 | SUCCESS  | 🏆 L1 + L2 BOTH BROKEN by Ensemble!
+07:35:59 | INFO     | 
+============================================================
+07:35:59 | INFO     |  Phase 5 ─ Statistical Validation
+07:35:59 | INFO     | ============================================================
+07:35:59 | INFO     | ============================================================
+07:35:59 | INFO     |  Phase 4 — Statistical Validation
+07:35:59 | INFO     | ============================================================
+07:35:59 | INFO     | ═══════════════════════════════════════════════════════
+07:35:59 | INFO     |  Wilcoxon Signed-Rank Test
+07:35:59 | INFO     | ═══════════════════════════════════════════════════════
+07:35:59 | INFO     |   Statistic      : 1279.0
+07:35:59 | INFO     |   p-value        : 0.0
+07:35:59 | INFO     |   Significant ✓ : True  (α=0.05)
+07:35:59 | INFO     |   Median |e| model : 0.7484
+07:35:59 | INFO     |   Median |e| ACI   : 2.7885
+07:35:59 | INFO     | ═══════════════════════════════════════════════════════
+07:36:01 | INFO     | ═══════════════════════════════════════════════════════
+07:36:01 | INFO     |  Bootstrap CI  (1000 iterations, 95% CI)
+07:36:01 | INFO     | ═══════════════════════════════════════════════════════
+07:36:01 | INFO     |   R²    = 0.987  CI: [0.9791, 0.9917]
+07:36:01 | INFO     |   RMSE  = 2.921 CI: [2.3059, 3.4684]
+07:36:01 | INFO     |   MAE   = 1.7452  CI: [1.3973, 2.1255]
+07:36:01 | INFO     | ═══════════════════════════════════════════════════════
+07:36:01 | INFO     | ═══════════════════════════════════════════════════════
+07:36:01 | INFO     |  10-Fold Cross-Validation
+07:36:01 | INFO     | ═══════════════════════════════════════════════════════
+07:36:01 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:36:03 | INFO     |   Fold  1 ─ R²=0.9713  RMSE=0.1570  MAE=0.0971
+07:36:03 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:36:05 | INFO     |   Fold  2 ─ R²=0.9654  RMSE=0.1613  MAE=0.0933
+07:36:05 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:36:07 | INFO     |   Fold  3 ─ R²=0.9701  RMSE=0.1518  MAE=0.0890
+07:36:07 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:36:08 | INFO     |   Fold  4 ─ R²=0.9582  RMSE=0.2021  MAE=0.1015
+07:36:08 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:36:10 | INFO     |   Fold  5 ─ R²=0.9724  RMSE=0.1825  MAE=0.1010
+07:36:10 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:36:11 | INFO     |   Fold  6 ─ R²=0.9811  RMSE=0.1338  MAE=0.0828
+07:36:11 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:36:14 | INFO     |   Fold  7 ─ R²=0.9819  RMSE=0.1554  MAE=0.0920
+07:36:14 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:36:17 | INFO     |   Fold  8 ─ R²=0.9501  RMSE=0.1986  MAE=0.1163
+07:36:17 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:36:18 | INFO     |   Fold  9 ─ R²=0.9632  RMSE=0.1526  MAE=0.0939
+07:36:18 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+07:36:20 | INFO     |   Fold 10 ─ R²=0.9577  RMSE=0.1644  MAE=0.0888
+07:36:20 | INFO     | ───────────────────────────────────────────────────────
+07:36:20 | INFO     |   Aggregate ─ R²=0.9671 ± 0.0097  RMSE=0.1660 ± 0.0207
+07:36:20 | INFO     |   L1 all folds: True  L2 all folds: False
+07:36:20 | INFO     | ═══════════════════════════════════════════════════════
+07:36:20 | INFO     |   Cohen’s d = 0.5814  (medium effect)
+07:36:20 | INFO     | ═══════════════════════════════════════════════════════
+07:36:20 | INFO     |  McNemar Test (classification accuracy)
+07:36:20 | INFO     | ═══════════════════════════════════════════════════════
+07:36:20 | INFO     |   Tolerance          : ±10.0% R
+07:36:20 | INFO     |   Model accuracy     : 99.38%
+07:36:20 | INFO     |   ACI accuracy       : 85.09%
+07:36:20 | INFO     |   χ² statistic       : 21.0435
+07:36:20 | INFO     |   p-value            : 4e-06
+07:36:20 | INFO     |   Significant        : True
+07:36:20 | INFO     | ═══════════════════════════════════════════════════════
+07:36:20 | INFO     | ✅ STATISTICAL VALIDATION PASSED — Benchmark improvement confirmed with p<0.05.
+07:36:20 | INFO     | Statistical validation results saved → /content/corrosion-rc-beam-optimizer/results/models/statistical_validation.json
+07:36:20 | INFO     | ============================================================
+07:36:20 | INFO     |  Phase 4 Complete ✓
+07:36:20 | INFO     | ============================================================
+07:36:20 | INFO     | 
+============================================================
+07:36:20 | INFO     |  Phase 6 ─ PDF Report Generation
+07:36:20 | INFO     | ============================================================
+07:36:20 | INFO     | Building PDF report → /content/corrosion-rc-beam-optimizer/results/Final_Report.pdf
+07:36:20 | INFO     | PDF report saved → /content/corrosion-rc-beam-optimizer/results/Final_Report.pdf
+07:36:20 | INFO     | Pipeline finished in 11.8 min.
+
+=================================================================
+ CORROSION RC BEAM OPTIMIZER — PIPELINE COMPLETE
+=================================================================
+
+  ACI 318-19 Baseline:
+    R²   = 0.8839
+    RMSE = 8.2289 kN·m
+
+  MLP Baseline (Test):
+    R²   = 0.9695
+    RMSE = 4.4713
+
+  🏆 Ensemble Best [CatBoost] (Test):
+    R²        = 0.987
+    RMSE      = 2.921
+    L1 broken : True
+    L2 broken : True
+    CV R²     = 0.9713 ± 0.0086
+
+  Statistical Validation:
+    ✅ STATISTICAL VALIDATION PASSED — Benchmark improvement confirmed with p<0.05.
+
+  Report → /content/corrosion-rc-beam-optimizer/results/Final_Report.pdf
+  Total time: 11.8 min (709s)
+=================================================================
+
+
+✅ Done. Code: 0
