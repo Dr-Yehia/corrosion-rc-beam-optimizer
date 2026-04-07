@@ -55,8 +55,9 @@ class Individual:
     genes   : dict  {feature_name: value}
     fitness : float (higher = better)
     metrics : dict  {R2, RMSE, CV_R2, penalty}
+    _model  : trained MLPRegressor (cached after fitness evaluation)
     """
-    __slots__ = ["genes", "fitness", "metrics", "rank", "crowding"]
+    __slots__ = ["genes", "fitness", "metrics", "rank", "crowding", "_model"]
 
     def __init__(self, genes: dict):
         self.genes    = genes
@@ -64,6 +65,7 @@ class Individual:
         self.metrics  = {}
         self.rank     = 0
         self.crowding = 0.0
+        self._model   = None
 
     def __repr__(self):
         return (f"Individual(fitness={self.fitness:.4f}, "
@@ -107,7 +109,7 @@ def fitness_function(
     aci_mae:  float,
 ) -> float:
     """
-    Evaluate one individual's fitness.
+    Evaluate one individual’s fitness.
 
     FF = W1 · R²_test
        + W2 · clamp(Mpred/MACI_ratio, 0, 2) / 2     ← ACI improvement
@@ -117,24 +119,7 @@ def fitness_function(
         +0.20  if R² < 0  (inverted predictions)
         +0.10  if RMSE > 2 × ACI_RMSE
         +0.05  if any predicted R(%) outside [0, 130]
-
-    Parameters
-    ----------
-    individual : Individual to evaluate
-    X_train / y_train : scaled training arrays
-    X_test  / y_test  : scaled test arrays
-    scaler_y          : target StandardScaler
-    aci_rmse          : ACI 318-19 RMSE baseline
-    aci_mae           : ACI 318-19 MAE  baseline
-
-    Returns
-    -------
-    fitness (float) — higher is better
     """
-    # --- Build & train a fresh MLP using this individual's genes --------
-    # The GA optimises over the gene space (beam parameters / subspace);
-    # the MLP is the surrogate that maps features → R(%)
-    # Each individual represents a candidate configuration / weighting.
     model = build_mlp()
     try:
         model = train_mlp(model, X_train, y_train)
@@ -142,9 +127,10 @@ def fitness_function(
         logger.warning(f"Training failed for individual: {e}")
         individual.fitness = -1.0
         individual.metrics = {"R2": 0.0, "RMSE": 999.0, "CV_R2": 0.0, "penalty": 1.0}
+        individual._model  = None
         return -1.0
 
-    # --- Predict on test set --------------------------------------------
+    # Predict on test set
     y_pred_sc = model.predict(X_test)
     y_pred    = scaler_y.inverse_transform(y_pred_sc.reshape(-1, 1)).ravel()
     y_true    = scaler_y.inverse_transform(y_test.reshape(-1, 1)).ravel()
@@ -152,25 +138,19 @@ def fitness_function(
     r2   = r2_score(y_true, y_pred)
     rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
 
-    # --- CV generalisation score (3-fold fast) --------------------------
+    # CV generalisation score (3-fold fast)
     from sklearn.model_selection import cross_val_score
-    from sklearn.neural_network import MLPRegressor as _MLP
-    cv_model = build_mlp()
-    X_all    = np.vstack([X_train, X_test])
-    y_all    = np.concatenate([y_train, y_test])
-    cv_scores = cross_val_score(
-        cv_model, X_all, y_all,
-        cv=3, scoring="r2", n_jobs=-1
-    )
-    cv_r2 = float(np.mean(cv_scores))
+    cv_model  = build_mlp()
+    X_all     = np.vstack([X_train, X_test])
+    y_all     = np.concatenate([y_train, y_test])
+    cv_scores = cross_val_score(cv_model, X_all, y_all, cv=3, scoring="r2", n_jobs=-1)
+    cv_r2     = float(np.mean(cv_scores))
 
-    # --- ACI improvement term ------------------------------------------
-    # ratio = how much better than ACI (target = 1.0 means as good as ACI)
-    # We reward improvement beyond ACI
-    aci_improvement = min(rmse / max(aci_rmse, 1e-6), 2.0)   # lower RMSE = better
-    aci_score       = 1.0 - aci_improvement / 2.0             # normalised [0,1]
+    # ACI improvement term
+    aci_improvement = min(rmse / max(aci_rmse, 1e-6), 2.0)
+    aci_score       = 1.0 - aci_improvement / 2.0
 
-    # --- Physics penalty -----------------------------------------------
+    # Physics penalty
     penalty = 0.0
     if r2 < 0:
         penalty += 0.20
@@ -179,18 +159,18 @@ def fitness_function(
     if np.any(y_pred < 0) or np.any(y_pred > 135):
         penalty += 0.05
 
-    # --- Composite fitness ---------------------------------------------
+    # Composite fitness
     fitness = W1 * max(r2, 0.0) + W2 * aci_score - W3 * penalty
 
-    individual.fitness  = fitness
-    individual.metrics  = {
+    individual.fitness = fitness
+    individual.metrics = {
         "R2"      : round(r2,    4),
         "RMSE"    : round(rmse,  4),
         "CV_R2"   : round(cv_r2, 4),
         "penalty" : round(penalty, 4),
         "fitness" : round(fitness,  4),
     }
-    individual._model = model   # cache trained model
+    individual._model = model
     return fitness
 
 
@@ -199,31 +179,22 @@ def fitness_function(
 # ============================================================
 
 def _dominates(a: Individual, b: Individual) -> bool:
-    """
-    True if individual `a` Pareto-dominates `b`.
-    Objectives: maximise R², maximise CV_R², minimise RMSE.
-    """
-    r2_a,   rmse_a,  cv_a  = (a.metrics.get("R2",   0),
-                               a.metrics.get("RMSE", 999),
-                               a.metrics.get("CV_R2",0))
-    r2_b,   rmse_b,  cv_b  = (b.metrics.get("R2",   0),
-                               b.metrics.get("RMSE", 999),
-                               b.metrics.get("CV_R2",0))
-
+    r2_a,  rmse_a, cv_a = (a.metrics.get("R2",   0),
+                            a.metrics.get("RMSE", 999),
+                            a.metrics.get("CV_R2",0))
+    r2_b,  rmse_b, cv_b = (b.metrics.get("R2",   0),
+                            b.metrics.get("RMSE", 999),
+                            b.metrics.get("CV_R2",0))
     better_or_equal = (r2_a >= r2_b) and (rmse_a <= rmse_b) and (cv_a >= cv_b)
     strictly_better = (r2_a >  r2_b) or  (rmse_a <  rmse_b) or  (cv_a >  cv_b)
     return better_or_equal and strictly_better
 
 
 def non_dominated_sort(population: list) -> list:
-    """
-    Fast non-dominated sorting (Deb et al., 2002).
-    Returns list of Pareto fronts (list of lists).
-    """
-    n       = len(population)
-    S       = [[] for _ in range(n)]   # dominated set
-    n_dom   = [0]  * n                 # domination counter
-    fronts  = [[]]
+    n      = len(population)
+    S      = [[] for _ in range(n)]
+    n_dom  = [0] * n
+    fronts = [[]]
 
     for i in range(n):
         for j in range(n):
@@ -253,7 +224,6 @@ def non_dominated_sort(population: list) -> list:
 
 
 def crowding_distance(population: list, front: list) -> None:
-    """Assign crowding distance to individuals in a Pareto front."""
     l = len(front)
     if l == 0:
         return
@@ -265,7 +235,7 @@ def crowding_distance(population: list, front: list) -> None:
         lambda ind: -ind.metrics.get("RMSE", 0),
         lambda ind: ind.metrics.get("CV_R2", 0),
     ]:
-        vals    = [(obj_fn(population[i]), i) for i in front]
+        vals  = [(obj_fn(population[i]), i) for i in front]
         vals.sort(key=lambda x: x[0])
         f_min, f_max = vals[0][0], vals[-1][0]
         if f_max == f_min:
@@ -279,10 +249,6 @@ def crowding_distance(population: list, front: list) -> None:
 
 
 def nsga3_selection(population: list, n_select: int) -> list:
-    """
-    NSGA-III selection: select top `n_select` individuals
-    using non-dominated rank + crowding distance.
-    """
     fronts   = non_dominated_sort(population)
     selected = []
     for front in fronts:
@@ -291,9 +257,7 @@ def nsga3_selection(population: list, n_select: int) -> list:
             selected.extend(front)
         else:
             remaining = n_select - len(selected)
-            front.sort(
-                key=lambda i: (-population[i].rank, -population[i].crowding)
-            )
+            front.sort(key=lambda i: (-population[i].rank, -population[i].crowding))
             selected.extend(front[:remaining])
             break
     return [population[i] for i in selected]
@@ -305,18 +269,14 @@ def nsga3_selection(population: list, n_select: int) -> list:
 
 def _blend_crossover(parent_a: Individual, parent_b: Individual,
                      alpha: float = 0.5) -> Individual:
-    """
-    BLX-α crossover: blend genes from two parents.
-    Child gene = U[lo − α·d,  hi + α·d]  where d = |a − b|
-    """
     child_genes = {}
     for key in GENE_BOUNDS:
         a_val = parent_a.genes.get(key, 0.0)
         b_val = parent_b.genes.get(key, 0.0)
         lo_b, hi_b = GENE_BOUNDS[key]
-        d     = abs(a_val - b_val)
-        lo_c  = max(lo_b, min(a_val, b_val) - alpha * d)
-        hi_c  = min(hi_b, max(a_val, b_val) + alpha * d)
+        d    = abs(a_val - b_val)
+        lo_c = max(lo_b, min(a_val, b_val) - alpha * d)
+        hi_c = min(hi_b, max(a_val, b_val) + alpha * d)
         child_genes[key] = float(np.random.uniform(lo_c, hi_c))
     return Individual(child_genes)
 
@@ -324,17 +284,11 @@ def _blend_crossover(parent_a: Individual, parent_b: Individual,
 def _gaussian_mutation(individual: Individual,
                        mutation_rate: float = GA_MUTATION_RATE,
                        sigma: float = 0.05) -> Individual:
-    """
-    Gaussian mutation: add N(0, sigma·range) noise to each gene
-    with probability `mutation_rate`.
-    """
     mutant = deepcopy(individual)
     for key, (lo, hi) in GENE_BOUNDS.items():
         if np.random.rand() < mutation_rate:
             noise = np.random.normal(0, sigma * (hi - lo))
-            mutant.genes[key] = float(
-                np.clip(mutant.genes[key] + noise, lo, hi)
-            )
+            mutant.genes[key] = float(np.clip(mutant.genes[key] + noise, lo, hi))
     return mutant
 
 
@@ -344,9 +298,6 @@ def produce_offspring(
     crossover_rate: float = GA_CROSSOVER_RATE,
     mutation_rate:  float = GA_MUTATION_RATE,
 ) -> list:
-    """
-    Generate `n_offspring` children via BLX-α crossover + Gaussian mutation.
-    """
     offspring = []
     while len(offspring) < n_offspring:
         a, b = np.random.choice(len(parents), size=2, replace=False)
@@ -364,10 +315,6 @@ def produce_offspring(
 # ============================================================
 
 def _is_converged(history: list, window: int = GA_CONSISTENCY_WINDOW) -> bool:
-    """
-    Returns True if the best fitness has not improved
-    by more than 1e-5 over the last `window` generations.
-    """
     if len(history) < window:
         return False
     recent = history[-window:]
@@ -378,16 +325,8 @@ def _is_converged(history: list, window: int = GA_CONSISTENCY_WINDOW) -> bool:
 # 6. HALL OF FAME
 # ============================================================
 
-def _update_hall_of_fame(
-    hof: list,
-    best: Individual,
-    run_id: int,
-    generation: int,
-) -> list:
-    """
-    Append the best individual of the current Run to the Hall of Fame.
-    The list is sorted by fitness (descending) and saved to JSON.
-    """
+def _update_hall_of_fame(hof: list, best: Individual,
+                         run_id: int, generation: int) -> list:
     entry = {
         "run"        : run_id,
         "generation" : generation,
@@ -412,26 +351,15 @@ def _update_hall_of_fame(
 # 7. LIVE LOG PANEL
 # ============================================================
 
-def _log_generation(
-    run_id    : int,
-    gen       : int,
-    best      : Individual,
-    l1_broken : bool,
-    l2_broken : bool,
-    elapsed   : float,
-) -> str:
-    """
-    Format and emit one log line for the live panel.
-    Returns the formatted string for PDF report accumulation.
-    """
+def _log_generation(run_id, gen, best, l1_broken, l2_broken, elapsed) -> str:
     l1_sym = "\u2713" if l1_broken else "\u2717"
     l2_sym = "\u2713" if l2_broken else "\u2717"
-    r2     = best.metrics.get("R2",   0.0)
-    rmse   = best.metrics.get("RMSE", 0.0)
-    cv     = best.metrics.get("CV_R2",0.0)
+    r2     = best.metrics.get("R2",    0.0)
+    rmse   = best.metrics.get("RMSE",  0.0)
+    cv     = best.metrics.get("CV_R2", 0.0)
     line   = (
         f"[Run {run_id:2d} | Gen {gen:4d}]  "
-        f"Best R\u00b2={r2:.4f}  RMSE={rmse:.4f}  CV-R\u00b2={cv:.4f}  "
+        f"Best R²={r2:.4f}  RMSE={rmse:.4f}  CV-R²={cv:.4f}  "
         f"Fitness={best.fitness:.4f}  "
         f"L1:{l1_sym}  L2:{l2_sym}  "
         f"({elapsed:.1f}s)"
@@ -454,33 +382,6 @@ def run_nsga3(
     aci_mae   : float,
     log_lines : list = None,
 ) -> dict:
-    """
-    Full NSGA-III multi-run optimisation loop.
-
-    Stopping conditions (checked every generation):
-        1. L1 broken (R² > L1_TARGET_R2 = 0.85)
-           AND L2 broken (R² > L2_TARGET_R2 = 0.970)
-           → STOP — benchmark beaten ✅
-        2. Convergence detected (CONSISTENCY_WINDOW)
-           → save best of this run to Hall of Fame → start new Run
-        3. Run counter reaches GA_MAX_RUNS
-           → STOP — report best from Hall of Fame ⛔
-
-    Parameters
-    ----------
-    X_train, y_train : scaled training arrays
-    X_test,  y_test  : scaled test arrays
-    scaler_y         : fitted StandardScaler for target
-    aci_rmse         : ACI 318-19 RMSE on full dataset
-    aci_mae          : ACI 318-19 MAE  on full dataset
-    log_lines        : list to accumulate log strings (for PDF report)
-
-    Returns
-    -------
-    dict with keys:
-        'best_individual', 'hall_of_fame', 'log_lines',
-        'success', 'best_run', 'best_gen', 'total_runs'
-    """
     if log_lines is None:
         log_lines = []
 
@@ -495,32 +396,31 @@ def run_nsga3(
     logger.info(f" Max generations : {GA_MAX_GENERATIONS}")
     logger.info(f" Population size : {GA_POPULATION_SIZE}")
     logger.info(f" Elite size      : {GA_ELITE_SIZE}")
-    logger.info(f" L1 target R\u00b2   : {L1_TARGET_R2}")
-    logger.info(f" L2 target R\u00b2   : {L2_TARGET_R2}")
+    logger.info(f" L1 target R²   : {L1_TARGET_R2}")
+    logger.info(f" L2 target R²   : {L2_TARGET_R2}")
     logger.info("=" * 60)
 
     for run_id in range(1, GA_MAX_RUNS + 1):
-        logger.info(f"\n{'─'*50}")
+        logger.info(f"\n{'\u2500'*50}")
         logger.info(f" Run {run_id}/{GA_MAX_RUNS} — New random population")
-        logger.info(f"{'─'*50}")
+        logger.info(f"{'\u2500'*50}")
 
         population      = initialise_population(GA_POPULATION_SIZE)
-        fitness_history = []   # tracks best fitness per generation
+        fitness_history = []
         run_best        = None
         t_run_start     = time.time()
 
         for gen in range(1, GA_MAX_GENERATIONS + 1):
-            t_gen = time.time()
 
-            # ── Evaluate fitness ────────────────────────────────────
+            # Evaluate fitness
             for ind in population:
-                if ind.fitness == -np.inf:  # only evaluate if not yet scored
+                if ind.fitness == -np.inf:
                     fitness_function(
                         ind, X_train, y_train, X_test, y_test,
                         scaler_y, aci_rmse, aci_mae
                     )
 
-            # ── Identify best individual this generation ─────────────
+            # Best this generation
             population.sort(key=lambda x: x.fitness, reverse=True)
             best_this_gen = population[0]
 
@@ -529,42 +429,36 @@ def run_nsga3(
 
             fitness_history.append(best_this_gen.fitness)
 
-            # ── Check benchmark break ────────────────────────────────
+            # Check benchmark
             r2_val    = best_this_gen.metrics.get("R2", 0.0)
             l1_broken = r2_val >= L1_TARGET_R2
             l2_broken = r2_val >= L2_TARGET_R2
 
-            # ── Live log ─────────────────────────────────────────────
+            # Live log
             elapsed = time.time() - t_run_start
             if gen == 1 or gen % 10 == 0 or l1_broken or l2_broken:
-                line = _log_generation(
-                    run_id, gen, best_this_gen,
-                    l1_broken, l2_broken, elapsed
-                )
+                line = _log_generation(run_id, gen, best_this_gen,
+                                       l1_broken, l2_broken, elapsed)
                 log_lines.append(line)
 
-            # ── STOP: both benchmarks broken ─────────────────────────
+            # STOP: both benchmarks broken
             if BREAK_BOTH and l1_broken and l2_broken:
                 logger.success(
-                    f"\n{'*'*60}\n"
-                    f" BENCHMARK BROKEN \u2713\u2713\n"
-                    f" Run={run_id} | Gen={gen} | R\u00b2={r2_val:.4f}\n"
-                    f"{'*'*60}"
+                    f"\n{'*'*60}\n BENCHMARK BROKEN \u2713\u2713\n"
+                    f" Run={run_id} | Gen={gen} | R²={r2_val:.4f}\n{'*'*60}"
                 )
                 log_lines.append(
                     f"\n*** BENCHMARK BROKEN *** Run={run_id} Gen={gen} "
-                    f"R\u00b2={r2_val:.4f} L1:\u2713 L2:\u2713\n"
+                    f"R²={r2_val:.4f} L1:\u2713 L2:\u2713\n"
                 )
                 hall_of_fame = _update_hall_of_fame(
                     hall_of_fame, run_best, run_id, gen
                 )
                 global_best = deepcopy(run_best)
-                success     = True
 
-                # Save best model
-                if hasattr(run_best, '_model'):
+                if run_best._model is not None:
                     joblib.dump(run_best._model, MODEL_GA_PKL)
-                    logger.info(f"Best GA model saved \u2192 {MODEL_GA_PKL}")
+                    logger.info(f"Best GA model saved → {MODEL_GA_PKL}")
 
                 return {
                     "best_individual": global_best,
@@ -576,64 +470,60 @@ def run_nsga3(
                     "total_runs"     : run_id,
                 }
 
-            # ── NSGA-III selection ────────────────────────────────────
+            # NSGA-III selection
             n_survive = GA_POPULATION_SIZE // 2
             survivors = nsga3_selection(population, n_survive)
 
-            # ── Elitism: preserve top-10 unchanged ───────────────────
-            elites    = population[:GA_ELITE_SIZE]
+            # Elitism
+            elites = population[:GA_ELITE_SIZE]
 
-            # ── Crossover + Mutation ──────────────────────────────────
+            # Crossover + Mutation
             n_offspring = GA_POPULATION_SIZE - GA_ELITE_SIZE
             offspring   = produce_offspring(
                 survivors, n_offspring,
                 crossover_rate = GA_CROSSOVER_RATE,
                 mutation_rate  = GA_MUTATION_RATE,
             )
-            # Reset fitness for offspring so they get re-evaluated
             for child in offspring:
                 child.fitness = -np.inf
 
             population = elites + offspring
 
-            # ── Convergence check ─────────────────────────────────────
+            # Convergence check
             if _is_converged(fitness_history, GA_CONSISTENCY_WINDOW):
                 logger.info(
                     f"[Run {run_id} | Gen {gen}] Convergence detected "
                     f"({GA_CONSISTENCY_WINDOW} gens no improvement). "
-                    f"Best R\u00b2={r2_val:.4f}. Starting new run ..."
+                    f"Best R²={r2_val:.4f}. Starting new run ..."
                 )
                 log_lines.append(
                     f"[Run {run_id} | Gen {gen}] Converged — "
-                    f"R\u00b2={r2_val:.4f} — Starting Run {run_id+1}"
+                    f"R²={r2_val:.4f} — Starting Run {run_id+1}"
                 )
                 break
 
-        # ── End of run: update Hall of Fame ──────────────────────────
+        # End of run
         if run_best is not None:
             hall_of_fame = _update_hall_of_fame(
-                hall_of_fame, run_best, run_id,
-                len(fitness_history)
+                hall_of_fame, run_best, run_id, len(fitness_history)
             )
             if global_best is None or run_best.fitness > global_best.fitness:
                 global_best = deepcopy(run_best)
 
-    # ── All runs exhausted without breaking both benchmarks ──────────
+    # All runs exhausted
     best_r2 = global_best.metrics.get("R2", 0.0) if global_best else 0.0
     msg = (
         f"\n{'!'*60}\n"
         f" MAX RUNS REACHED ({GA_MAX_RUNS}) — Target not achieved.\n"
-        f" Best R\u00b2 found: {best_r2:.4f}\n"
-        f" Action : Review config — consider increasing MAX_GENERATIONS\n"
-        f"          or adjusting fitness weights (W1, W2, W3).\n"
+        f" Best R² found: {best_r2:.4f}\n"
         f"{'!'*60}"
     )
     logger.warning(msg)
     log_lines.append(msg)
 
-    if global_best and hasattr(global_best, '_model'):
+    if global_best and global_best._model is not None:
         joblib.dump(global_best._model, MODEL_GA_PKL)
-        logger.info(f"Best model (partial) saved \u2192 {MODEL_GA_PKL}")
+        logger.info(f"Best model (partial) saved → {MODEL_GA_PKL}")
 
     total_time = time.time() - t_start_global
     logger.info(f"Total optimisation time: {total_time:.1f}s")
@@ -654,43 +544,25 @@ def run_nsga3(
 # ============================================================
 
 if __name__ == "__main__":
-    from data_preprocessing import run_preprocessing
-    from aci_calculator import (
-        load_raw_data, clean_data,
-        compute_aci_predictions, evaluate_aci_benchmark
-    )
-
-    # Preprocessing
-    data = run_preprocessing(save_clean=True)
-
-    # ACI baseline metrics (needed by fitness function)
-    from data_preprocessing import load_raw_data as _load, clean_data as _clean
-    df_raw   = _load()
-    df_clean = _clean(df_raw)
-
+    from data_preprocessing import run_preprocessing, load_raw_data as _load, clean_data as _clean
     from aci_calculator import compute_aci_predictions, evaluate_aci_benchmark
-    df_aci        = compute_aci_predictions(df_clean)
-    aci_metrics   = evaluate_aci_benchmark(df_aci)
-    aci_rmse      = aci_metrics["RMSE"]
-    aci_mae       = aci_metrics["MAE"]
 
-    # Run NSGA-III
+    data       = run_preprocessing(save_clean=True)
+    df_raw     = _load()
+    df_clean   = _clean(df_raw)
+    df_aci     = compute_aci_predictions(df_clean)
+    aci_metrics = evaluate_aci_benchmark(df_aci)
+
     log_lines = []
     results   = run_nsga3(
         data["X_train"], data["y_train"],
         data["X_test"],  data["y_test"],
         data["scaler_y"],
-        aci_rmse, aci_mae,
+        aci_metrics["RMSE"], aci_metrics["MAE"],
         log_lines = log_lines,
     )
 
-    print("\n" + "="*60)
-    print(" NSGA-III COMPLETE")
-    print("="*60)
-    print(f" Success      : {results['success']}")
+    print(f"\nSuccess : {results['success']}")
     if results['best_individual']:
-        print(f" Best R\u00b2      : {results['best_individual'].metrics.get('R2', 0):.4f}")
-        print(f" Best RMSE    : {results['best_individual'].metrics.get('RMSE', 0):.4f}")
-    print(f" Total runs   : {results['total_runs']}")
-    print(f" Best at Run  : {results['best_run']} | Gen: {results['best_gen']}")
-    print("="*60)
+        print(f"Best R² : {results['best_individual'].metrics.get('R2', 0):.4f}")
+    print(f"Total runs : {results['total_runs']}")
