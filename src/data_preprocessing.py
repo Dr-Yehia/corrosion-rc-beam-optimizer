@@ -3,11 +3,12 @@
 # Corrosion RC Beam Optimizer
 # Full pipeline: load → clean → engineer → encode → scale → split
 #
-# v3 changes:
-#   + Encode 3 categorical features (Bar_Type, Test_Config, Corr_Method)
-#   + Added corr_zone_ratio numeric feature
-#   + Reverted outlier removal (outliers are real data)
-#   + Kept log1p(ηm) and RobustScaler
+# v4 changes:
+#   + Target changed to Mmax,exp (kNm) — matching Zhang et al.
+#   + R(%) kept as secondary column for comparison/reporting
+#   + Encode 3 categorical features
+#   + log1p(ηm) + derived features
+#   + RobustScaler
 # ============================================================
 
 import re
@@ -23,7 +24,7 @@ import sys
 sys.path.append(str(Path(__file__).resolve().parent))
 from config import (
     DATA_RAW, DATA_CLEAN, FEATURE_COLS, CAT_COLS, TARGET_COL,
-    TEST_SIZE, RANDOM_STATE, SCALER_X_PATH, SCALER_Y_PATH
+    TARGET_COL_R, TEST_SIZE, RANDOM_STATE, SCALER_X_PATH, SCALER_Y_PATH
 )
 
 ETA_COL = 'Mass Loss (Tensile bars), \u03b7m (%)'
@@ -97,11 +98,12 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     logger.info("Starting data cleaning ...")
     df = df.copy()
 
-    # Select required columns: numeric + categorical + target + ACI extras
-    aci_extra     = ['Mmax,exp (kNm)', ETA_COL]
+    # Select required columns: numeric + categorical + targets + ACI extras
+    aci_extra     = [ETA_COL]
+    targets       = [TARGET_COL, TARGET_COL_R]
     cat_available = [c for c in CAT_COLS if c in df.columns]
     required_cols = list(dict.fromkeys(
-        FEATURE_COLS + cat_available + [TARGET_COL] + aci_extra
+        FEATURE_COLS + cat_available + targets + aci_extra
     ))
     available    = [c for c in required_cols if c in df.columns]
     missing_cols = set(required_cols) - set(available)
@@ -112,13 +114,15 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
                 f"({len(cat_available)} categorical + "
                 f"{len([c for c in FEATURE_COLS if c in available])} numeric)")
 
-    # Drop rows with missing target
+    # Drop rows with missing PRIMARY target (Mmax,exp)
     before = len(df)
     df = df.dropna(subset=[TARGET_COL])
-    logger.info(f"Dropped {before - len(df)} rows with missing target.")
+    logger.info(f"Dropped {before - len(df)} rows with missing target ({TARGET_COL}).")
 
     # Impute missing numeric features with median
     for col in df.select_dtypes(include=[np.number]).columns:
+        if col in [TARGET_COL, TARGET_COL_R]:
+            continue  # don't impute targets
         n_null = int(df[col].isnull().sum())
         if n_null > 0:
             med = float(df[col].median())
@@ -139,9 +143,10 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
         df = df[(df[ETA_COL] >= 0) & (df[ETA_COL] <= 64)]
         logger.info(f"Physical filter (\u03b7m 0-64%): removed {before - len(df)} rows.")
 
+    # Mmax,exp must be positive
     before = len(df)
-    df = df[(df[TARGET_COL] > 0) & (df[TARGET_COL] <= 130.1)]
-    logger.info(f"Physical filter (R 0-130%): removed {before - len(df)} rows.")
+    df = df[df[TARGET_COL] > 0]
+    logger.info(f"Physical filter (Mmax > 0): removed {before - len(df)} rows.")
 
     for col in ['Width (mm)', 'Depth (mm)']:
         if col in df.columns:
@@ -165,13 +170,19 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     # Log1p-transform ηm (right-skewed)
     if ETA_COL in df.columns:
         df['eta_log'] = np.log1p(df[ETA_COL])
-        logger.info("Applied log1p transform to \u03b7m → 'eta_log'")
+        logger.info("Applied log1p transform to \u03b7m \u2192 'eta_log'")
 
     if all(c in df.columns for c in [ETA_COL, fy, fc, d, b]):
         df['corr_severity_idx'] = df[ETA_COL] * (df[fy] / df[fc])
         df['d_b_ratio']         = df[d]        / df[b]
         df['eta_d_interaction'] = df['eta_log'] * df[d]
-        logger.info('Numeric feature engineering: 4 derived features added.')
+        # NEW: reinforcement index (As_proxy * fy / (fc * b * d))
+        n_bars_col = '# Tensile Bars'
+        db_col = 'Diameter Tensile Bars, db,t (mm)'
+        if all(c in df.columns for c in [n_bars_col, db_col]):
+            As_proxy = df[n_bars_col] * np.pi * (df[db_col] / 2.0) ** 2
+            df['reinf_index'] = As_proxy * df[fy] / (df[fc] * df[b] * df[d])
+        logger.info('Feature engineering: 5 derived features added.')
     else:
         miss = [c for c in [ETA_COL, fy, fc, d, b] if c not in df.columns]
         logger.warning(f'Feature engineering skipped — missing: {miss}')
@@ -180,14 +191,9 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ============================================================
-# 5. ENCODE CATEGORICALS  (NEW)
+# 5. ENCODE CATEGORICALS
 # ============================================================
 def encode_categoricals(df: pd.DataFrame, save: bool = True) -> pd.DataFrame:
-    """
-    Label-encode categorical columns.
-    XGBoost / RF handle integer-encoded categoricals natively.
-    Saves encoder mapping to results/models/ for reproducibility.
-    """
     import json
     from config import MODELS_DIR
 
@@ -205,7 +211,7 @@ def encode_categoricals(df: pd.DataFrame, save: bool = True) -> pd.DataFrame:
         enc_path = MODELS_DIR / "cat_encoders.json"
         with open(enc_path, 'w') as f:
             json.dump(encoders, f, indent=2)
-        logger.info(f"Encoder mapping saved → {enc_path}")
+        logger.info(f"Encoder mapping saved \u2192 {enc_path}")
 
     return df
 
@@ -239,13 +245,13 @@ def split_data(df: pd.DataFrame):
     base_features = [c for c in FEATURE_COLS if c in df.columns]
     cat_available = [c for c in CAT_COLS     if c in df.columns]
     engineered    = ['eta_log', 'corr_severity_idx',
-                     'd_b_ratio', 'eta_d_interaction']
+                     'd_b_ratio', 'eta_d_interaction', 'reinf_index']
     feature_cols  = (base_features + cat_available +
                      [c for c in engineered if c in df.columns])
 
     X      = df[feature_cols]
     y      = df[TARGET_COL]
-    y_bins = pd.qcut(y, q=4, labels=False, duplicates='drop')
+    y_bins = pd.qcut(y, q=5, labels=False, duplicates='drop')
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y,
@@ -311,7 +317,8 @@ def run_preprocessing(save_clean: bool = True) -> dict:
 if __name__ == '__main__':
     results = run_preprocessing(save_clean=True)
     print(f"\n\u2705 Preprocessing done.")
-    print(f"   Train samples : {results['X_train'].shape[0]}")
-    print(f"   Test  samples : {results['X_test'].shape[0]}")
-    print(f"   Features used : {len(results['feature_cols'])}")
-    print(f"   Feature list  : {results['feature_cols']}")
+    print(f"   Target         : {TARGET_COL}")
+    print(f"   Train samples  : {results['X_train'].shape[0]}")
+    print(f"   Test  samples  : {results['X_test'].shape[0]}")
+    print(f"   Features used  : {len(results['feature_cols'])}")
+    print(f"   Feature list   : {results['feature_cols']}")

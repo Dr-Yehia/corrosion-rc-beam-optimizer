@@ -1,6 +1,9 @@
 # ============================================================
 # src/config.py  —  Corrosion RC Beam Optimizer
 # ============================================================
+# v4 — Target changed to Mmax,exp (kNm) to match Zhang et al.
+#       Added CatBoost + Optuna configuration
+# ============================================================
 from pathlib import Path
 
 ROOT_DIR    = Path(__file__).resolve().parent.parent
@@ -18,9 +21,15 @@ DATA_RAW   = DATA_DIR / "Database.csv"
 DATA_CLEAN = DATA_DIR / "clean_data.csv"
 RANDOM_STATE = 42
 
-TARGET_COL = "Residual Capacity, R (%)"
+# ── Target ───────────────────────────────────────────────────
+# PRIMARY: Mmax,exp (kNm) — experimental moment capacity
+#   This is what Zhang et al. (2025) and Abushanab (2023) predict.
+#   Predicting Mmax directly is far more learnable than R(%).
+# SECONDARY: R(%) — kept for reporting and comparison only.
+TARGET_COL   = "Mmax,exp (kNm)"
+TARGET_COL_R = "Residual Capacity, R (%)"
 
-# ── Numeric features (original 15) ───────────────────────────
+# ── Numeric features ─────────────────────────────────────────
 FEATURE_COLS = [
     "Width (mm)",
     "Depth (mm)",
@@ -39,18 +48,14 @@ FEATURE_COLS = [
     "Shear Span, x (mm)",
 ]
 
-# ── Categorical features (NEW — encode before training) ──────
-# These 4 columns explain ~0.20 of the missing R² gap
-# Bar_Type:    D=Deformed / P=Plain  → changes bond behaviour
-# Test_Config: SS_FPB_MONO / SS_TPB / etc → changes failure mode
-# Corr_Method: IC=Impressed Current / AC=Accelerated / C=Control
-# Corr_Zone:   ratio of corrosion zone to beam length
+# ── Categorical features ─────────────────────────────────────
 CAT_COLS = [
     "Longitudinal Bar Type",          # D / P
     "Test Type and Configuration",    # SS_FPB_MONO / SS_TPB / ...
     "Corrosion Method",               # IC / AC / C
 ]
 
+# ── ACI reference columns (for benchmark comparison) ─────────
 ACI_COLS = [
     "Width (mm)",
     "Depth (mm)",
@@ -66,10 +71,12 @@ TEST_SIZE        = 0.20
 VALIDATION_SIZE  = 0.10
 
 # ── Benchmark Targets ────────────────────────────────────────
-ACI_R2_BASELINE  = 0.50
-L1_TARGET_R2     = 0.85      # Beat ACI 318-19
+# L1: Beat ACI 318-19 (R² ≈ 0.867 on Mmax prediction)
+# L2: Beat Zhang et al. 2025 PSO-CatBoost (R² = 0.972 on Test)
+ACI_R2_BASELINE  = 0.867
+L1_TARGET_R2     = 0.90      # Comfortably beat ACI 318-19
 L1_LABEL         = "ACI 318-19 Benchmark"
-L2_TARGET_R2     = 0.970     # Beat Zhang et al. (2025) SOTA
+L2_TARGET_R2     = 0.972     # Beat Zhang et al. (2025) SOTA
 L2_LABEL         = "Zhang et al. (2025) SOTA"
 BREAK_BOTH       = True
 
@@ -83,7 +90,8 @@ NN_PATIENCE        = 30
 NN_L2_ALPHA        = 1e-4
 NN_VALIDATION_FRAC = 0.10
 
-# ── Ensemble (XGBoost / RF / GBR) — PRIMARY MODELS ──────────
+# ── Ensemble Models ──────────────────────────────────────────
+# XGBoost
 XGB_N_ESTIMATORS   = 1000
 XGB_MAX_DEPTH      = 6
 XGB_LEARNING_RATE  = 0.05
@@ -93,14 +101,28 @@ XGB_REG_ALPHA      = 0.1
 XGB_REG_LAMBDA     = 1.0
 XGB_EARLY_STOP     = 50
 
+# Random Forest
 RF_N_ESTIMATORS    = 500
 RF_MAX_DEPTH       = None
 RF_MIN_SAMPLES     = 2
 
+# Gradient Boosting
 GBR_N_ESTIMATORS   = 500
 GBR_MAX_DEPTH      = 5
 GBR_LEARNING_RATE  = 0.05
 GBR_SUBSAMPLE      = 0.8
+
+# CatBoost (NEW — same algorithm Zhang et al. used)
+CAT_ITERATIONS     = 2000
+CAT_DEPTH           = 8
+CAT_LEARNING_RATE  = 0.05
+CAT_L2_REG         = 3.0
+CAT_EARLY_STOP     = 100
+
+# ── Optuna (NEW — automatic hyperparameter tuning) ───────────
+OPTUNA_N_TRIALS    = 100     # number of tuning trials
+OPTUNA_CV_FOLDS    = 5       # CV folds during tuning
+OPTUNA_TIMEOUT     = 600     # max seconds for tuning (10 min)
 
 # ── GA — NSGA-III (optimises ensemble hyperparams) ───────────
 GA_POPULATION_SIZE    = 40
@@ -154,6 +176,7 @@ MODEL_MLP_PKL      = MODELS_DIR / "best_mlp.pkl"
 MODEL_MLP_PT       = MODELS_DIR / "best_mlp.pt"
 MODEL_GA_PKL       = MODELS_DIR / "best_ga_model.pkl"
 MODEL_BEST_PKL     = MODELS_DIR / "best_model.pkl"
+MODEL_CATBOOST_PKL = MODELS_DIR / "model_catboost.pkl"
 SCALER_X_PATH      = MODELS_DIR / "scaler_X.pkl"
 SCALER_Y_PATH      = MODELS_DIR / "scaler_y.pkl"
 HALL_OF_FAME_PATH  = MODELS_DIR / "hall_of_fame.json"

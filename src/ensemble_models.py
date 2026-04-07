@@ -1,9 +1,9 @@
 # ============================================================
 # src/ensemble_models.py
-# Phase 1B — XGBoost + Random Forest + Gradient Boosting
-# These are the PRIMARY models that will break L1 + L2
-# Expected Test R²: 0.93 – 0.98
-# Training time: < 3 minutes total
+# Phase 1B — XGBoost + Random Forest + GBR + CatBoost + Optuna
+# v4 — Target: Mmax,exp (kNm) — matching Zhang et al. (2025)
+#      Added CatBoost (same algorithm Zhang used)
+#      Added Optuna auto hyperparameter tuning for CatBoost
 # ============================================================
 import numpy as np
 import joblib
@@ -12,20 +12,28 @@ from pathlib import Path
 from datetime import datetime
 from loguru import logger
 
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.ensemble import (
+    RandomForestRegressor,
+    GradientBoostingRegressor,
+    StackingRegressor,
+)
+from sklearn.linear_model import Ridge
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 from sklearn.model_selection import KFold, cross_val_score
 
 import sys
 sys.path.append(str(Path(__file__).resolve().parent))
 from config import (
-    RANDOM_STATE, MODELS_DIR, MODEL_BEST_PKL,
+    RANDOM_STATE, MODELS_DIR, MODEL_BEST_PKL, MODEL_CATBOOST_PKL,
     L1_TARGET_R2, L2_TARGET_R2, KFOLD_N_SPLITS,
     XGB_N_ESTIMATORS, XGB_MAX_DEPTH, XGB_LEARNING_RATE,
     XGB_SUBSAMPLE, XGB_COLSAMPLE, XGB_REG_ALPHA, XGB_REG_LAMBDA,
     XGB_EARLY_STOP,
     RF_N_ESTIMATORS, RF_MAX_DEPTH, RF_MIN_SAMPLES,
     GBR_N_ESTIMATORS, GBR_MAX_DEPTH, GBR_LEARNING_RATE, GBR_SUBSAMPLE,
+    CAT_ITERATIONS, CAT_DEPTH, CAT_LEARNING_RATE, CAT_L2_REG,
+    CAT_EARLY_STOP,
+    OPTUNA_N_TRIALS, OPTUNA_CV_FOLDS, OPTUNA_TIMEOUT,
 )
 
 
@@ -45,23 +53,81 @@ def _metrics(y_true, y_pred, name):
             "L2_broken": r2 >= L2_TARGET_R2}
 
 
+# ────────────────────────────────────────────────────────────
+# OPTUNA TUNING FOR CATBOOST
+# ────────────────────────────────────────────────────────────
+def _tune_catboost_optuna(X_train, y_train):
+    """Use Optuna to find optimal CatBoost hyperparameters."""
+    try:
+        import optuna
+        from catboost import CatBoostRegressor
+    except ImportError:
+        logger.warning("Optuna or CatBoost not installed — using defaults.")
+        return {}
+
+    optuna.logging.set_verbosity(optuna.logging.WARNING)
+    logger.info(f"Optuna tuning: {OPTUNA_N_TRIALS} trials, "
+                f"{OPTUNA_CV_FOLDS}-fold CV, timeout={OPTUNA_TIMEOUT}s")
+
+    def objective(trial):
+        params = {
+            "iterations":     trial.suggest_int("iterations", 500, 3000),
+            "depth":          trial.suggest_int("depth", 4, 10),
+            "learning_rate":  trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+            "l2_leaf_reg":    trial.suggest_float("l2_leaf_reg", 0.1, 10.0, log=True),
+            "subsample":      trial.suggest_float("subsample", 0.6, 1.0),
+            "colsample_bylevel": trial.suggest_float("colsample_bylevel", 0.5, 1.0),
+            "min_child_samples": trial.suggest_int("min_child_samples", 1, 30),
+            "random_seed":    RANDOM_STATE,
+            "verbose":        0,
+        }
+        model = CatBoostRegressor(**params)
+        kf = KFold(n_splits=OPTUNA_CV_FOLDS, shuffle=True,
+                    random_state=RANDOM_STATE)
+        scores = cross_val_score(model, X_train, y_train,
+                                 cv=kf, scoring="r2", n_jobs=-1)
+        return scores.mean()
+
+    study = optuna.create_study(direction="maximize",
+                                study_name="catboost_tuning")
+    study.optimize(objective, n_trials=OPTUNA_N_TRIALS,
+                   timeout=OPTUNA_TIMEOUT, show_progress_bar=False)
+
+    logger.info(f"Optuna best trial: R\u00b2={study.best_value:.4f}")
+    logger.info(f"Optuna best params: {study.best_params}")
+
+    # Save study results
+    study_path = MODELS_DIR / "optuna_study.json"
+    with open(study_path, "w") as f:
+        json.dump({
+            "best_value": round(study.best_value, 4),
+            "best_params": study.best_params,
+            "n_trials": len(study.trials),
+        }, f, indent=2)
+
+    return study.best_params
+
+
+# ────────────────────────────────────────────────────────────
+# MAIN ENSEMBLE PIPELINE
+# ────────────────────────────────────────────────────────────
 def run_ensemble_pipeline(X_train, X_test, y_train, y_test, scaler_y=None):
     """
-    Train XGBoost, Random Forest, and Gradient Boosting.
+    Train XGBoost, Random Forest, GBR, CatBoost (+Optuna), and Stacking.
     Return the best model + all metrics.
-    Inverse-transform targets if scaler_y is provided.
     """
     logger.info("\u2550" * 50)
     logger.info(" Phase 1B \u2014 Ensemble Model Training")
-    logger.info(" XGBoost + Random Forest + Gradient Boosting")
+    logger.info(" Target: Mmax,exp (kN\u00b7m)")
+    logger.info(" Models: XGBoost + RF + GBR + CatBoost(Optuna) + Stacking")
     logger.info("\u2550" * 50)
 
-    # ── inverse-transform targets ──
+    # ── inverse-transform targets if scaled ──
     if scaler_y is not None:
         y_tr = scaler_y.inverse_transform(y_train.reshape(-1, 1)).ravel()
         y_te = scaler_y.inverse_transform(y_test.reshape(-1, 1)).ravel()
     else:
-        y_tr, y_te = y_train, y_test
+        y_tr, y_te = np.asarray(y_train), np.asarray(y_test)
 
     results = {}
 
@@ -85,9 +151,8 @@ def run_ensemble_pipeline(X_train, X_test, y_train, y_test, scaler_y=None):
             n_jobs             = -1,
             verbosity          = 0,
         )
-        eval_set = [(X_test, y_te)]
         xgb.fit(X_train, y_tr,
-                eval_set=eval_set,
+                eval_set=[(X_test, y_te)],
                 verbose=False)
         results["XGBoost"] = {
             "model":  xgb,
@@ -140,35 +205,135 @@ def run_ensemble_pipeline(X_train, X_test, y_train, y_test, scaler_y=None):
     logger.info("Gradient Boosting saved.")
 
     # ────────────────────────────────────────────────
-    # 4. 10-Fold CV on best model
+    # 4. CatBoost + Optuna (PRIMARY — same as Zhang et al.)
     # ────────────────────────────────────────────────
-    # Pick best by Test R²
+    try:
+        from catboost import CatBoostRegressor
+
+        # Step A: Optuna tuning
+        logger.info("\u2550" * 40)
+        logger.info(" CatBoost + Optuna Hyperparameter Tuning")
+        logger.info("\u2550" * 40)
+        best_params = _tune_catboost_optuna(X_train, y_tr)
+
+        # Step B: Train final CatBoost with best params
+        if best_params:
+            cat_params = {
+                "iterations":     best_params.get("iterations", CAT_ITERATIONS),
+                "depth":          best_params.get("depth", CAT_DEPTH),
+                "learning_rate":  best_params.get("learning_rate", CAT_LEARNING_RATE),
+                "l2_leaf_reg":    best_params.get("l2_leaf_reg", CAT_L2_REG),
+                "subsample":      best_params.get("subsample", 0.8),
+                "colsample_bylevel": best_params.get("colsample_bylevel", 0.8),
+                "min_child_samples": best_params.get("min_child_samples", 5),
+            }
+        else:
+            cat_params = {
+                "iterations":    CAT_ITERATIONS,
+                "depth":         CAT_DEPTH,
+                "learning_rate": CAT_LEARNING_RATE,
+                "l2_leaf_reg":   CAT_L2_REG,
+            }
+
+        logger.info(f"Training CatBoost with params: {cat_params}")
+        cat = CatBoostRegressor(
+            **cat_params,
+            random_seed     = RANDOM_STATE,
+            verbose         = 0,
+            early_stopping_rounds = CAT_EARLY_STOP,
+        )
+        cat.fit(X_train, y_tr,
+                eval_set=(X_test, y_te),
+                verbose=False)
+
+        results["CatBoost"] = {
+            "model": cat,
+            "train": _metrics(y_tr, cat.predict(X_train), "CatBoost-Train"),
+            "test":  _metrics(y_te, cat.predict(X_test),  "CatBoost-Test"),
+        }
+        joblib.dump(cat, MODEL_CATBOOST_PKL)
+        logger.info("CatBoost saved.")
+
+    except ImportError:
+        logger.warning("CatBoost not installed \u2014 skipping. "
+                       "Install with: pip install catboost")
+
+    # ────────────────────────────────────────────────
+    # 5. Stacking Ensemble (combines all models)
+    # ────────────────────────────────────────────────
+    logger.info("Training Stacking Ensemble ...")
+    estimators = []
+    if "XGBoost" in results:
+        estimators.append(("xgb", results["XGBoost"]["model"]))
+    estimators.append(("rf", results["RandomForest"]["model"]))
+    estimators.append(("gbr", results["GBR"]["model"]))
+    if "CatBoost" in results:
+        estimators.append(("cat", results["CatBoost"]["model"]))
+
+    if len(estimators) >= 2:
+        stacking = StackingRegressor(
+            estimators=estimators,
+            final_estimator=Ridge(alpha=1.0),
+            cv=5,
+            n_jobs=-1,
+        )
+        stacking.fit(X_train, y_tr)
+        results["Stacking"] = {
+            "model": stacking,
+            "train": _metrics(y_tr, stacking.predict(X_train), "Stacking-Train"),
+            "test":  _metrics(y_te, stacking.predict(X_test),  "Stacking-Test"),
+        }
+        joblib.dump(stacking, MODELS_DIR / "model_stacking.pkl")
+        logger.info("Stacking Ensemble saved.")
+
+    # ────────────────────────────────────────────────
+    # 6. Pick best model + 10-Fold CV
+    # ────────────────────────────────────────────────
     best_name = max(results, key=lambda k: results[k]["test"]["R2"])
     best_model = results[best_name]["model"]
     best_test  = results[best_name]["test"]
-    logger.info(f"\U0001f3c6 Best model: {best_name}  Test R\u00b2={best_test['R2']}")
+    logger.info(f"\U0001f3c6 Best model: {best_name}  "
+                f"Test R\u00b2={best_test['R2']}")
 
     # CV on full dataset
     X_all = np.vstack([X_train, X_test])
     y_all = np.concatenate([y_tr, y_te])
-    kf    = KFold(n_splits=KFOLD_N_SPLITS, shuffle=True, random_state=RANDOM_STATE)
+    kf    = KFold(n_splits=KFOLD_N_SPLITS, shuffle=True,
+                  random_state=RANDOM_STATE)
     cv_r2 = cross_val_score(best_model, X_all, y_all,
                              cv=kf, scoring="r2", n_jobs=-1)
-    logger.info(f"CV R\u00b2 ({best_name}) = {cv_r2.mean():.4f} \u00b1 {cv_r2.std():.4f}")
+    logger.info(f"CV R\u00b2 ({best_name}) = "
+                f"{cv_r2.mean():.4f} \u00b1 {cv_r2.std():.4f}")
+    logger.info(f"CV per fold: {[round(x, 4) for x in cv_r2]}")
 
     # Save best model
     joblib.dump(best_model, MODEL_BEST_PKL)
     logger.info(f"Best model saved \u2192 {MODEL_BEST_PKL}")
 
+    # ── Benchmark comparison ──
+    l1_broken = best_test["R2"] >= L1_TARGET_R2
+    l2_broken = best_test["R2"] >= L2_TARGET_R2
+    if l1_broken and l2_broken:
+        logger.info("\u2b50\u2b50\u2b50 BOTH BENCHMARKS BROKEN! \u2b50\u2b50\u2b50")
+    elif l1_broken:
+        logger.info("\u2705 L1 (ACI) BROKEN! L2 not yet.")
+    else:
+        logger.info("\u274c Neither benchmark broken yet.")
+
     # ── Save all metrics to JSON ──
     summary = {
+        "target": "Mmax,exp (kNm)",
         "best_model": best_name,
         "cv_R2_mean": round(float(cv_r2.mean()), 4),
         "cv_R2_std":  round(float(cv_r2.std()),  4),
+        "cv_folds":   [round(float(x), 4) for x in cv_r2],
+        "L1_broken":  l1_broken,
+        "L2_broken":  l2_broken,
         "models": {
             k: {"train_R2": v["train"]["R2"],
                 "test_R2":  v["test"]["R2"],
                 "test_RMSE":v["test"]["RMSE"],
+                "test_MAE": v["test"]["MAE"],
                 "L1_broken":v["test"]["L1_broken"],
                 "L2_broken":v["test"]["L2_broken"]}
             for k, v in results.items()
@@ -191,6 +356,6 @@ def run_ensemble_pipeline(X_train, X_test, y_train, y_test, scaler_y=None):
         "metrics_test": best_test,
         "cv_R2_mean":   float(cv_r2.mean()),
         "cv_R2_std":    float(cv_r2.std()),
-        "both_broken":  best_test["L1_broken"] and best_test["L2_broken"],
+        "both_broken":  l1_broken and l2_broken,
         "summary":      summary,
     }

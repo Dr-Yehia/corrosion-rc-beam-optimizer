@@ -1,9 +1,11 @@
 # ============================================================
 # src/main.py  —  Corrosion RC Beam Optimizer
-# Master Orchestrator
+# Master Orchestrator — v4
+# Target: Mmax,exp (kN·m) — matching Zhang et al. (2025)
 #
 # Phase 0  ─ ACI 318-19 baseline
-# Phase 1  ─ MLP baseline (Phase 1A) + Ensemble (Phase 1B)
+# Phase 1A ─ MLP baseline
+# Phase 1B ─ Ensemble: XGBoost + RF + GBR + CatBoost(Optuna) + Stacking
 # Phase 2  ─ NSGA-III GA optimisation
 # Phase 3  ─ PySR symbolic regression
 # Phase 4  ─ SHAP feature importance
@@ -91,7 +93,7 @@ def phase_1_mlp(data):
 
 
 def phase_1b_ensemble(data):
-    """Phase 1B: XGBoost + RF + GBR — primary models."""
+    """Phase 1B: XGBoost + RF + GBR + CatBoost(Optuna) + Stacking."""
     from ensemble_models import run_ensemble_pipeline
     logger.info("\n" + "=" * 60)
     logger.info(" Phase 1B \u2500 Ensemble Model Training")
@@ -249,7 +251,8 @@ def main():
     t_start = time.time()
 
     logger.info("=" * 65)
-    logger.info(" Corrosion RC Beam Optimizer")
+    logger.info(" Corrosion RC Beam Optimizer (v4)")
+    logger.info(" Target: Mmax,exp (kN\u00b7m)")
     logger.info(f" Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info(f" Python : {sys.version.split()[0]}")
     logger.info("=" * 65)
