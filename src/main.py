@@ -319,6 +319,9 @@ def main():
             pass
 
     if 3 in phases_to_run:
+        if not aci_metrics:
+            r = phase_0_aci(data)
+            aci_metrics = r["aci_metrics"]
         pysr_results = phase_3_pysr(data, aci_metrics)
 
     if 4 in phases_to_run:
