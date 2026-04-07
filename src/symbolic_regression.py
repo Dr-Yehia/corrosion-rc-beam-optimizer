@@ -2,10 +2,11 @@
 # src/symbolic_regression.py
 # Corrosion RC Beam Optimizer
 # PySR Symbolic Regression Pipeline
-# Goal : Discover a new closed-form equation for R(%)
-#        that outperforms ACI 318-19 and rivals the GA-NN model
+# Goal : Discover a closed-form equation for Mmax,exp (kNm)
+#        that outperforms ACI 318-19
 # Output: best_equation.txt + best_equation.latex
 # ============================================================
+import re
 
 import numpy as np
 import pandas as pd
@@ -36,6 +37,27 @@ except ImportError:
     )
 
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
+
+# Sanitize variable names for PySR (only alphanumeric + underscore)
+def _sanitize_name(name: str) -> str:
+    """Convert column name to PySR-safe variable name."""
+    MAPPING = {
+        "Mass Loss (Tensile bars), \u03b7m (%)": "eta_m",
+        "fy Longitudinal Bars (Tensile), (MPa) ": "fy",
+        "f'c (MPa)": "fc",
+        "Depth (mm)": "d",
+        "Width (mm)": "b",
+        "Tension Reinforcement Ratio, pten (%)": "rho_t",
+        "corr_severity_idx": "CSI",
+        "d_b_ratio": "d_b",
+        "reinf_index": "RI",
+    }
+    if name in MAPPING:
+        return MAPPING[name]
+    # Fallback: replace non-alphanumeric with underscore
+    clean = re.sub(r'[^a-zA-Z0-9_]', '_', name)
+    clean = re.sub(r'_+', '_', clean).strip('_')
+    return clean if clean else 'x'
 
 
 # ============================================================
@@ -135,10 +157,13 @@ def prepare_pysr_features(
     valid_mask = np.isfinite(X).all(axis=1) & np.isfinite(y)
     X, y = X[valid_mask], y[valid_mask]
 
+    # Sanitize names for PySR
+    safe_names = [_sanitize_name(n) for n in available]
     logger.info(f"PySR feature matrix: {X.shape[0]} samples, "
                 f"{X.shape[1]} features")
-    logger.info(f"Target R(%) — mean={y.mean():.2f}, std={y.std():.2f}")
-    return X, y, available
+    logger.info(f"PySR variable names: {safe_names}")
+    logger.info(f"Target Mmax — mean={y.mean():.2f}, std={y.std():.2f}")
+    return X, y, safe_names
 
 
 # ============================================================
@@ -202,7 +227,7 @@ def evaluate_pysr_equation(
     Computes R², RMSE, MAE, MAPE and ACI improvement.
     """
     y_pred = model.predict(X)
-    y_pred = np.clip(y_pred, 0, 135)   # physical bounds
+    y_pred = np.clip(y_pred, 0, 500)   # physical bounds (kNm)
 
     r2   = r2_score(y, y_pred)
     rmse = float(np.sqrt(mean_squared_error(y, y_pred)))
@@ -268,7 +293,7 @@ def save_equations(
         f.write(f"# Best PySR Equation\n")
         f.write(f"# Generated: {datetime.now()}\n")
         f.write(f"# R\u00b2 = {metrics['R2']} | RMSE = {metrics['RMSE']}\n\n")
-        f.write(f"R(%) = {best_eq_str}\n")
+        f.write(f"Mmax = {best_eq_str}\n")
     logger.info(f"Equation saved \u2192 {PYSR_OUTPUT_FILE}")
 
     # LaTeX
@@ -276,7 +301,7 @@ def save_equations(
         f.write(f"% Best PySR Equation — LaTeX format\n")
         f.write(f"% Generated: {datetime.now()}\n")
         f.write(f"% R\u00b2 = {metrics['R2']} | RMSE = {metrics['RMSE']}\n\n")
-        f.write(f"R(\\%) = {best_eq_latex}\n")
+        f.write(f"M_{{max}} = {best_eq_latex}\n")
     logger.info(f"LaTeX equation saved \u2192 {PYSR_LATEX_FILE}")
 
     # Full JSON
@@ -296,9 +321,9 @@ def save_equations(
     # Print to console
     print(f"\n{'='*60}")
     print(f" DISCOVERED EQUATION:")
-    print(f" R(%) = {best_eq_str}")
-    print(f" LaTeX: R(\\%) = {best_eq_latex}")
-    print(f" R\u00b2 = {metrics['R2']} | RMSE = {metrics['RMSE']}")
+    print(f" Mmax = {best_eq_str}")
+    print(f" LaTeX: M_max = {best_eq_latex}")
+    print(f" R\u00b2 = {metrics['R2']} | RMSE = {metrics['RMSE']} kNm")
     print(f"{'='*60}")
 
 
