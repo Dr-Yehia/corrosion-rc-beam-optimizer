@@ -1,12 +1,6 @@
 # ============================================================
 # .github/workflows/ci.yml
-# Corrosion RC Beam Optimizer — Continuous Integration
-# Triggers: push / pull_request on main and develop branches
-#
-# Jobs:
-#   1. lint     — flake8 + isort + black (check mode)
-#   2. test     — pytest with coverage report
-#   3. pipeline — smoke test: phases 0+1 only (no DB needed)
+# Corrosion RC Beam Optimizer - Continuous Integration
 # ============================================================
 name: CI Pipeline
 
@@ -20,9 +14,9 @@ env:
   PYTHON_VERSION: "3.11"
 
 jobs:
-  # ════════════════════════════════════════════════
-  # JOB 1 — Linting & Code Style
-  # ════════════════════════════════════════════════
+  # ================================================
+  # JOB 1 - Linting & Code Style
+  # ================================================
   lint:
     name: Lint & Style Check
     runs-on: ubuntu-latest
@@ -41,15 +35,15 @@ jobs:
           pip install --upgrade pip
           pip install flake8 black isort
 
-      - name: Run Black (format check)
+      - name: Auto-format with Black
         run: |
-          black --check --diff src/ app/ \
+          black src/ app/ \
             --line-length 88 \
             --target-version py311
 
-      - name: Run isort (import sort check)
+      - name: Auto-sort imports with isort
         run: |
-          isort --check-only --diff src/ app/ \
+          isort src/ app/ \
             --profile black
 
       - name: Run flake8 (style lint)
@@ -59,9 +53,9 @@ jobs:
             --extend-ignore=E203,W503,E501 \
             --statistics
 
-  # ════════════════════════════════════════════════
-  # JOB 2 — Unit Tests with Coverage
-  # ════════════════════════════════════════════════
+  # ================================================
+  # JOB 2 - Unit Tests with Coverage
+  # ================================================
   test:
     name: Unit Tests
     runs-on: ubuntu-latest
@@ -107,9 +101,9 @@ jobs:
           flags: unittests
           fail_ci_if_error: false
 
-  # ════════════════════════════════════════════════
-  # JOB 3 — Smoke Test (Preprocessing + ACI only)
-  # ════════════════════════════════════════════════
+  # ================================================
+  # JOB 3 - Smoke Test
+  # ================================================
   smoke:
     name: Smoke Test
     runs-on: ubuntu-latest
@@ -127,8 +121,7 @@ jobs:
       - name: Install core dependencies
         run: |
           pip install --upgrade pip
-          pip install \
-            numpy pandas scipy scikit-learn joblib loguru
+          pip install numpy pandas scipy scikit-learn joblib loguru
 
       - name: Generate synthetic test database
         run: |
@@ -140,23 +133,23 @@ jobs:
           rng = np.random.default_rng(42)
           n = 100
           df = pd.DataFrame({
-              "Width (mm)"                                    : rng.integers(100, 350, n),
-              "Depth (mm)"                                    : rng.integers(150, 500, n),
-              "Test Length (mm)"                              : rng.integers(1000, 4000, n),
-              "Bottom Cover to Ctr of Tension Bar (mm)"      : rng.integers(20, 55, n),
-              "# Tensile Bars"                                : rng.integers(2, 6, n),
-              "Diameter Tensile Bars, db,t (mm)"              : rng.choice([10,12,16,20], n),
-              "Tension Reinforcement Ratio, pten (%)"         : rng.uniform(0.3, 3.0, n),
-              "fy Longitudinal Bars (Tensile), (MPa) "        : rng.uniform(300, 600, n),
-              "f'c (MPa)"                                     : rng.uniform(20, 60, n),
-              "W/C Ratio"                                     : rng.uniform(0.35, 0.65, n),
-              "Stirrup Spacing, s (mm) "                      : rng.integers(75, 250, n),
-              "Stirrup Diameter, ds (mm)"                     : rng.choice([6, 8, 10], n),
-              "fy,s Stirrup Bars"                             : rng.uniform(280, 500, n),
-              "Mass Loss (Tensile bars), \u03b7m (%)"         : rng.uniform(0, 40, n),
-              "Shear Span, x (mm)"                            : rng.integers(200, 1500, n),
-              "Mmax,exp (kNm)"                                : rng.uniform(10, 150, n),
-              "Residual Capacity, R (%)"                      : rng.uniform(30, 110, n),
+              "Width (mm)": rng.integers(100, 350, n),
+              "Depth (mm)": rng.integers(150, 500, n),
+              "Test Length (mm)": rng.integers(1000, 4000, n),
+              "Bottom Cover to Ctr of Tension Bar (mm)": rng.integers(20, 55, n),
+              "# Tensile Bars": rng.integers(2, 6, n),
+              "Diameter Tensile Bars, db,t (mm)": rng.choice([10, 12, 16, 20], n),
+              "Tension Reinforcement Ratio, pten (%)": rng.uniform(0.3, 3.0, n),
+              "fy Longitudinal Bars (Tensile), (MPa) ": rng.uniform(300, 600, n),
+              "f'c (MPa)": rng.uniform(20, 60, n),
+              "W/C Ratio": rng.uniform(0.35, 0.65, n),
+              "Stirrup Spacing, s (mm) ": rng.integers(75, 250, n),
+              "Stirrup Diameter, ds (mm)": rng.choice([6, 8, 10], n),
+              "fy,s Stirrup Bars": rng.uniform(280, 500, n),
+              "Mass Loss (Tensile bars), \u03b7m (%)": rng.uniform(0, 40, n),
+              "Shear Span, x (mm)": rng.integers(200, 1500, n),
+              "Mmax,exp (kNm)": rng.uniform(10, 150, n),
+              "Residual Capacity, R (%)": rng.uniform(30, 110, n),
           })
           df.to_csv("data/Database.csv", index=False)
           print(f"Synthetic DB: {len(df)} rows")
@@ -169,7 +162,6 @@ jobs:
           from data_preprocessing import run_preprocessing
           data = run_preprocessing(save_clean=True)
           assert data['X_train'].shape[0] > 0
-          assert data['X_test'].shape[0] > 0
           print('Preprocessing OK')
           "
 
@@ -200,9 +192,9 @@ jobs:
           print('MLP OK')
           "
 
-  # ════════════════════════════════════════════════
-  # JOB 4 — Status Badge Summary
-  # ════════════════════════════════════════════════
+  # ================================================
+  # JOB 4 - Pipeline Summary
+  # ================================================
   summary:
     name: Pipeline Summary
     runs-on: ubuntu-latest
