@@ -263,19 +263,48 @@ def run_ensemble_pipeline(X_train, X_test, y_train, y_test, scaler_y=None):
     # ────────────────────────────────────────────────
     logger.info("Training Stacking Ensemble ...")
     estimators = []
+    # XGBoost clone WITHOUT early_stopping (crashes in Stacking's internal CV)
     if "XGBoost" in results:
-        estimators.append(("xgb", results["XGBoost"]["model"]))
+        try:
+            from xgboost import XGBRegressor
+            xgb_stack = XGBRegressor(
+                n_estimators     = XGB_N_ESTIMATORS,
+                max_depth        = XGB_MAX_DEPTH,
+                learning_rate    = XGB_LEARNING_RATE,
+                subsample        = XGB_SUBSAMPLE,
+                colsample_bytree = XGB_COLSAMPLE,
+                reg_alpha        = XGB_REG_ALPHA,
+                reg_lambda       = XGB_REG_LAMBDA,
+                random_state     = RANDOM_STATE,
+                n_jobs           = -1,
+                verbosity        = 0,
+            )
+            estimators.append(("xgb", xgb_stack))
+        except ImportError:
+            pass
     estimators.append(("rf", results["RandomForest"]["model"]))
     estimators.append(("gbr", results["GBR"]["model"]))
     if "CatBoost" in results:
-        estimators.append(("cat", results["CatBoost"]["model"]))
+        try:
+            from catboost import CatBoostRegressor
+            cat_stack = CatBoostRegressor(
+                iterations    = cat_params.get("iterations", CAT_ITERATIONS),
+                depth         = cat_params.get("depth", CAT_DEPTH),
+                learning_rate = cat_params.get("learning_rate", CAT_LEARNING_RATE),
+                l2_leaf_reg   = cat_params.get("l2_leaf_reg", CAT_L2_REG),
+                random_seed   = RANDOM_STATE,
+                verbose       = 0,
+            )
+            estimators.append(("cat", cat_stack))
+        except Exception:
+            estimators.append(("cat", results["CatBoost"]["model"]))
 
     if len(estimators) >= 2:
         stacking = StackingRegressor(
             estimators=estimators,
             final_estimator=Ridge(alpha=1.0),
             cv=5,
-            n_jobs=-1,
+            n_jobs=1,  # n_jobs=1 avoids serialization issues
         )
         stacking.fit(X_train, y_tr)
         results["Stacking"] = {
