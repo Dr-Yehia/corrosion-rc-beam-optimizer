@@ -26,57 +26,32 @@ from config import (
 # ============================================================
 
 def _canonicalize(name: str) -> str:
-    """
-    Strip encoding artefacts, lowercase, collapse whitespace.
-    Used for fuzzy column matching.
-    """
-    # Re-encode latin-1 → utf-8 if possible
+    """Strip encoding artefacts, lowercase, collapse whitespace."""
     try:
         name = name.encode('latin-1').decode('utf-8')
     except (UnicodeDecodeError, UnicodeEncodeError):
         pass
-    # Remove BOM and non-ASCII noise
     name = name.replace('\ufeff', '').replace('\u00ef\u00bb\u00bf', '')
-    # Lowercase + collapse whitespace
     return re.sub(r'\s+', ' ', name).strip().lower()
 
 
-_CANONICAL_MAP = {
-    # Mass loss / eta
-    'mass loss (tensile bars), ηm (%)': 'Mass Loss (Tensile bars), ηm (%)',
-    'mass loss (tensile bars), î·m (%)': 'Mass Loss (Tensile bars), ηm (%)',
-    'mass loss (tensile bars), ïm (%)': 'Mass Loss (Tensile bars), ηm (%)',
-    'mass loss (tensile bars), Îm (%)': 'Mass Loss (Tensile bars), ηm (%)',
-    # Mmax experimental
-    'mmax,exp (knm)': 'Mmax,exp (kNm)',
-    'mmax,exp (kn·m)': 'Mmax,exp (kNm)',
-    'mmax (knm)': 'Mmax,exp (kNm)',
-    # No. column
-    'ï»¿no.': 'No.',
-    'no.': 'No.',
-}
-
-
 def _fix_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """Rename all columns to their canonical form."""
+    """Rename malformed column names to canonical form, then deduplicate."""
     rename = {}
     for col in df.columns:
         canon = _canonicalize(col)
-        # Direct lookup
-        if canon in _CANONICAL_MAP:
-            rename[col] = _CANONICAL_MAP[canon]
-            continue
-        # Fuzzy: contains 'mass loss' and 'm (%)'  → eta column
         if 'mass loss' in canon and '(%)' in canon:
             rename[col] = 'Mass Loss (Tensile bars), ηm (%)'
-            continue
-        # Fuzzy: mmax and exp
-        if 'mmax' in canon and 'exp' in canon:
+        elif 'mmax' in canon and 'exp' in canon:
             rename[col] = 'Mmax,exp (kNm)'
-            continue
+        elif canon in ('\uf8ffno.', 'no.', 'ï»¿no.'):
+            rename[col] = 'No.'
     if rename:
         logger.info(f"Column names normalised: {list(rename.values())}")
         df = df.rename(columns=rename)
+
+    # Remove duplicate columns — keep first occurrence
+    df = df.loc[:, ~df.columns.duplicated(keep='first')]
     return df
 
 
@@ -84,13 +59,13 @@ def _fix_columns(df: pd.DataFrame) -> pd.DataFrame:
 # 1. LOAD
 # ============================================================
 def load_raw_data(path: Path = DATA_RAW) -> pd.DataFrame:
-    """Load CSV, trying multiple encodings, then fix column names."""
     logger.info(f"Loading raw data from: {path}")
     for enc in ['utf-8-sig', 'utf-8', 'latin-1', 'cp1252']:
         try:
             df = pd.read_csv(path, encoding=enc)
             logger.info(f"Raw data loaded (encoding={enc}) — shape: {df.shape}")
             df = _fix_columns(df)
+            logger.info(f"After column fix — shape: {df.shape}")
             return df
         except UnicodeDecodeError:
             continue
@@ -102,14 +77,14 @@ def load_raw_data(path: Path = DATA_RAW) -> pd.DataFrame:
 # ============================================================
 def inspect_data(df: pd.DataFrame) -> None:
     logger.info("=== Dataset Inspection ===")
-    logger.info(f"  Rows       : {df.shape[0]}")
-    logger.info(f"  Columns    : {df.shape[1]}")
+    logger.info(f"  Rows    : {df.shape[0]}")
+    logger.info(f"  Columns : {df.shape[1]}")
     missing = (df.isnull().mean() * 100).round(2)
     missing = missing[missing > 0]
     if len(missing) > 0:
         logger.info(f"  Missing %:\n{missing.to_string()}")
     else:
-        logger.info("  No missing values detected.")
+        logger.info("  No missing values.")
 
 
 # ============================================================
@@ -119,9 +94,9 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     logger.info("Starting data cleaning ...")
     df = df.copy()
 
-    # Always keep Mmax,exp for ACI benchmark even if not in FEATURE_COLS
-    aci_extra = ['Mmax,exp (kNm)']
-    required_cols = list(set(FEATURE_COLS + [TARGET_COL] + aci_extra))
+    # Select required columns (FEATURE_COLS + target + ACI extras)
+    aci_extra     = ['Mmax,exp (kNm)', 'Mass Loss (Tensile bars), ηm (%)']
+    required_cols = list(dict.fromkeys(FEATURE_COLS + [TARGET_COL] + aci_extra))  # preserve order, no dups
     available     = [c for c in required_cols if c in df.columns]
     missing_cols  = set(required_cols) - set(available)
     if missing_cols:
@@ -134,12 +109,13 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     df = df.dropna(subset=[TARGET_COL])
     logger.info(f"Dropped {before - len(df)} rows with missing target.")
 
-    # Impute missing numeric features with median
+    # Impute missing numeric features with median (safe: scalar comparison only)
     for col in df.select_dtypes(include=[np.number]).columns:
-        if df[col].isnull().any():
-            med = df[col].median()
+        n_null = int(df[col].isnull().sum())
+        if n_null > 0:
+            med = float(df[col].median())
             df[col] = df[col].fillna(med)
-            logger.info(f"  Imputed '{col}' with median = {med:.3f}")
+            logger.info(f"  Imputed '{col}' ({n_null} nulls) with median = {med:.3f}")
 
     # Physical filters
     eta_col = 'Mass Loss (Tensile bars), ηm (%)'
@@ -165,12 +141,12 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
 # 4. FEATURE ENGINEERING
 # ============================================================
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
-    df   = df.copy()
-    eta  = 'Mass Loss (Tensile bars), ηm (%)'
-    fy   = 'fy Longitudinal Bars (Tensile), (MPa) '
-    fc   = "f'c (MPa)"
-    d    = 'Depth (mm)'
-    b    = 'Width (mm)'
+    df  = df.copy()
+    eta = 'Mass Loss (Tensile bars), ηm (%)'
+    fy  = 'fy Longitudinal Bars (Tensile), (MPa) '
+    fc  = "f'c (MPa)"
+    d   = 'Depth (mm)'
+    b   = 'Width (mm)'
 
     if all(c in df.columns for c in [eta, fy, fc, d, b]):
         df['corr_severity_idx'] = df[eta] * (df[fy] / df[fc])
@@ -178,8 +154,8 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
         df['eta_d_interaction'] = df[eta] * df[d]
         logger.info('Feature engineering: 3 derived features added.')
     else:
-        missing = [c for c in [eta, fy, fc, d, b] if c not in df.columns]
-        logger.warning(f'Feature engineering skipped — missing: {missing}')
+        miss = [c for c in [eta, fy, fc, d, b] if c not in df.columns]
+        logger.warning(f'Feature engineering skipped — missing: {miss}')
 
     return df
 
@@ -238,7 +214,7 @@ def run_preprocessing(save_clean: bool = True) -> dict:
     logger.info(' Starting Preprocessing Pipeline')
     logger.info('═' * 50)
 
-    df_raw   = load_raw_data()
+    df_raw  = load_raw_data()
     inspect_data(df_raw)
     df_clean = clean_data(df_raw)
     df_feat  = engineer_features(df_clean)
