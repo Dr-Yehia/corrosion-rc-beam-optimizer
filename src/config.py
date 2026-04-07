@@ -8,7 +8,7 @@ from pathlib import Path
 
 ROOT_DIR    = Path(__file__).resolve().parent.parent
 DATA_DIR    = ROOT_DIR / "data"
-RESULTS_DIR = ROOT_DIR / "results"
+RESULTS_DIR = ROOT_DIR / "final_results"
 MODELS_DIR  = RESULTS_DIR / "models"
 FIGURES_DIR = RESULTS_DIR / "figures"
 EQ_DIR      = RESULTS_DIR / "equations"
