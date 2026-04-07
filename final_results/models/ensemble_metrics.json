@@ -1,0 +1,63 @@
+{
+  "target": "Mmax,exp (kNm)",
+  "best_model": "CatBoost",
+  "cv_R2_mean": 0.9713,
+  "cv_R2_std": 0.0086,
+  "cv_folds": [
+    0.9814,
+    0.9674,
+    0.9669,
+    0.9542,
+    0.9739,
+    0.9746,
+    0.9829,
+    0.9683,
+    0.9802,
+    0.9627
+  ],
+  "L1_broken": true,
+  "L2_broken": true,
+  "models": {
+    "XGBoost": {
+      "train_R2": 0.9949,
+      "test_R2": 0.9861,
+      "test_RMSE": 3.0188,
+      "test_MAE": 1.7695,
+      "L1_broken": true,
+      "L2_broken": true
+    },
+    "RandomForest": {
+      "train_R2": 0.9875,
+      "test_R2": 0.981,
+      "test_RMSE": 3.5296,
+      "test_MAE": 1.9594,
+      "L1_broken": true,
+      "L2_broken": true
+    },
+    "GBR": {
+      "train_R2": 0.9992,
+      "test_R2": 0.9831,
+      "test_RMSE": 3.3333,
+      "test_MAE": 1.7878,
+      "L1_broken": true,
+      "L2_broken": true
+    },
+    "CatBoost": {
+      "train_R2": 0.9931,
+      "test_R2": 0.987,
+      "test_RMSE": 2.921,
+      "test_MAE": 1.7452,
+      "L1_broken": true,
+      "L2_broken": true
+    },
+    "Stacking": {
+      "train_R2": 0.999,
+      "test_R2": 0.9845,
+      "test_RMSE": 3.1907,
+      "test_MAE": 1.66,
+      "L1_broken": true,
+      "L2_broken": true
+    }
+  },
+  "saved_at": "2026-04-07 07:35:59.485308"
+}

@@ -1,0 +1,177 @@
+{
+  "best_equation": "fy**log(log(0.181835380351301*sqrt(d)))*(14.475787 - sqrt(eta_m))*(-d_b + rho_t + 2.6924007)",
+  "best_equation_latex": "fy^{\\log{\\left(\\log{\\left(0.182 \\sqrt{d} \\right)} \\right)}} \\left(14.5 - \\sqrt{\\eta_{m}}\\right) \\left(- d_{b} + \\rho_{t} + 2.69\\right)",
+  "metrics": {
+    "R2": 0.9328,
+    "RMSE": 6.261,
+    "MAE": 4.1037,
+    "MAPE": 28.63,
+    "L1_broken": true,
+    "L2_broken": false,
+    "timestamp": "2026-04-07 08:06:39.370656",
+    "RMSE_vs_ACI_pct": 23.91
+  },
+  "all_equations": [
+    {
+      "complexity": 1,
+      "loss": 583.39874,
+      "equation": "22.69798",
+      "score": 0.0,
+      "sympy_format": "22.6979800000000",
+      "lambda_format": "PySRFunction(X=>22.6979800000000)"
+    },
+    {
+      "complexity": 2,
+      "loss": 569.62445,
+      "equation": "sqrt(d)",
+      "score": 0.023893613642046476,
+      "sympy_format": "sqrt(d)",
+      "lambda_format": "PySRFunction(X=>sqrt(d))"
+    },
+    {
+      "complexity": 3,
+      "loss": 289.36877,
+      "equation": "d * 0.13564135",
+      "score": 0.6772753885849958,
+      "sympy_format": "d*0.13564135",
+      "lambda_format": "PySRFunction(X=>d*0.13564135)"
+    },
+    {
+      "complexity": 4,
+      "loss": 162.66763,
+      "equation": "1.2496916 ^ sqrt(d)",
+      "score": 0.5759928561524261,
+      "sympy_format": "1.2496916**(sqrt(d))",
+      "lambda_format": "PySRFunction(X=>1.2496916**(sqrt(d)))"
+    },
+    {
+      "complexity": 5,
+      "loss": 125.13099,
+      "equation": "(d * 0.3123906) + -39.221237",
+      "score": 0.2623479306812262,
+      "sympy_format": "d*0.3123906 - 39.221237",
+      "lambda_format": "PySRFunction(X=>d*0.3123906 - 39.221237)"
+    },
+    {
+      "complexity": 6,
+      "loss": 120.11034,
+      "equation": "(sqrt(d) + -9.1977625) ^ 1.9031278",
+      "score": 0.04095028831654095,
+      "sympy_format": "(sqrt(d) - 9.1977625)**1.9031278",
+      "lambda_format": "PySRFunction(X=>(sqrt(d) - 9.1977625)**1.9031278)"
+    },
+    {
+      "complexity": 7,
+      "loss": 112.06798,
+      "equation": "-36.467667 - ((d - eta_m) * -0.31279147)",
+      "score": 0.06930516884839286,
+      "sympy_format": "-(-0.31279147)*(d - eta_m) - 36.467667",
+      "lambda_format": "PySRFunction(X=>-(-0.31279147)*(d - eta_m) - 36.467667)"
+    },
+    {
+      "complexity": 8,
+      "loss": 92.93181,
+      "equation": "sqrt(rho_t) * (-42.255985 - (d * -0.3301151))",
+      "score": 0.18723965304719786,
+      "sympy_format": "sqrt(rho_t)*(0.3301151*d - 42.255985)",
+      "lambda_format": "PySRFunction(X=>sqrt(rho_t)*(0.3301151*d - 42.255985))"
+    },
+    {
+      "complexity": 9,
+      "loss": 78.0837,
+      "equation": "(rho_t * fy) ^ log(log(d * 0.024796352))",
+      "score": 0.1740846701281149,
+      "sympy_format": "(fy*rho_t)**log(log(0.024796352*d))",
+      "lambda_format": "PySRFunction(X=>(fy*rho_t)**log(log(0.024796352*d)))"
+    },
+    {
+      "complexity": 11,
+      "loss": 55.013515,
+      "equation": "((rho_t * fy) ^ log(log(d * 0.028958803))) / d_b",
+      "score": 0.17510122297898992,
+      "sympy_format": "(fy*rho_t)**log(log(0.028958803*d))/d_b",
+      "lambda_format": "PySRFunction(X=>(fy*rho_t)**log(log(0.028958803*d))/d_b)"
+    },
+    {
+      "complexity": 13,
+      "loss": 48.89705,
+      "equation": "(((fy * rho_t) + 46.006042) ^ log(log(d * 0.028258104))) / d_b",
+      "score": 0.05893090742824654,
+      "sympy_format": "(fy*rho_t + 46.006042)**log(log(0.028258104*d))/d_b",
+      "lambda_format": "PySRFunction(X=>(fy*rho_t + 46.006042)**log(log(0.028258104*d))/d_b)"
+    },
+    {
+      "complexity": 15,
+      "loss": 47.32202,
+      "equation": "(((rho_t * fy) + (b * 0.23508789)) ^ log(log(d * 0.028258119))) / d_b",
+      "score": 0.016370670591239096,
+      "sympy_format": "(0.23508789*b + fy*rho_t)**log(log(0.028258119*d))/d_b",
+      "lambda_format": "PySRFunction(X=>(0.23508789*b + fy*rho_t)**log(log(0.028258119*d))/d_b)"
+    },
+    {
+      "complexity": 17,
+      "loss": 45.59355,
+      "equation": "(((fy ^ log(log(0.02296246 * (d - eta_m)))) - 2.8242328) * rho_t) + (b * 0.073646806)",
+      "score": 0.018604733566464266,
+      "sympy_format": "0.073646806*b + rho_t*(fy**log(log(0.02296246*d - 0.02296246*eta_m)) - 2.8242328)",
+      "lambda_format": "PySRFunction(X=>0.073646806*b + rho_t*(fy**log(log(0.02296246*d - 0.02296246*eta_m)) - 2.8242328))"
+    },
+    {
+      "complexity": 18,
+      "loss": 43.486687,
+      "equation": "((rho_t + 2.1369793) - d_b) * ((fy ^ (log(log(sqrt(d / 17.293875))) * 1.4238362)) * 1.9467162)",
+      "score": 0.047311413871297274,
+      "sympy_format": "1.9467162*fy**(1.4238362*log(log(0.240466090243488*sqrt(d))))*(-d_b + rho_t + 2.1369793)",
+      "lambda_format": "PySRFunction(X=>1.9467162*fy**(1.4238362*log(log(0.240466090243488*sqrt(d))))*(-d_b + rho_t + 2.1369793))"
+    },
+    {
+      "complexity": 19,
+      "loss": 39.199886,
+      "equation": "(14.475787 - sqrt(eta_m)) * ((fy ^ log(log(sqrt(d / 30.244278)))) * ((rho_t + 2.6924007) - d_b))",
+      "score": 0.10378100664707675,
+      "sympy_format": "fy**log(log(0.181835380351301*sqrt(d)))*(14.475787 - sqrt(eta_m))*(-d_b + rho_t + 2.6924007)",
+      "lambda_format": "PySRFunction(X=>fy**log(log(0.181835380351301*sqrt(d)))*(14.475787 - sqrt(eta_m))*(-d_b + rho_t + 2.6924007))"
+    },
+    {
+      "complexity": 20,
+      "loss": 38.176735,
+      "equation": "((rho_t + exp(1.4952946 - d_b)) * (15.093985 - sqrt(eta_m))) * (fy ^ log(log(sqrt(d / 29.889109))))",
+      "score": 0.02644753996497212,
+      "sympy_format": "fy**log(log(0.182912554743562*sqrt(d)))*(15.093985 - sqrt(eta_m))*(rho_t + 4.46065046692634*exp(-d_b))",
+      "lambda_format": "PySRFunction(X=>fy**log(log(0.182912554743562*sqrt(d)))*(15.093985 - sqrt(eta_m))*(rho_t + 4.46065046692634*exp(-d_b)))"
+    },
+    {
+      "complexity": 22,
+      "loss": 37.92068,
+      "equation": "(fy ^ log(log(sqrt(d / 29.16447)))) * (((13.8703785 - sqrt(eta_m)) * (exp(1.4032646 - d_b) + rho_t)) - -1.7619575)",
+      "score": 0.0033648444742317004,
+      "sympy_format": "fy**log(log(0.185170993096347*sqrt(d)))*((13.8703785 - sqrt(eta_m))*(rho_t + 4.06846020556723*exp(-d_b)) + 1.7619575)",
+      "lambda_format": "PySRFunction(X=>fy**log(log(0.185170993096347*sqrt(d)))*((13.8703785 - sqrt(eta_m))*(rho_t + 4.06846020556723*exp(-d_b)) + 1.7619575))"
+    },
+    {
+      "complexity": 23,
+      "loss": 35.44613,
+      "equation": "(exp(1.3534203 - d_b) + rho_t) * (((fy ^ log(log(sqrt(d / 20.078684)))) ^ 1.2271581) * (3.9586878 - (eta_m / 22.188816)))",
+      "score": 0.06748253053862448,
+      "sympy_format": "(3.9586878 - 0.0450677494463878*eta_m)*(rho_t + 3.87064167193953*exp(-d_b))*(fy**log(log(0.22316823444153*sqrt(d))))**1.2271581",
+      "lambda_format": "PySRFunction(X=>(3.9586878 - 0.0450677494463878*eta_m)*(rho_t + 3.87064167193953*exp(-d_b))*(fy**log(log(0.22316823444153*sqrt(d))))**1.2271581)"
+    },
+    {
+      "complexity": 24,
+      "loss": 34.428802,
+      "equation": "((5.1153336 - sqrt(eta_m / 11.204051)) * (rho_t + exp(1.3352865 - d_b))) * (fy ^ (log(log(sqrt(d / 21.373182))) * 1.2075955))",
+      "score": 0.02912059766851098,
+      "sympy_format": "fy**(1.2075955*log(log(0.21630442700032*sqrt(d))))*(5.1153336 - 0.29875312824848*sqrt(eta_m))*(rho_t + 3.80108480122892*exp(-d_b))",
+      "lambda_format": "PySRFunction(X=>fy**(1.2075955*log(log(0.21630442700032*sqrt(d))))*(5.1153336 - 0.29875312824848*sqrt(eta_m))*(rho_t + 3.80108480122892*exp(-d_b)))"
+    },
+    {
+      "complexity": 25,
+      "loss": 34.018616,
+      "equation": "((6.583942 - sqrt(eta_m / sqrt(fc))) * ((fy ^ log(log(sqrt(d / 22.972322)))) ^ 1.1772246)) * (rho_t + exp(1.3474786 - d_b))",
+      "score": 0.011985577319962177,
+      "sympy_format": "(6.583942 - sqrt(eta_m/sqrt(fc)))*(rho_t + 3.84771166937513*exp(-d_b))*(fy**log(log(0.208639989622208*sqrt(d))))**1.1772246",
+      "lambda_format": "PySRFunction(X=>(6.583942 - sqrt(eta_m/sqrt(fc)))*(rho_t + 3.84771166937513*exp(-d_b))*(fy**log(log(0.208639989622208*sqrt(d))))**1.1772246)"
+    }
+  ],
+  "generated_at": "2026-04-07 08:06:39.582328"
+}

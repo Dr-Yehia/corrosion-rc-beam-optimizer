@@ -1,0 +1,5 @@
+% Best PySR Equation — LaTeX format
+% Generated: 2026-04-07 08:06:39.568874
+% R² = 0.9328 | RMSE = 6.261
+
+M_{max} = fy^{\log{\left(\log{\left(0.182 \sqrt{d} \right)} \right)}} \left(14.5 - \sqrt{\eta_{m}}\right) \left(- d_{b} + \rho_{t} + 2.69\right)

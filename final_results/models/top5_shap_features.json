@@ -1,0 +1,10 @@
+{
+  "top5_features": [
+    "Depth (mm)",
+    "Diameter Tensile Bars, db,t (mm)",
+    "Stirrup Diameter, ds (mm)",
+    "Width (mm)",
+    "Test Length (mm)"
+  ],
+  "generated_at": "2026-04-07 08:07:24.215172"
+}
