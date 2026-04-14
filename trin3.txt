@@ -3556,3 +3556,17 @@ Complexity  Loss       Score      Equation
 
 ✅ Done. Code: 0
   - outputs/20260414_080808_2f6J9b/hall_of_fame.csv
+
+
+
+# أضف خلية جديدة في Colab وشغّل هذا الكود
+from google.colab import files
+import shutil
+import os
+
+# ضغط كل مجلد النتائج في ملف ZIP واحد
+shutil.make_archive('/content/final_results_v5', 'zip', '/content/corrosion-rc-beam-optimizer/final_results')
+
+# تحميل الملف مباشرة إلى جهازك
+files.download('/content/final_results_v5.zip')
+
