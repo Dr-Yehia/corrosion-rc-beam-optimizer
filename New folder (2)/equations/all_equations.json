@@ -1,0 +1,424 @@
+{
+  "approach": "Ratio = Mmax_exp / M_ACI",
+  "best_equation": "(0.014804574*eta_m + 0.31708667/rho_t)**2.6586616 + 17.9753809417214*sqrt(1/fy)",
+  "best_equation_latex": "\\left(0.0148 \\eta_{m} + \\frac{0.317}{\\rho_{t}}\\right)^{2.66} + 18.0 \\sqrt{\\frac{1}{fy}}",
+  "auto_equation": "463.20154/(eta_m + fy + 131.52899) + (0.025237693**rho_t + (eta_m*0.02127183)**d_b)/rho_t",
+  "metrics": {
+    "approach": "Ratio = Mmax_exp / M_ACI",
+    "selection": "Best by Mmax R² (manual scan of all Pareto equations)",
+    "ratio_R2": 0.5625,
+    "ratio_RMSE": 0.3883,
+    "ratio_MAPE": 24.87,
+    "mmax_R2": 0.9281,
+    "mmax_RMSE": 6.475,
+    "mmax_MAPE": 24.87,
+    "L1_broken": true,
+    "L2_broken": false,
+    "equation": "(0.014804574*eta_m + 0.31708667/rho_t)**2.6586616 + 17.9753809417214*sqrt(1/fy)",
+    "equation_latex": "\\left(0.0148 \\eta_{m} + \\frac{0.317}{\\rho_{t}}\\right)^{2.66} + 18.0 \\sqrt{\\frac{1}{fy}}",
+    "auto_equation": "463.20154/(eta_m + fy + 131.52899) + (0.025237693**rho_t + (eta_m*0.02127183)**d_b)/rho_t",
+    "auto_equation_latex": "\\frac{463.}{\\eta_{m} + fy + 132.} + \\frac{{0.0252}^{\\rho_{t}} + \\left(\\eta_{m} 0.0213\\right)^{d_{b}}}{\\rho_{t}}",
+    "n_samples": 804,
+    "best_eq_index": 10,
+    "all_eq_results": [
+      {
+        "index": 0,
+        "complexity": 1,
+        "loss": 0.3447,
+        "ratio_R2": -0.0,
+        "ratio_MAPE": 38.16,
+        "mmax_R2": 0.8064,
+        "mmax_MAPE": 38.16,
+        "equation": "1.18449970000000"
+      },
+      {
+        "index": 1,
+        "complexity": 3,
+        "loss": 0.2291,
+        "ratio_R2": 0.3354,
+        "ratio_MAPE": 32.98,
+        "mmax_R2": 0.8774,
+        "mmax_MAPE": 32.98,
+        "equation": "1.0210654**eta_m"
+      },
+      {
+        "index": 2,
+        "complexity": 5,
+        "loss": 0.1998,
+        "ratio_R2": 0.4202,
+        "ratio_MAPE": 30.54,
+        "mmax_R2": 0.9048,
+        "mmax_MAPE": 30.54,
+        "equation": "1.0143276**(eta_m/rho_t)"
+      },
+      {
+        "index": 3,
+        "complexity": 7,
+        "loss": 0.1919,
+        "ratio_R2": 0.4432,
+        "ratio_MAPE": 32.97,
+        "mmax_R2": 0.8932,
+        "mmax_MAPE": 32.97,
+        "equation": "1.0180379**(eta_m + rho_t**(-3.2899108))"
+      },
+      {
+        "index": 4,
+        "complexity": 8,
+        "loss": 0.1878,
+        "ratio_R2": 0.4552,
+        "ratio_MAPE": 26.41,
+        "mmax_R2": 0.8973,
+        "mmax_MAPE": 26.41,
+        "equation": "16.534569/(sqrt(fy) - 3.8137243/rho_t)"
+      },
+      {
+        "index": 5,
+        "complexity": 9,
+        "loss": 0.1809,
+        "ratio_R2": 0.4753,
+        "ratio_MAPE": 27.65,
+        "mmax_R2": 0.9275,
+        "mmax_MAPE": 27.65,
+        "equation": "1.0201849**(eta_m + rho_t**(-3.188282)) - 1*0.12064375"
+      },
+      {
+        "index": 6,
+        "complexity": 10,
+        "loss": 0.1655,
+        "ratio_R2": 0.5197,
+        "ratio_MAPE": 26.44,
+        "mmax_R2": 0.9052,
+        "mmax_MAPE": 26.44,
+        "equation": "0.022383304*eta_m/rho_t + 17.5792770044732*sqrt(1/fy)"
+      },
+      {
+        "index": 7,
+        "complexity": 11,
+        "loss": 0.1586,
+        "ratio_R2": 0.5397,
+        "ratio_MAPE": 25.59,
+        "mmax_R2": 0.9138,
+        "mmax_MAPE": 25.59,
+        "equation": "(eta_m*0.016034419 + 0.3192124)/rho_t + 215.79953/fy"
+      },
+      {
+        "index": 8,
+        "complexity": 12,
+        "loss": 0.1583,
+        "ratio_R2": 0.5406,
+        "ratio_MAPE": 26.75,
+        "mmax_R2": 0.9199,
+        "mmax_MAPE": 26.75,
+        "equation": "sqrt((0.0017670743*eta_m**2 + 364.49478/fy)/rho_t)"
+      },
+      {
+        "index": 9,
+        "complexity": 13,
+        "loss": 0.1536,
+        "ratio_R2": 0.5544,
+        "ratio_MAPE": 25.54,
+        "mmax_R2": 0.9078,
+        "mmax_MAPE": 25.54,
+        "equation": "241.94073/(eta_m + fy) + (eta_m*0.018293815 + 0.2611035)/rho_t"
+      },
+      {
+        "index": 10,
+        "complexity": 14,
+        "loss": 0.1508,
+        "ratio_R2": 0.5625,
+        "ratio_MAPE": 24.87,
+        "mmax_R2": 0.9281,
+        "mmax_MAPE": 24.87,
+        "equation": "(0.014804574*eta_m + 0.31708667/rho_t)**2.6586616 + 17.9753809417214*sqrt(1/fy)"
+      },
+      {
+        "index": 11,
+        "complexity": 15,
+        "loss": 0.1465,
+        "ratio_R2": 0.5748,
+        "ratio_MAPE": 24.27,
+        "mmax_R2": 0.9188,
+        "mmax_MAPE": 24.27,
+        "equation": "(eta_m*0.013899018 + 0.33602378/rho_t)**2.5392926 + 451.1846/(fy + 133.80583)"
+      },
+      {
+        "index": 12,
+        "complexity": 17,
+        "loss": 0.1429,
+        "ratio_R2": 0.5855,
+        "ratio_MAPE": 24.22,
+        "mmax_R2": 0.9208,
+        "mmax_MAPE": 24.22,
+        "equation": "491.95496/(fy + 163.5312) + (0.024961926**rho_t + (eta_m*0.020128042)**d_b)/rho_t"
+      },
+      {
+        "index": 13,
+        "complexity": 19,
+        "loss": 0.1414,
+        "ratio_R2": 0.5897,
+        "ratio_MAPE": 24.11,
+        "mmax_R2": 0.9184,
+        "mmax_MAPE": 24.11,
+        "equation": "463.20154/(eta_m + fy + 131.52899) + (0.025237693**rho_t + (eta_m*0.02127183)**d_b)/rho_t"
+      }
+    ],
+    "timestamp": "2026-04-14 09:38:23.806552"
+  },
+  "all_equations": [
+    {
+      "complexity": 1,
+      "loss": 0.3446593,
+      "equation": "1.1844997",
+      "score": 0.0,
+      "sympy_format": "1.18449970000000",
+      "lambda_format": "PySRFunction(X=>1.18449970000000)"
+    },
+    {
+      "complexity": 3,
+      "loss": 0.22907145,
+      "equation": "1.0210654 ^ eta_m",
+      "score": 0.2042612146205237,
+      "sympy_format": "1.0210654**eta_m",
+      "lambda_format": "PySRFunction(X=>1.0210654**eta_m)"
+    },
+    {
+      "complexity": 5,
+      "loss": 0.19984165,
+      "equation": "1.0143276 ^ (eta_m / rho_t)",
+      "score": 0.06825433033739764,
+      "sympy_format": "1.0143276**(eta_m/rho_t)",
+      "lambda_format": "PySRFunction(X=>1.0143276**(eta_m/rho_t))"
+    },
+    {
+      "complexity": 7,
+      "loss": 0.19190577,
+      "equation": "1.0180379 ^ (eta_m + (rho_t ^ -3.2899108))",
+      "score": 0.02026041632161055,
+      "sympy_format": "1.0180379**(eta_m + rho_t**(-3.2899108))",
+      "lambda_format": "PySRFunction(X=>1.0180379**(eta_m + rho_t**(-3.2899108)))"
+    },
+    {
+      "complexity": 8,
+      "loss": 0.18776143,
+      "equation": "16.534569 / (sqrt(fy) + (-3.8137243 / rho_t))",
+      "score": 0.021832302685812623,
+      "sympy_format": "16.534569/(sqrt(fy) - 3.8137243/rho_t)",
+      "lambda_format": "PySRFunction(X=>16.534569/(sqrt(fy) - 3.8137243/rho_t))"
+    },
+    {
+      "complexity": 9,
+      "loss": 0.1808511,
+      "equation": "(1.0201849 ^ ((rho_t ^ -3.188282) + eta_m)) - 0.12064375",
+      "score": 0.037498126851103424,
+      "sympy_format": "1.0201849**(eta_m + rho_t**(-3.188282)) - 1*0.12064375",
+      "lambda_format": "PySRFunction(X=>1.0201849**(eta_m + rho_t**(-3.188282)) - 1*0.12064375)"
+    },
+    {
+      "complexity": 10,
+      "loss": 0.1655431,
+      "equation": "((eta_m * 0.022383304) / rho_t) + sqrt(309.03098 / fy)",
+      "score": 0.08844245689465959,
+      "sympy_format": "0.022383304*eta_m/rho_t + 17.5792770044732*sqrt(1/fy)",
+      "lambda_format": "PySRFunction(X=>0.022383304*eta_m/rho_t + 17.5792770044732*sqrt(1/fy))"
+    },
+    {
+      "complexity": 11,
+      "loss": 0.15863003,
+      "equation": "(215.79953 / fy) + (((eta_m * 0.016034419) + 0.3192124) / rho_t)",
+      "score": 0.04265694833398925,
+      "sympy_format": "(eta_m*0.016034419 + 0.3192124)/rho_t + 215.79953/fy",
+      "lambda_format": "PySRFunction(X=>(eta_m*0.016034419 + 0.3192124)/rho_t + 215.79953/fy)"
+    },
+    {
+      "complexity": 12,
+      "loss": 0.1583418,
+      "equation": "sqrt(((364.49478 / fy) + (eta_m * (eta_m * 0.0017670743))) / rho_t)",
+      "score": 0.0018186479186046746,
+      "sympy_format": "sqrt((0.0017670743*eta_m**2 + 364.49478/fy)/rho_t)",
+      "lambda_format": "PySRFunction(X=>sqrt((0.0017670743*eta_m**2 + 364.49478/fy)/rho_t))"
+    },
+    {
+      "complexity": 13,
+      "loss": 0.15358597,
+      "equation": "(241.94073 / (fy + eta_m)) + (((eta_m * 0.018293815) + 0.2611035) / rho_t)",
+      "score": 0.03049551222519366,
+      "sympy_format": "241.94073/(eta_m + fy) + (eta_m*0.018293815 + 0.2611035)/rho_t",
+      "lambda_format": "PySRFunction(X=>241.94073/(eta_m + fy) + (eta_m*0.018293815 + 0.2611035)/rho_t)"
+    },
+    {
+      "complexity": 14,
+      "loss": 0.15077445,
+      "equation": "(((eta_m * 0.014804574) + (0.31708667 / rho_t)) ^ 2.6586616) + sqrt(323.11432 / fy)",
+      "score": 0.01847546388508341,
+      "sympy_format": "(0.014804574*eta_m + 0.31708667/rho_t)**2.6586616 + 17.9753809417214*sqrt(1/fy)",
+      "lambda_format": "PySRFunction(X=>(0.014804574*eta_m + 0.31708667/rho_t)**2.6586616 + 17.9753809417214*sqrt(1/fy))"
+    },
+    {
+      "complexity": 15,
+      "loss": 0.14653572,
+      "equation": "(451.1846 / (fy + 133.80583)) + (((0.33602378 / rho_t) + (eta_m * 0.013899018)) ^ 2.5392926)",
+      "score": 0.028515790247960256,
+      "sympy_format": "(eta_m*0.013899018 + 0.33602378/rho_t)**2.5392926 + 451.1846/(fy + 133.80583)",
+      "lambda_format": "PySRFunction(X=>(eta_m*0.013899018 + 0.33602378/rho_t)**2.5392926 + 451.1846/(fy + 133.80583))"
+    },
+    {
+      "complexity": 17,
+      "loss": 0.14285162,
+      "equation": "(((0.024961926 ^ rho_t) + ((eta_m * 0.020128042) ^ d_b)) / rho_t) + (491.95496 / (fy + 163.5312))",
+      "score": 0.012731376041665672,
+      "sympy_format": "491.95496/(fy + 163.5312) + (0.024961926**rho_t + (eta_m*0.020128042)**d_b)/rho_t",
+      "lambda_format": "PySRFunction(X=>491.95496/(fy + 163.5312) + (0.024961926**rho_t + (eta_m*0.020128042)**d_b)/rho_t)"
+    },
+    {
+      "complexity": 19,
+      "loss": 0.14140463,
+      "equation": "(463.20154 / (eta_m + (fy + 131.52899))) + (((0.025237693 ^ rho_t) + ((eta_m * 0.02127183) ^ d_b)) / rho_t)",
+      "score": 0.005090486132211258,
+      "sympy_format": "463.20154/(eta_m + fy + 131.52899) + (0.025237693**rho_t + (eta_m*0.02127183)**d_b)/rho_t",
+      "lambda_format": "PySRFunction(X=>463.20154/(eta_m + fy + 131.52899) + (0.025237693**rho_t + (eta_m*0.02127183)**d_b)/rho_t)"
+    }
+  ],
+  "pareto_evaluation": [
+    {
+      "index": 0,
+      "complexity": 1,
+      "loss": 0.3447,
+      "ratio_R2": -0.0,
+      "ratio_MAPE": 38.16,
+      "mmax_R2": 0.8064,
+      "mmax_MAPE": 38.16,
+      "equation": "1.18449970000000"
+    },
+    {
+      "index": 1,
+      "complexity": 3,
+      "loss": 0.2291,
+      "ratio_R2": 0.3354,
+      "ratio_MAPE": 32.98,
+      "mmax_R2": 0.8774,
+      "mmax_MAPE": 32.98,
+      "equation": "1.0210654**eta_m"
+    },
+    {
+      "index": 2,
+      "complexity": 5,
+      "loss": 0.1998,
+      "ratio_R2": 0.4202,
+      "ratio_MAPE": 30.54,
+      "mmax_R2": 0.9048,
+      "mmax_MAPE": 30.54,
+      "equation": "1.0143276**(eta_m/rho_t)"
+    },
+    {
+      "index": 3,
+      "complexity": 7,
+      "loss": 0.1919,
+      "ratio_R2": 0.4432,
+      "ratio_MAPE": 32.97,
+      "mmax_R2": 0.8932,
+      "mmax_MAPE": 32.97,
+      "equation": "1.0180379**(eta_m + rho_t**(-3.2899108))"
+    },
+    {
+      "index": 4,
+      "complexity": 8,
+      "loss": 0.1878,
+      "ratio_R2": 0.4552,
+      "ratio_MAPE": 26.41,
+      "mmax_R2": 0.8973,
+      "mmax_MAPE": 26.41,
+      "equation": "16.534569/(sqrt(fy) - 3.8137243/rho_t)"
+    },
+    {
+      "index": 5,
+      "complexity": 9,
+      "loss": 0.1809,
+      "ratio_R2": 0.4753,
+      "ratio_MAPE": 27.65,
+      "mmax_R2": 0.9275,
+      "mmax_MAPE": 27.65,
+      "equation": "1.0201849**(eta_m + rho_t**(-3.188282)) - 1*0.12064375"
+    },
+    {
+      "index": 6,
+      "complexity": 10,
+      "loss": 0.1655,
+      "ratio_R2": 0.5197,
+      "ratio_MAPE": 26.44,
+      "mmax_R2": 0.9052,
+      "mmax_MAPE": 26.44,
+      "equation": "0.022383304*eta_m/rho_t + 17.5792770044732*sqrt(1/fy)"
+    },
+    {
+      "index": 7,
+      "complexity": 11,
+      "loss": 0.1586,
+      "ratio_R2": 0.5397,
+      "ratio_MAPE": 25.59,
+      "mmax_R2": 0.9138,
+      "mmax_MAPE": 25.59,
+      "equation": "(eta_m*0.016034419 + 0.3192124)/rho_t + 215.79953/fy"
+    },
+    {
+      "index": 8,
+      "complexity": 12,
+      "loss": 0.1583,
+      "ratio_R2": 0.5406,
+      "ratio_MAPE": 26.75,
+      "mmax_R2": 0.9199,
+      "mmax_MAPE": 26.75,
+      "equation": "sqrt((0.0017670743*eta_m**2 + 364.49478/fy)/rho_t)"
+    },
+    {
+      "index": 9,
+      "complexity": 13,
+      "loss": 0.1536,
+      "ratio_R2": 0.5544,
+      "ratio_MAPE": 25.54,
+      "mmax_R2": 0.9078,
+      "mmax_MAPE": 25.54,
+      "equation": "241.94073/(eta_m + fy) + (eta_m*0.018293815 + 0.2611035)/rho_t"
+    },
+    {
+      "index": 10,
+      "complexity": 14,
+      "loss": 0.1508,
+      "ratio_R2": 0.5625,
+      "ratio_MAPE": 24.87,
+      "mmax_R2": 0.9281,
+      "mmax_MAPE": 24.87,
+      "equation": "(0.014804574*eta_m + 0.31708667/rho_t)**2.6586616 + 17.9753809417214*sqrt(1/fy)"
+    },
+    {
+      "index": 11,
+      "complexity": 15,
+      "loss": 0.1465,
+      "ratio_R2": 0.5748,
+      "ratio_MAPE": 24.27,
+      "mmax_R2": 0.9188,
+      "mmax_MAPE": 24.27,
+      "equation": "(eta_m*0.013899018 + 0.33602378/rho_t)**2.5392926 + 451.1846/(fy + 133.80583)"
+    },
+    {
+      "index": 12,
+      "complexity": 17,
+      "loss": 0.1429,
+      "ratio_R2": 0.5855,
+      "ratio_MAPE": 24.22,
+      "mmax_R2": 0.9208,
+      "mmax_MAPE": 24.22,
+      "equation": "491.95496/(fy + 163.5312) + (0.024961926**rho_t + (eta_m*0.020128042)**d_b)/rho_t"
+    },
+    {
+      "index": 13,
+      "complexity": 19,
+      "loss": 0.1414,
+      "ratio_R2": 0.5897,
+      "ratio_MAPE": 24.11,
+      "mmax_R2": 0.9184,
+      "mmax_MAPE": 24.11,
+      "equation": "463.20154/(eta_m + fy + 131.52899) + (0.025237693**rho_t + (eta_m*0.02127183)**d_b)/rho_t"
+    }
+  ],
+  "generated_at": "2026-04-14 09:38:23.818641"
+}

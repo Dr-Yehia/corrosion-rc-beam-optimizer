@@ -1,0 +1,4 @@
+% Best PySR Equation — LaTeX (Ratio Approach) — v7 FINAL
+% Generated: 2026-04-14 09:38:23.817193
+
+M_{\max,corr} = M_{\text{ACI}} \times \left(0.0148 \eta_{m} + \frac{0.317}{\rho_{t}}\right)^{2.66} + 18.0 \sqrt{\frac{1}{fy}}

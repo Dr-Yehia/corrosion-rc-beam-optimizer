@@ -1,0 +1,10 @@
+{
+  "top5_features": [
+    "Depth (mm)",
+    "Diameter Tensile Bars, db,t (mm)",
+    "Width (mm)",
+    "Test Length (mm)",
+    "Tension Reinforcement Ratio, pten (%)"
+  ],
+  "generated_at": "2026-04-14 09:28:07.928686"
+}

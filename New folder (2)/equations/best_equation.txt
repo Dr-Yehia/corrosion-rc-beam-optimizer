@@ -1,0 +1,8 @@
+# Best PySR Equation (Ratio Approach) — v7 FINAL
+# Generated: 2026-04-14 09:38:23.816797
+# Selected by: Best Mmax R² across all Pareto equations
+# Ratio R² = 0.5625 | Mmax R² = 0.9281
+# MAPE (Ratio) = 24.87% | MAPE (Mmax) = 24.87%
+
+Mmax = M_ACI * f_corr
+f_corr = (0.014804574*eta_m + 0.31708667/rho_t)**2.6586616 + 17.9753809417214*sqrt(1/fy)

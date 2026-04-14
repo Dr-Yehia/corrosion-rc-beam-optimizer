@@ -1,0 +1,24 @@
+feature,mean_abs_shap,rank
+Depth (mm),10.307033024260774,1
+"Diameter Tensile Bars, db,t (mm)",3.827435652068144,2
+Width (mm),1.6961754831110534,3
+Test Length (mm),1.4220788992530506,4
+"Tension Reinforcement Ratio, pten (%)",1.1689551073179165,5
+reinf_index,0.9115240456926864,6
+"Mass Loss (Tensile bars), ηm (%)",0.8767302315484169,7
+corr_severity_idx,0.8532295104937138,8
+"fy Longitudinal Bars (Tensile), (MPa) ",0.7614716053286802,9
+"Stirrup Diameter, ds (mm)",0.44839071102633005,10
+"Stirrup Spacing, s (mm) ",0.35476277163790204,11
+# Tensile Bars,0.23112146392952146,12
+"Shear Span, x (mm)",0.10852008756825339,13
+f'c (MPa),0.10522921382227542,14
+"fy,s Stirrup Bars",0.07371139337854042,15
+W/C Ratio,0.06805442471217242,16
+Test Type and Configuration,0.05153400961717463,17
+eta_log,0.04511656534533197,18
+Bottom Cover to Ctr of Tension Bar (mm),0.034049594069003666,19
+d_b_ratio,0.03315487514841992,20
+eta_d_interaction,0.0018571504415286,21
+Corrosion Method,0.0,22
+Longitudinal Bar Type,0.0,23
