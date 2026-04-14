@@ -49,9 +49,13 @@ except ImportError:
     REPORTLAB_AVAILABLE = False
     logger.error("ReportLab not installed. Run: pip install reportlab")
 
-PAGE_W, PAGE_H = A4
-LEFT_M = RIGHT_M = 2.5 * cm
-TOP_M  = BOTTOM_M = 2.0 * cm
+if REPORTLAB_AVAILABLE:
+    PAGE_W, PAGE_H = A4
+    LEFT_M = RIGHT_M = 2.5 * cm
+    TOP_M  = BOTTOM_M = 2.0 * cm
+else:
+    PAGE_W = PAGE_H = 0
+    LEFT_M = RIGHT_M = TOP_M = BOTTOM_M = 0
 
 
 # ============================================================
