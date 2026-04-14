@@ -309,11 +309,22 @@ def run_ensemble_pipeline(X_train, X_test, y_train, y_test, scaler_y=None):
                 f"Test R\u00b2={best_test['R2']}")
 
     # FIX (v5): CV uses X_train ONLY — avoids data leakage from test set.
-    # Previous version used np.vstack([X_train, X_test]) which allowed
-    # test samples to appear in CV training folds.
+    # FIX (v5b): Clone model and remove early_stopping_rounds for CV
+    #            (XGBoost crashes without eval_set when early_stopping is set).
+    from sklearn.base import clone
+    cv_model = clone(best_model)
+    # Remove early_stopping for XGBoost/CatBoost compatibility with cross_val_score
+    if hasattr(cv_model, 'early_stopping_rounds'):
+        cv_model.set_params(early_stopping_rounds=None)
+    if hasattr(cv_model, 'eval_metric') and hasattr(cv_model, 'early_stopping_rounds'):
+        try:
+            cv_model.set_params(early_stopping_rounds=None)
+        except Exception:
+            pass
+
     kf    = KFold(n_splits=KFOLD_N_SPLITS, shuffle=True,
                   random_state=RANDOM_STATE)
-    cv_r2 = cross_val_score(best_model, X_train, y_tr,
+    cv_r2 = cross_val_score(cv_model, X_train, y_tr,
                              cv=kf, scoring="r2", n_jobs=-1)
     logger.info(f"CV R\u00b2 ({best_name}) = "
                 f"{cv_r2.mean():.4f} \u00b1 {cv_r2.std():.4f}")
