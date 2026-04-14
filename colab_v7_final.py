@@ -1,24 +1,22 @@
 #!/usr/bin/env python3
 """
 ═══════════════════════════════════════════════════════════════
-  Corrosion RC Beam Optimizer — v7 FINAL
+  Corrosion RC Beam Optimizer — v8 ULTIMATE
   Google Colab Self-Contained Script
 ═══════════════════════════════════════════════════════════════
-  FIXES from v6:
-    1. ReportLab crash fixed: report_generator.py uses A4 at
-       module level OUTSIDE try/except — crashes on import.
-       v7 bypasses it entirely with embedded FPDF2 fallback.
-    2. PySR stdout interleaving fixed: captured via redirect.
-    3. Ratio MAPE vs Mmax MAPE now computed independently.
-    4. Figures: added ±20% band lines on scatter plots.
-    5. All JSON saved with ensure_ascii=False for Unicode.
-    6. Robust error handling: every phase wrapped in try/except
-       so a crash in one phase won't kill the others.
+  UPGRADES v7→v8:
+    1. DUAL PySR: Direct Mmax + Ratio correction — best wins.
+    2. PySR power: 800 iterations, maxsize 30, 100 populations.
+    3. Nested constraints prevent nonsensical double-nesting.
+    4. 10 features for Direct, 7 for Ratio approach.
+    5. Automatic winner selection — publication-ready equation.
+    6. All v7 fixes retained (FPDF2, stdout flush, ±20% bands).
+    7. Robust error handling: every phase wrapped in try/except.
 
   HOW TO RUN (Google Colab):
     1. Open a new Colab notebook
     2. Paste this ENTIRE file into a single cell
-    3. Run it (takes ~30-60 min total)
+    3. Run it (takes ~40-90 min total)
     4. Download final_results/ when done
 ═══════════════════════════════════════════════════════════════
 """
@@ -91,13 +89,13 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 logger.remove()
 logger.add(sys.stderr, format="<green>{time:HH:mm:ss}</green> | <level>{level:<8}</level> | {message}",
            level="INFO", colorize=True)
-log_file = LOG_DIR / "run_log_v7.txt"
+log_file = LOG_DIR / "run_log_v8.txt"
 logger.add(str(log_file), format="{time:YYYY-MM-DD HH:mm:ss} | {level:<8} | {message}",
            level="DEBUG", rotation="10 MB", encoding="utf-8")
 
 t_start = time.time()
 logger.info("=" * 65)
-logger.info(" Corrosion RC Beam Optimizer (v7 — FINAL)")
+logger.info(" Corrosion RC Beam Optimizer (v8 — ULTIMATE)")
 logger.info(f" Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 logger.info("=" * 65)
 
@@ -180,10 +178,10 @@ val_results = run_statistical_validation(
 )
 
 # ════════════════════════════════════════════════════════════
-# CELL 8: PySR — RATIO TARGET (FIXED v7)
+# CELL 8A: PySR — RATIO APPROACH (v8)
 # ════════════════════════════════════════════════════════════
 logger.info("\n" + "=" * 60)
-logger.info(" Phase 3 — PySR Symbolic Regression (RATIO TARGET — v7)")
+logger.info(" Phase 3A — PySR Symbolic Regression (RATIO TARGET — v8)")
 logger.info("=" * 60)
 
 from pysr import PySRRegressor
@@ -200,6 +198,7 @@ def _sanitize_name(name):
         "corr_severity_idx": "CSI",
         "d_b_ratio": "d_b",
         "reinf_index": "RI",
+        "Diameter Tensile Bars, db,t (mm)": "db_t",
     }
     if name in MAPPING:
         return MAPPING[name]
@@ -212,6 +211,8 @@ RATIO_FEATURES = [
     "Mass Loss (Tensile bars), ηm (%)",
     "fy Longitudinal Bars (Tensile), (MPa) ",
     "f'c (MPa)",
+    "Depth (mm)",
+    "Width (mm)",
     "Tension Reinforcement Ratio, pten (%)",
     "d_b_ratio",
 ]
@@ -242,14 +243,20 @@ logger.info(f"  Ratio range: [{y_ratio.min():.3f}, {y_ratio.max():.3f}]")
 logger.info(f"  Ratio mean : {y_ratio.mean():.3f}, std: {y_ratio.std():.3f}")
 
 # ═══════════════════════════════════════════════════════════
-#  🔧 KEY FIX v6→v7: model_selection = "accuracy"
+#  v8: Shared PySR config for both Ratio and Direct approaches
 # ═══════════════════════════════════════════════════════════
-pysr_model = PySRRegressor(
-    niterations      = 500,
-    maxsize          = 20,
-    populations      = 80,
+PYSR_COMMON = dict(
+    niterations      = 800,
+    maxsize          = 30,
+    populations      = 100,
     binary_operators = ["+", "-", "*", "/", "^"],
     unary_operators  = ["sqrt", "log", "exp"],
+    nested_constraints = {
+        "sqrt": {"sqrt": 0, "log": 1, "exp": 0},
+        "log":  {"log": 0, "exp": 0, "sqrt": 1},
+        "exp":  {"exp": 0, "log": 0, "sqrt": 1},
+    },
+    constraints      = {"^": (-1, 1), "sqrt": 9, "log": 9, "exp": 5},
     model_selection  = "accuracy",
     elementwise_loss = "loss(x, y) = (x - y)^2",
     verbosity        = 1,
@@ -260,8 +267,10 @@ pysr_model = PySRRegressor(
     extra_sympy_mappings = {},
 )
 
+pysr_model = PySRRegressor(**PYSR_COMMON)
+
 logger.info("Starting PySR on RATIO target (this takes a while) ...")
-logger.info("⚠️  FIX APPLIED: model_selection='accuracy'")
+logger.info("  v8: 800 iter, maxsize=30, 100 pop, nested constraints")
 pysr_model.fit(X_pysr, y_ratio, variable_names=safe_names)
 logger.info("PySR training complete.")
 
@@ -371,54 +380,264 @@ pysr_metrics = {
 }
 
 logger.info("=" * 60)
-logger.info(" PySR RATIO Equation — FINAL Results (v7)")
+logger.info(" PySR RATIO Equation — Results (v8)")
 logger.info("=" * 60)
 logger.info(f"  Auto-selected (accuracy): {auto_eq_str}")
-logger.info(f"  Best (by Mmax R²):        {best_eq_str}")
-logger.info(f"  Ratio R²   = {pysr_metrics['ratio_R2']}")
+logger.info(f"  Best (by Mmax R2):        {best_eq_str}")
+logger.info(f"  Ratio R2   = {pysr_metrics['ratio_R2']}")
 logger.info(f"  Ratio MAPE = {pysr_metrics['ratio_MAPE']} %")
-logger.info(f"  Mmax  R²   = {pysr_metrics['mmax_R2']}")
+logger.info(f"  Mmax  R2   = {pysr_metrics['mmax_R2']}")
 logger.info(f"  Mmax  MAPE = {pysr_metrics['mmax_MAPE']} %")
 logger.info(f"  L1 broken  = {pysr_metrics['L1_broken']}")
 logger.info(f"  L2 broken  = {pysr_metrics['L2_broken']}")
 logger.info("=" * 60)
 
-# --- Save equation files ---
+ratio_pysr_metrics = dict(pysr_metrics)
+ratio_best_eq_str = best_eq_str
+ratio_best_eq_latex = best_eq_latex
+ratio_auto_eq_str = auto_eq_str
+ratio_auto_eq_latex = auto_eq_latex
+ratio_all_eq_results = list(all_eq_results)
+ratio_best_eq_idx = best_eq_idx
+ratio_equations_hof = equations
+
+# ════════════════════════════════════════════════════════════
+# CELL 8B: PySR — DIRECT Mmax PREDICTION (v8 NEW)
+# ════════════════════════════════════════════════════════════
+logger.info("\n" + "=" * 60)
+logger.info(" Phase 3B — PySR Direct Mmax Prediction (v8)")
+logger.info("=" * 60)
+
+DIRECT_FEATURES = [
+    "Mass Loss (Tensile bars), ηm (%)",
+    "fy Longitudinal Bars (Tensile), (MPa) ",
+    "f'c (MPa)",
+    "Depth (mm)",
+    "Width (mm)",
+    "Tension Reinforcement Ratio, pten (%)",
+    "Diameter Tensile Bars, db,t (mm)",
+    "d_b_ratio",
+    "reinf_index",
+    "corr_severity_idx",
+]
+
+avail_D = [f for f in DIRECT_FEATURES if f in df_clean.columns]
+names_D = [_sanitize_name(n) for n in avail_D]
+
+X_D_all = df_clean[avail_D].values.astype(np.float64)
+y_D_all = df_clean[TARGET_COL].values.astype(np.float64)
+
+valid_D = np.isfinite(X_D_all).all(axis=1) & np.isfinite(y_D_all) & (y_D_all > 0)
+X_D_all, y_D_all = X_D_all[valid_D], y_D_all[valid_D]
+M_ACI_D = M_ACI_all[valid_D]
+
+logger.info(f"  Direct — {X_D_all.shape[0]} samples, features: {names_D}")
+
+pysr_direct = PySRRegressor(**PYSR_COMMON)
+logger.info("  Starting PySR (Direct Mmax) — 800 iter, maxsize=30 ...")
+pysr_direct.fit(X_D_all, y_D_all, variable_names=names_D)
+logger.info("  Direct approach complete.")
+
+sys.stdout.flush(); sys.stderr.flush(); time.sleep(1)
+
+eqs_D = pysr_direct.get_hof()
+results_D = []
+best_D_r2, best_D_idx = -999, None
+
+logger.info("=" * 60)
+logger.info(" Evaluating Direct Approach Pareto Equations")
+logger.info("=" * 60)
+
+for idx in range(len(eqs_D)):
+    try:
+        pred_d = np.clip(pysr_direct.predict(X_D_all, index=idx), 0, 500)
+        r2_d = r2_score(y_D_all, pred_d)
+        rmse_d = float(np.sqrt(mean_squared_error(y_D_all, pred_d)))
+        mape_d = float(np.mean(np.abs(
+            (y_D_all - pred_d) / np.maximum(np.abs(y_D_all), 1e-6)
+        )) * 100)
+        eq_str_d = str(pysr_direct.sympy(index=idx))
+        cx_d = int(eqs_D.iloc[idx].get("complexity", idx))
+        loss_d = float(eqs_D.iloc[idx].get("loss", 0))
+
+        results_D.append({
+            "index": idx, "complexity": cx_d, "loss": round(loss_d, 4),
+            "ratio_R2": round(r2_d, 4),
+            "mmax_R2": round(r2_d, 4), "mmax_RMSE": round(rmse_d, 4),
+            "mmax_MAPE": round(mape_d, 2), "equation": eq_str_d,
+        })
+
+        logger.info(f"  D| C={cx_d:2d} R2={r2_d:.4f} RMSE={rmse_d:.2f} "
+                     f"MAPE={mape_d:.1f}% | {eq_str_d[:55]}")
+
+        if r2_d > best_D_r2:
+            best_D_r2, best_D_idx = r2_d, idx
+    except Exception as e:
+        logger.warning(f"  D| Eq {idx} failed: {e}")
+
+logger.info(f"\n  Direct best: idx={best_D_idx}, R2={best_D_r2:.4f}")
+
+if best_D_idx is not None:
+    best_D_str = str(pysr_direct.sympy(index=best_D_idx))
+    best_D_latex = str(pysr_direct.latex(index=best_D_idx))
+    best_D_pred = np.clip(pysr_direct.predict(X_D_all, index=best_D_idx), 0, 500)
+    best_D_rmse = float(np.sqrt(mean_squared_error(y_D_all, best_D_pred)))
+    best_D_mape = float(np.mean(np.abs(
+        (y_D_all - best_D_pred) / np.maximum(np.abs(y_D_all), 1e-6)
+    )) * 100)
+else:
+    best_D_str, best_D_latex = "N/A", "N/A"
+    best_D_pred = np.zeros_like(y_D_all)
+    best_D_rmse, best_D_mape = 999.0, 999.0
+
+direct_pysr_metrics = {
+    "approach": "Direct Mmax prediction",
+    "R2": round(best_D_r2, 4),
+    "RMSE": round(best_D_rmse, 4),
+    "MAPE": round(best_D_mape, 2),
+    "equation": best_D_str,
+    "equation_latex": best_D_latex,
+    "L1_broken": best_D_r2 >= L1_TARGET_R2,
+    "L2_broken": best_D_r2 >= L2_TARGET_R2,
+    "n_samples": int(X_D_all.shape[0]),
+    "features": names_D,
+}
+
+with open(MODELS_DIR / "pysr_metrics_direct.json", "w", encoding="utf-8") as f:
+    json.dump(direct_pysr_metrics, f, indent=2, default=str, ensure_ascii=False)
+with open(MODELS_DIR / "pysr_metrics_ratio.json", "w", encoding="utf-8") as f:
+    json.dump(ratio_pysr_metrics, f, indent=2, default=str, ensure_ascii=False)
+
+# ════════════════════════════════════════════════════════════
+# CELL 8C: FINAL COMPARISON — Pick Winner for Publication
+# ════════════════════════════════════════════════════════════
+logger.info("\n" + "=" * 60)
+logger.info(" FINAL COMPARISON — Ratio vs Direct (v8)")
+logger.info("=" * 60)
+logger.info(f"  Ratio  : Mmax R2={ratio_pysr_metrics['mmax_R2']} | "
+            f"RMSE={ratio_pysr_metrics['mmax_RMSE']} | "
+            f"MAPE={ratio_pysr_metrics['mmax_MAPE']}%")
+logger.info(f"  Direct : Mmax R2={best_D_r2:.4f} | "
+            f"RMSE={best_D_rmse:.2f} | MAPE={best_D_mape:.1f}%")
+
+if best_D_r2 > ratio_pysr_metrics.get("mmax_R2", 0):
+    FINAL_WINNER = "DIRECT"
+    logger.success(f"  >>> WINNER: Direct Approach (R2={best_D_r2:.4f})")
+
+    best_eq_str = best_D_str
+    best_eq_latex = best_D_latex
+    auto_eq_str = str(pysr_direct.sympy())
+    auto_eq_latex = str(pysr_direct.latex())
+
+    y_mmax_valid = y_D_all
+    mmax_pred_from_ratio = best_D_pred
+    r2_mmax = best_D_r2
+    rmse_mmax = best_D_rmse
+    mape_mmax = best_D_mape
+
+    ratio_pred = best_D_pred / np.maximum(M_ACI_D, 1e-6)
+    y_ratio = y_D_all / np.maximum(M_ACI_D, 1e-6)
+    X_pysr = X_D_all
+    safe_names = names_D
+    M_ACI_valid = M_ACI_D
+
+    best_eq_idx = best_D_idx
+    all_eq_results = results_D
+    equations = eqs_D
+else:
+    FINAL_WINNER = "RATIO"
+    logger.success(f"  >>> WINNER: Ratio Approach (Mmax R2={ratio_pysr_metrics['mmax_R2']})")
+    auto_eq_latex = ratio_auto_eq_latex
+
+pysr_metrics = {
+    "winner": FINAL_WINNER,
+    "approach": f"Dual PySR v8 — winner: {FINAL_WINNER}",
+    "selection": f"Best Mmax R2 from {FINAL_WINNER} Pareto front",
+    "ratio_R2": round(ratio_pysr_metrics.get("ratio_R2", r2_mmax), 4),
+    "ratio_RMSE": round(ratio_pysr_metrics.get("ratio_RMSE", rmse_mmax), 4),
+    "ratio_MAPE": round(ratio_pysr_metrics.get("ratio_MAPE", mape_mmax), 2),
+    "mmax_R2": round(r2_mmax, 4),
+    "mmax_RMSE": round(rmse_mmax, 4),
+    "mmax_MAPE": round(mape_mmax, 2),
+    "L1_broken": r2_mmax >= L1_TARGET_R2,
+    "L2_broken": r2_mmax >= L2_TARGET_R2,
+    "equation": best_eq_str,
+    "equation_latex": best_eq_latex,
+    "auto_equation": auto_eq_str,
+    "auto_equation_latex": auto_eq_latex,
+    "n_samples": int(y_mmax_valid.shape[0]),
+    "best_eq_index": int(best_eq_idx) if best_eq_idx is not None else -1,
+    "all_eq_results": all_eq_results,
+    "ratio_approach_mmax_R2": round(ratio_pysr_metrics.get("mmax_R2", 0), 4),
+    "direct_approach_mmax_R2": round(best_D_r2, 4),
+    "timestamp": str(datetime.now()),
+}
+
+# --- Save final equation files ---
 EQ_DIR.mkdir(parents=True, exist_ok=True)
 
 with open(EQ_DIR / "best_equation.txt", "w", encoding="utf-8") as f:
-    f.write(f"# Best PySR Equation (Ratio Approach) — v7 FINAL\n")
+    f.write(f"# Best PySR Equation ({FINAL_WINNER} Approach) — v8 FINAL\n")
     f.write(f"# Generated: {datetime.now()}\n")
-    f.write(f"# Selected by: Best Mmax R² across all Pareto equations\n")
-    f.write(f"# Ratio R² = {pysr_metrics['ratio_R2']} | Mmax R² = {pysr_metrics['mmax_R2']}\n")
-    f.write(f"# MAPE (Ratio) = {pysr_metrics['ratio_MAPE']}% | MAPE (Mmax) = {pysr_metrics['mmax_MAPE']}%\n\n")
-    f.write(f"Mmax = M_ACI * f_corr\n")
-    f.write(f"f_corr = {best_eq_str}\n")
+    f.write(f"# Winner: {FINAL_WINNER} | R2 = {r2_mmax:.4f} | "
+            f"RMSE = {rmse_mmax:.4f} | MAPE = {mape_mmax:.2f}%\n")
+    f.write(f"# Ratio R2={ratio_pysr_metrics.get('mmax_R2',0)} | "
+            f"Direct R2={best_D_r2:.4f}\n\n")
+    if FINAL_WINNER == "DIRECT":
+        f.write(f"Mmax = {best_eq_str}\n")
+    else:
+        f.write(f"Mmax = M_ACI * f_corr\n")
+        f.write(f"f_corr = {best_eq_str}\n")
 
 with open(EQ_DIR / "best_equation.latex", "w", encoding="utf-8") as f:
-    f.write(f"% Best PySR Equation — LaTeX (Ratio Approach) — v7 FINAL\n")
+    f.write(f"% Best PySR Equation ({FINAL_WINNER}) — v8 FINAL\n")
     f.write(f"% Generated: {datetime.now()}\n\n")
-    f.write(f"M_{{\\max,corr}} = M_{{\\text{{ACI}}}} \\times {best_eq_latex}\n")
+    if FINAL_WINNER == "DIRECT":
+        f.write(f"M_{{\\max}} = {best_eq_latex}\n")
+    else:
+        f.write(f"M_{{\\max,corr}} = M_{{\\text{{ACI}}}} \\times {best_eq_latex}\n")
 
-# Save ALL equations for paper comparison table
-eq_records = equations.to_dict(orient="records") if equations is not None else []
+eq_records_ratio = ratio_equations_hof.to_dict(orient="records") if ratio_equations_hof is not None else []
+eq_records_direct = eqs_D.to_dict(orient="records") if eqs_D is not None else []
 
 all_eq_payload = {
-    "approach": "Ratio = Mmax_exp / M_ACI",
-    "best_equation": best_eq_str,
-    "best_equation_latex": best_eq_latex,
-    "auto_equation": auto_eq_str,
-    "metrics": pysr_metrics,
-    "all_equations": eq_records,
-    "pareto_evaluation": all_eq_results,
+    "winner": FINAL_WINNER,
+    "final_equation": best_eq_str,
+    "final_equation_latex": best_eq_latex,
+    "ratio_approach": {
+        "best_equation": ratio_best_eq_str,
+        "best_equation_latex": ratio_best_eq_latex,
+        "mmax_R2": ratio_pysr_metrics.get("mmax_R2", 0),
+        "metrics": ratio_pysr_metrics,
+        "all_equations": eq_records_ratio,
+        "pareto_evaluation": ratio_all_eq_results,
+    },
+    "direct_approach": {
+        "best_equation": best_D_str,
+        "best_equation_latex": best_D_latex,
+        "R2": round(best_D_r2, 4),
+        "metrics": direct_pysr_metrics,
+        "all_equations": eq_records_direct,
+        "pareto_evaluation": results_D,
+    },
+    "final_metrics": pysr_metrics,
     "generated_at": str(datetime.now()),
 }
 with open(EQ_DIR / "all_equations.json", "w", encoding="utf-8") as f:
     json.dump(all_eq_payload, f, indent=2, default=str, ensure_ascii=False)
 
-# Save PySR metrics separately for easy access
 with open(MODELS_DIR / "pysr_metrics.json", "w", encoding="utf-8") as f:
     json.dump(pysr_metrics, f, indent=2, default=str, ensure_ascii=False)
+
+logger.info("=" * 60)
+logger.info(f"  PUBLICATION EQUATION ({FINAL_WINNER}):")
+logger.info(f"    {best_eq_str}")
+logger.info(f"    R2   = {r2_mmax:.4f}")
+logger.info(f"    RMSE = {rmse_mmax:.4f}")
+logger.info(f"    MAPE = {mape_mmax:.2f}%")
+logger.info(f"    L1   = {pysr_metrics['L1_broken']}")
+logger.info(f"    L2   = {pysr_metrics['L2_broken']}")
+logger.info("=" * 60)
 
 
 # ════════════════════════════════════════════════════════════
@@ -460,27 +679,29 @@ try:
 except Exception as e:
     logger.warning(f"  Fig 1 ✗ Failed: {e}")
 
-# ── Figure 2: Ratio Equation Scatter ──
+# ── Figure 2: PySR Equation Scatter (Winner) ──
 try:
     fig2, ax2 = plt.subplots(figsize=(8, 8))
     ax2.scatter(y_mmax_valid, mmax_pred_from_ratio, c="#2E7D32", alpha=0.6, s=30, edgecolors="w", linewidth=0.3)
     lim2 = [0, max(y_mmax_valid.max(), mmax_pred_from_ratio.max()) * 1.05]
     ax2.plot(lim2, lim2, "r--", linewidth=2, label="Perfect prediction")
-    ax2.plot(lim2, [l*1.2 for l in lim2], "g:", linewidth=1, alpha=0.5, label="±20% band")
+    ax2.plot(lim2, [l*1.2 for l in lim2], "g:", linewidth=1, alpha=0.5, label="+/-20% band")
     ax2.plot(lim2, [l*0.8 for l in lim2], "g:", linewidth=1, alpha=0.5)
-    ax2.set_xlabel("Experimental Mmax (kN·m)")
-    ax2.set_ylabel("Predicted Mmax = M_ACI × f_corr (kN·m)")
-    ax2.set_title(f"PySR Ratio Equation: Predicted vs Experimental\nMmax R² = {r2_mmax:.4f} | Mmax MAPE = {mape_mmax:.1f}%")
+    ax2.set_xlabel("Experimental Mmax (kN.m)")
+    _ylabel = "Predicted Mmax (kN.m)" if FINAL_WINNER == "DIRECT" else "Predicted Mmax = M_ACI * f_corr (kN.m)"
+    ax2.set_ylabel(_ylabel)
+    ax2.set_title(f"PySR {FINAL_WINNER} Equation: Predicted vs Experimental\n"
+                  f"Mmax R2 = {r2_mmax:.4f} | Mmax MAPE = {mape_mmax:.1f}%")
     ax2.set_xlim(lim2); ax2.set_ylim(lim2)
     ax2.set_aspect("equal")
     ax2.legend(fontsize=11)
     ax2.grid(True, alpha=0.3)
-    fig2.savefig(FIGURES_DIR / "fig2_ratio_equation_scatter.png")
+    fig2.savefig(FIGURES_DIR / "fig2_pysr_equation_scatter.png")
     plt.close(fig2)
     fig_count += 1
-    logger.info("  Fig 2 ✓ Ratio Equation Scatter")
+    logger.info(f"  Fig 2 OK — PySR {FINAL_WINNER} Equation Scatter")
 except Exception as e:
-    logger.warning(f"  Fig 2 ✗ Failed: {e}")
+    logger.warning(f"  Fig 2 FAILED: {e}")
 
 # ── Figure 3: Pareto Curve (Complexity vs Loss) ──
 try:
@@ -727,7 +948,7 @@ logger.info(f"  Total figures generated: {fig_count}/10")
 
 
 # ════════════════════════════════════════════════════════════
-# CELL 10: PDF REPORT (v7 — EMBEDDED FPDF2 FALLBACK)
+# CELL 10: PDF REPORT (v8 — EMBEDDED FPDF2)
 # ════════════════════════════════════════════════════════════
 logger.info("\n" + "=" * 60)
 logger.info(" Phase 6 — PDF Report")
@@ -741,7 +962,7 @@ def generate_pdf_report_fpdf2():
         def header(self):
             self.set_font('Helvetica', 'B', 10)
             self.set_text_color(13, 27, 42)
-            self.cell(0, 8, 'Corrosion RC Beam Optimizer — Scientific Report (v7)', 0, 1, 'C')
+            self.cell(0, 8, 'Corrosion RC Beam Optimizer - Scientific Report (v8)', 0, 1, 'C')
             self.set_draw_color(189, 189, 189)
             self.line(10, self.get_y(), 200, self.get_y())
             self.ln(3)
@@ -762,7 +983,7 @@ def generate_pdf_report_fpdf2():
     pdf.ln(40)
     pdf.cell(0, 15, 'Corrosion RC Beam Optimizer', 0, 1, 'C')
     pdf.set_font('Helvetica', '', 14)
-    pdf.cell(0, 10, 'Scientific Report (v7 Final)', 0, 1, 'C')
+    pdf.cell(0, 10, 'Scientific Report (v8 Ultimate)', 0, 1, 'C')
     pdf.set_font('Helvetica', 'I', 11)
     pdf.cell(0, 10, f'Generated: {datetime.now().strftime("%B %d, %Y - %H:%M")}', 0, 1, 'C')
     pdf.ln(10)
@@ -797,15 +1018,17 @@ def generate_pdf_report_fpdf2():
     # ── PySR Results ──
     pdf.ln(5)
     pdf.set_font('Helvetica', 'B', 14)
-    pdf.cell(0, 10, '3. PySR Symbolic Regression', 0, 1, 'L')
+    pdf.cell(0, 10, '3. PySR Symbolic Regression (Dual Approach v8)', 0, 1, 'L')
     pdf.set_font('Helvetica', '', 10)
-    pdf.cell(0, 7, f'  Best Equation (by Mmax R2): {best_eq_str}', 0, 1)
-    pdf.cell(0, 7, f'  Ratio R2 = {pysr_metrics["ratio_R2"]}', 0, 1)
-    pdf.cell(0, 7, f'  Ratio MAPE = {pysr_metrics["ratio_MAPE"]}%', 0, 1)
+    pdf.cell(0, 7, f'  Winner: {pysr_metrics.get("winner", "?")}', 0, 1)
+    pdf.cell(0, 7, f'  Publication Equation: {best_eq_str[:85]}', 0, 1)
     pdf.cell(0, 7, f'  Mmax R2 = {pysr_metrics["mmax_R2"]}', 0, 1)
     pdf.cell(0, 7, f'  Mmax MAPE = {pysr_metrics["mmax_MAPE"]}%', 0, 1)
+    pdf.cell(0, 7, f'  L1 broken = {pysr_metrics["L1_broken"]}', 0, 1)
+    pdf.cell(0, 7, f'  L2 broken = {pysr_metrics["L2_broken"]}', 0, 1)
     pdf.ln(3)
-    pdf.cell(0, 7, f'  Auto-selected (accuracy): {auto_eq_str[:80]}', 0, 1)
+    pdf.cell(0, 7, f'  Ratio approach Mmax R2 = {pysr_metrics.get("ratio_approach_mmax_R2", "?")}', 0, 1)
+    pdf.cell(0, 7, f'  Direct approach Mmax R2 = {pysr_metrics.get("direct_approach_mmax_R2", "?")}', 0, 1)
 
     # ── Pareto Table ──
     pdf.ln(5)
@@ -875,13 +1098,13 @@ def generate_pdf_report_fpdf2():
                 pass
 
     # Save
-    report_path = RESULTS_DIR / "Final_Report_v7.pdf"
+    report_path = RESULTS_DIR / "Final_Report_v8.pdf"
     pdf.output(str(report_path))
     return report_path
 
 try:
     report_path = generate_pdf_report_fpdf2()
-    logger.info(f"✅ PDF Report saved → {report_path}")
+    logger.info(f"PDF Report saved -> {report_path}")
 except Exception as e:
     logger.warning(f"PDF report failed: {e}")
     traceback.print_exc()
@@ -893,38 +1116,41 @@ elapsed = time.time() - t_start
 
 sep = "=" * 65
 print(f"\n{sep}")
-print(" CORROSION RC BEAM OPTIMIZER v7 — FINAL PIPELINE COMPLETE")
+print(" CORROSION RC BEAM OPTIMIZER v8 -- ULTIMATE PIPELINE COMPLETE")
 print(sep)
 print(f"\n  ACI 318-19 Baseline:")
-print(f"    R²   = {aci_metrics.get('R2','?')}")
-print(f"    RMSE = {aci_metrics.get('RMSE','?')} kN·m")
+print(f"    R2   = {aci_metrics.get('R2','?')}")
+print(f"    RMSE = {aci_metrics.get('RMSE','?')} kN.m")
 
 if mlp_results:
     mt = mlp_results.get("metrics_test", {})
     print(f"\n  MLP Baseline (Test):")
-    print(f"    R²   = {mt.get('R2','?')}")
+    print(f"    R2   = {mt.get('R2','?')}")
     print(f"    RMSE = {mt.get('RMSE','?')}")
 
 et = ensemble_results.get("metrics_test", {})
-print(f"\n  🏆 Ensemble Best [{ensemble_results.get('best_name','?')}] (Test):")
-print(f"    R²        = {et.get('R2','?')}")
+print(f"\n  Ensemble Best [{ensemble_results.get('best_name','?')}] (Test):")
+print(f"    R2        = {et.get('R2','?')}")
 print(f"    RMSE      = {et.get('RMSE','?')}")
 print(f"    L1 broken : {et.get('L1_broken','?')}")
 print(f"    L2 broken : {et.get('L2_broken','?')}")
 cv_m = ensemble_results.get('cv_R2_mean', None)
 cv_s = ensemble_results.get('cv_R2_std', None)
 if cv_m is not None and cv_s is not None:
-    print(f"    CV R²     = {cv_m:.4f} ± {cv_s:.4f}")
+    print(f"    CV R2     = {cv_m:.4f} +/- {cv_s:.4f}")
 else:
-    print(f"    CV R²     = {cv_m} ± {cv_s}")
+    print(f"    CV R2     = {cv_m} +/- {cv_s}")
 
-print(f"\n  📐 PySR Ratio Equation (best by Mmax R²):")
-print(f"    f_corr = {best_eq_str}")
-print(f"    Ratio R²   = {pysr_metrics['ratio_R2']}")
-print(f"    Ratio MAPE = {pysr_metrics['ratio_MAPE']}%")
-print(f"    Mmax  R²   = {pysr_metrics['mmax_R2']}")
+print(f"\n  === PySR DUAL APPROACH (v8) ===")
+print(f"  Ratio  approach: Mmax R2 = {pysr_metrics.get('ratio_approach_mmax_R2','?')}")
+print(f"  Direct approach: Mmax R2 = {pysr_metrics.get('direct_approach_mmax_R2','?')}")
+print(f"\n  >>> WINNER: {pysr_metrics.get('winner','?')}")
+print(f"  PUBLICATION EQUATION:")
+print(f"    {best_eq_str}")
+print(f"    Mmax  R2   = {pysr_metrics['mmax_R2']}")
 print(f"    Mmax  MAPE = {pysr_metrics['mmax_MAPE']}%")
-print(f"    (Auto-selected: {auto_eq_str})")
+print(f"    L1 broken  = {pysr_metrics['L1_broken']}")
+print(f"    L2 broken  = {pysr_metrics['L2_broken']}")
 
 if val_results:
     print(f"\n  Statistical Validation:")
@@ -932,8 +1158,8 @@ if val_results:
     cd = val_results.get("cohens_d", {})
     print(f"    Cohen's d  = {cd.get('cohens_d','?')} ({cd.get('magnitude','?')})")
 
-print(f"\n  📊 Figures generated: {fig_count}/10 (in {FIGURES_DIR})")
-print(f"  📄 PDF Report: {RESULTS_DIR / 'Final_Report_v7.pdf'}")
+print(f"\n  Figures generated: {fig_count}/10 (in {FIGURES_DIR})")
+print(f"  PDF Report: {RESULTS_DIR / 'Final_Report_v8.pdf'}")
 print(f"  Total time: {elapsed/60:.1f} min ({elapsed:.0f}s)")
 print(sep)
 
@@ -941,8 +1167,8 @@ print(sep)
 # CELL 12: ZIP FOR DOWNLOAD
 # ════════════════════════════════════════════════════════════
 import shutil
-zip_path = shutil.make_archive('/content/final_results_v7', 'zip', str(RESULTS_DIR))
-print(f"\n📦 Results zipped → {zip_path}")
+zip_path = shutil.make_archive('/content/final_results_v8', 'zip', str(RESULTS_DIR))
+print(f"\nResults zipped -> {zip_path}")
 print("   To download, run in a new cell:")
-print("   from google.colab import files; files.download('/content/final_results_v7.zip')")
-print("\n✅ Done. Code: 0")
+print("   from google.colab import files; files.download('/content/final_results_v8.zip')")
+print("\nDone. Exit code: 0")
