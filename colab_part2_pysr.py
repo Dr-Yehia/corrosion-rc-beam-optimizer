@@ -38,16 +38,18 @@ for p in ["loguru", "pysr", "scikit-learn", "matplotlib", "seaborn", "fpdf2"]:
         install(p)
 
 REPO = "corrosion-rc-beam-optimizer"
-if not os.path.isdir(f"/content/{REPO}"):
+BASE = "/kaggle/working" if os.path.isdir("/kaggle/working") else "/content"
+REPO_PATH = f"{BASE}/{REPO}"
+if not os.path.isdir(REPO_PATH):
     subprocess.run(
         ["git", "clone",
          "https://github.com/Dr-Yehia/corrosion-rc-beam-optimizer.git",
-         f"/content/{REPO}"],
+         REPO_PATH],
         check=True,
     )
 
 # Patch 70/30 if not already patched
-config_path = f"/content/{REPO}/src/config.py"
+config_path = f"{REPO_PATH}/src/config.py"
 with open(config_path, "r") as f:
     cfg_txt = f.read()
 if "TEST_SIZE    = 0.20" in cfg_txt:
@@ -56,8 +58,8 @@ if "TEST_SIZE    = 0.20" in cfg_txt:
         f.write(cfg_txt)
     print("CONFIG PATCHED: TEST_SIZE = 0.30")
 
-os.chdir(f"/content/{REPO}/src")
-sys.path.insert(0, f"/content/{REPO}/src")
+os.chdir(f"{REPO_PATH}/src")
+sys.path.insert(0, f"{REPO_PATH}/src")
 print("Setup complete.")
 
 # =============================================================
@@ -946,9 +948,14 @@ print(sep)
 # =============================================================
 # CELL 12: ZIP FOR DOWNLOAD
 # =============================================================
-import zipfile
+import zipfile, shutil
+from pathlib import Path as _P
 
-zip_path = "/content/final_results_complete.zip"
+_kaggle = _P("/kaggle/working")
+_colab  = _P("/content")
+_out = _kaggle if _kaggle.exists() else _colab
+
+zip_path = str(_out / "part2_results_complete.zip")
 with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
     for sub in ["figures", "models", "equations", "for_part2", "logs"]:
         sub_dir = RESULTS_DIR / sub
@@ -961,8 +968,17 @@ with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
     if report_f.exists():
         zf.write(str(report_f), "Final_Report.pdf")
 
+if _kaggle.exists():
+    for d in [FIGURES_DIR, EQ_DIR]:
+        if d.exists():
+            for f in d.glob("*"):
+                if f.is_file():
+                    shutil.copy2(str(f), str(_kaggle / f.name))
+
 print(f"\nClean ZIP -> {zip_path}")
-print("   To download:")
-print("   from google.colab import files; "
-      "files.download('/content/final_results_complete.zip')")
-print("\nDone. Exit code: 0")
+try:
+    from google.colab import files
+    files.download(zip_path)
+except ImportError:
+    pass
+print("\nPart 2 Done. Ready for Part 3 (Physics).")

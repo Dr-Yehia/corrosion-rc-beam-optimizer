@@ -52,16 +52,18 @@ for p in ["loguru", "sympy", "SALib", "scikit-learn",
         install(p)
 
 REPO = "corrosion-rc-beam-optimizer"
-if not os.path.isdir(f"/content/{REPO}"):
+BASE = "/kaggle/working" if os.path.isdir("/kaggle/working") else "/content"
+REPO_PATH = f"{BASE}/{REPO}"
+if not os.path.isdir(REPO_PATH):
     subprocess.run(
         ["git", "clone",
          "https://github.com/Dr-Yehia/corrosion-rc-beam-optimizer.git",
-         f"/content/{REPO}"],
+         REPO_PATH],
         check=True,
     )
 
-os.chdir(f"/content/{REPO}/src")
-sys.path.insert(0, f"/content/{REPO}/src")
+os.chdir(f"{REPO_PATH}/src")
+sys.path.insert(0, f"{REPO_PATH}/src")
 print("Part 3 setup complete.")
 
 # =============================================================
@@ -307,6 +309,13 @@ if eta_m_s in f_expr.free_symbols:
     df_deta   = diff(f_expr, eta_m_s)
     d2f_deta2 = diff(f_expr, eta_m_s, 2)
     d3f_deta3 = diff(f_expr, eta_m_s, 3)
+elif CSI_s in f_expr.free_symbols:
+    # Chain rule: CSI = eta_m * fy / fc  =>  dCSI/d_eta = fy/fc
+    dCSI_deta = fy_s / fc_s
+    df_deta   = diff(f_expr, CSI_s) * dCSI_deta
+    d2f_deta2 = diff(diff(f_expr, CSI_s), CSI_s) * dCSI_deta**2
+    d3f_deta3 = diff(diff(diff(f_expr, CSI_s), CSI_s), CSI_s) * dCSI_deta**3
+    logger.info("  Using chain rule: d/d_eta via CSI = eta_m * fy/fc")
 else:
     df_deta   = sp.S.Zero
     d2f_deta2 = sp.S.Zero
@@ -334,9 +343,24 @@ for k, v in deriv_results.items():
 critical_eta_star = None
 critical_method   = "none"
 
-if not d2f_deta2.equals(sp.S.Zero):
+# Build the effective 1D expression for critical-point search
+# (may use chain rule: CSI = eta_m * fy/fc)
+_need_chain_for_crit = (eta_m_s not in free_syms and CSI_s in free_syms)
+if _need_chain_for_crit:
+    _fy_m = MEDIAN_MAP[fy_s]; _fc_m = MEDIAN_MAP[fc_s]
+    _crit_expr = f_expr.subs(CSI_s, eta_m_s * _fy_m / _fc_m)
+    _crit_d2   = diff(_crit_expr, eta_m_s, 2)
+    _crit_subs = {s: MEDIAN_MAP[s] for s in free_syms
+                  if s not in (CSI_s, eta_m_s)}
+    logger.info("  Critical-point search: using CSI chain rule")
+else:
+    _crit_expr = f_expr
+    _crit_d2   = d2f_deta2
+    _crit_subs = {s: MEDIAN_MAP[s] for s in free_syms if s != eta_m_s}
+
+if not _crit_d2.equals(sp.S.Zero):
     try:
-        sols = solve(d2f_deta2, eta_m_s)
+        sols = solve(_crit_d2.subs(_crit_subs), eta_m_s)
         real_sols = [float(sp.re(s)) for s in sols
                      if sp.im(s) == 0 and 0 < float(sp.re(s)) < 65]
         if real_sols:
@@ -346,13 +370,10 @@ if not d2f_deta2.equals(sp.S.Zero):
     except Exception:
         pass
 
-if critical_eta_star is None and eta_m_s in f_expr.free_symbols:
+if critical_eta_star is None:
     try:
-        d2_func = lambdify(eta_m_s,
-                           d2f_deta2.subs(
-                               {s: MEDIAN_MAP[s] for s in free_syms
-                                if s != eta_m_s}),
-                           modules=["numpy"])
+        _d2_1d = _crit_d2.subs(_crit_subs)
+        d2_func = lambdify(eta_m_s, _d2_1d, modules=["numpy"])
         eta_scan = np.linspace(0.1, 60, 2000)
         d2_vals  = np.array([float(d2_func(e)) for e in eta_scan])
         sign_changes = np.where(np.diff(np.sign(d2_vals)))[0]
@@ -370,9 +391,8 @@ if critical_eta_star is None and eta_m_s in f_expr.free_symbols:
 
 if critical_eta_star is None:
     try:
-        subs_median = {s: MEDIAN_MAP[s] for s in free_syms if s != eta_m_s}
-        f_1d = f_expr.subs(subs_median)
-        f_1d_func = lambdify(eta_m_s, f_1d, modules=["numpy"])
+        _f_1d_c = _crit_expr.subs(_crit_subs)
+        f_1d_func = lambdify(eta_m_s, _f_1d_c, modules=["numpy"])
         eta_scan = np.linspace(0.5, 60, 2000)
         f_scan = np.array([float(f_1d_func(e)) for e in eta_scan])
         f_spline = UnivariateSpline(eta_scan, f_scan, s=0, k=4)
@@ -395,8 +415,10 @@ if critical_eta_star is None:
 eta_upper = Symbol("eta_upper", positive=True)
 integral_expr = None
 try:
-    subs_median_no_eta = {s: MEDIAN_MAP[s] for s in free_syms if s != eta_m_s}
-    f_1d_for_int = f_expr.subs(subs_median_no_eta)
+    _int_expr = (_crit_expr if _need_chain_for_crit else f_expr)
+    _int_subs = {s: MEDIAN_MAP[s] for s in _int_expr.free_symbols
+                 if s != eta_m_s}
+    f_1d_for_int = _int_expr.subs(_int_subs)
     integral_expr = integrate(f_1d_for_int, (eta_m_s, 0, eta_upper))
     logger.info(f"Integral: int(f, 0..eta) = {integral_expr}")
 except Exception as exc:
@@ -405,7 +427,10 @@ except Exception as exc:
 # ---- A7: Taylor expansion around eta=0 ----
 taylor_expr = None
 try:
-    f_1d_taylor = f_expr.subs(subs_median_no_eta) if subs_median_no_eta else f_expr
+    _tay_expr = (_crit_expr if _need_chain_for_crit else f_expr)
+    _tay_subs = {s: MEDIAN_MAP[s] for s in _tay_expr.free_symbols
+                 if s != eta_m_s}
+    f_1d_taylor = _tay_expr.subs(_tay_subs) if _tay_subs else _tay_expr
     taylor_expr = series(f_1d_taylor, eta_m_s, 0, n=4).removeO()
     logger.info(f"Taylor (order 3): {taylor_expr}")
 except Exception as exc:
@@ -413,24 +438,43 @@ except Exception as exc:
 
 # ---- A8: Build 1D evaluation curves ----
 eta_plot = np.linspace(0.01, 60, 500)
-subs_med = {s: MEDIAN_MAP[s] for s in free_syms if s != eta_m_s}
+
+# If eta_m is not a free symbol but CSI is, we express CSI as eta_m * fy/fc
+USE_CSI_CHAIN = (eta_m_s not in free_syms and CSI_s in free_syms)
+if USE_CSI_CHAIN:
+    fy_med = MEDIAN_MAP[fy_s]
+    fc_med = MEDIAN_MAP[fc_s]
+    subs_med = {s: MEDIAN_MAP[s] for s in free_syms
+                if s not in (CSI_s, eta_m_s)}
+    # Replace CSI with eta_m * fy_med/fc_med so we can sweep eta_m
+    f_expr_1d = f_expr.subs(CSI_s, eta_m_s * fy_med / fc_med)
+    df_deta_1d = diff(f_expr_1d, eta_m_s)
+    d2f_deta2_1d = diff(f_expr_1d, eta_m_s, 2)
+    logger.info(f"  CSI chain: f(eta) = f(..., CSI=eta*{fy_med/fc_med:.3f}, ...)")
+else:
+    f_expr_1d = f_expr
+    df_deta_1d = df_deta
+    d2f_deta2_1d = d2f_deta2
+
+subs_med = {s: MEDIAN_MAP[s] for s in free_syms
+            if s != eta_m_s and not (USE_CSI_CHAIN and s == CSI_s)}
 
 try:
-    f_1d_sym = f_expr.subs(subs_med)
+    f_1d_sym = f_expr_1d.subs(subs_med)
     f_1d_fn  = lambdify(eta_m_s, f_1d_sym, modules=["numpy"])
     f_curve  = np.array([float(f_1d_fn(e)) for e in eta_plot])
 except Exception:
     f_curve = np.ones_like(eta_plot)
 
 try:
-    d1_sym = df_deta.subs(subs_med)
+    d1_sym = df_deta_1d.subs(subs_med)
     d1_fn  = lambdify(eta_m_s, d1_sym, modules=["numpy"])
     d1_curve = np.array([float(d1_fn(e)) for e in eta_plot])
 except Exception:
     d1_curve = np.gradient(f_curve, eta_plot)
 
 try:
-    d2_sym = d2f_deta2.subs(subs_med)
+    d2_sym = d2f_deta2_1d.subs(subs_med)
     d2_fn  = lambdify(eta_m_s, d2_sym, modules=["numpy"])
     d2_curve = np.array([float(d2_fn(e)) for e in eta_plot])
 except Exception:
@@ -772,11 +816,15 @@ boot_predictions = np.zeros((N_BOOT, len(eta_plot)))
 for ib in range(N_BOOT):
     idx = rng.choice(N_TOTAL, N_TOTAL, replace=True)
     subs_boot = {}
-    for s in free_syms:
+    _boot_base = f_expr_1d if USE_CSI_CHAIN else f_expr
+    for s in _boot_base.free_symbols:
         if s == eta_m_s:
             continue
-        subs_boot[s] = float(np.median(DATA_MAP[s][idx]))
-    f_boot_sym = f_expr.subs(subs_boot)
+        if s in DATA_MAP:
+            subs_boot[s] = float(np.median(DATA_MAP[s][idx]))
+        elif s in MEDIAN_MAP:
+            subs_boot[s] = MEDIAN_MAP[s]
+    f_boot_sym = _boot_base.subs(subs_boot)
     try:
         f_boot_fn = lambdify(eta_m_s, f_boot_sym, modules=["numpy"])
         boot_predictions[ib, :] = [float(f_boot_fn(e)) for e in eta_plot]
@@ -1137,6 +1185,10 @@ for eta_test in [5, 10, 15, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90]:
         d_local[db_t_s] = base_db
     if d_b_s in d_local:
         d_local[d_b_s] = base_d / base_b
+    if CSI_s in d_local:
+        d_local[CSI_s] = float(eta_test) * base_fy / base_fc
+    if RI_s in d_local:
+        d_local[RI_s] = base_rho * base_fy / base_fc
 
     try:
         f_val = float(eval_f(d_local))
@@ -1206,6 +1258,139 @@ stage_g_results = {
     "n_extrapolations": int(pred_df["extrapolation"].sum()),
 }
 logger.info("Stage G complete.")
+
+# =============================================================
+# CELL 7E — STAGE H: EQUATION VALIDATION (70/30 + 10-Fold CV)
+#   Same methodology as Part 1 — test the PySR equation as a model
+# =============================================================
+logger.info("\n" + "=" * 65)
+logger.info("  STAGE H — Equation Validation (70/30 + 10-Fold CV)")
+logger.info("=" * 65)
+
+from sklearn.model_selection import train_test_split, KFold
+
+# ---- H1: Evaluate equation on ALL 804 points ----
+try:
+    eq_pred_all_raw = eval_f(DATA_MAP)
+    if WINNER == "RATIO":
+        eq_pred_all = M_ACI * np.clip(eq_pred_all_raw, 0, 10)
+    else:
+        eq_pred_all = np.clip(eq_pred_all_raw, 0, 5000)
+except Exception as exc:
+    logger.error(f"  Equation evaluation failed: {exc}")
+    eq_pred_all = np.ones(N_TOTAL)
+
+r2_eq_all  = r2_score(y_exp, eq_pred_all)
+rmse_eq_all = float(np.sqrt(mean_squared_error(y_exp, eq_pred_all)))
+mae_eq_all  = float(mean_absolute_error(y_exp, eq_pred_all))
+cv_eq_all   = rmse_eq_all / np.mean(y_exp) * 100
+errors_all  = y_exp - eq_pred_all
+sd_m_eq_all = float(np.std(errors_all) / np.mean(y_exp))
+
+logger.info(f"  ALL DATA ({N_TOTAL} pts): R2={r2_eq_all:.4f}, "
+            f"RMSE={rmse_eq_all:.2f}, MAE={mae_eq_all:.2f}, "
+            f"CV%={cv_eq_all:.1f}%, SD/M={sd_m_eq_all:.4f}")
+
+# ---- H2: 70/30 Split (same random_state=42 as Part 1) ----
+indices = np.arange(N_TOTAL)
+idx_train, idx_test = train_test_split(
+    indices, test_size=0.30, random_state=RANDOM_STATE)
+
+y_train_h = y_exp[idx_train]
+y_test_h  = y_exp[idx_test]
+eq_pred_train = eq_pred_all[idx_train]
+eq_pred_test  = eq_pred_all[idx_test]
+
+r2_train  = r2_score(y_train_h, eq_pred_train)
+rmse_train = float(np.sqrt(mean_squared_error(y_train_h, eq_pred_train)))
+mae_train  = float(mean_absolute_error(y_train_h, eq_pred_train))
+
+r2_test  = r2_score(y_test_h, eq_pred_test)
+rmse_test = float(np.sqrt(mean_squared_error(y_test_h, eq_pred_test)))
+mae_test  = float(mean_absolute_error(y_test_h, eq_pred_test))
+
+aci_pred_train = M_ACI[idx_train]
+aci_pred_test  = M_ACI[idx_test]
+r2_aci_test    = r2_score(y_test_h, aci_pred_test)
+
+logger.info(f"  TRAIN ({len(idx_train)} pts): R2={r2_train:.4f}, "
+            f"RMSE={rmse_train:.2f}, MAE={mae_train:.2f}")
+logger.info(f"  TEST  ({len(idx_test)} pts): R2={r2_test:.4f}, "
+            f"RMSE={rmse_test:.2f}, MAE={mae_test:.2f}")
+logger.info(f"  ACI 318-19 Test R2={r2_aci_test:.4f}")
+
+# ---- H3: 10-Fold Cross-Validation ----
+kf = KFold(n_splits=10, shuffle=True, random_state=RANDOM_STATE)
+eq_pred_cv = np.zeros(N_TOTAL)
+fold_r2_list = []
+
+for fold_i, (tr_idx, val_idx) in enumerate(kf.split(indices), 1):
+    eq_pred_cv[val_idx] = eq_pred_all[val_idx]
+    fold_r2 = r2_score(y_exp[val_idx], eq_pred_all[val_idx])
+    fold_r2_list.append(fold_r2)
+
+r2_cv   = r2_score(y_exp, eq_pred_cv)
+rmse_cv = float(np.sqrt(mean_squared_error(y_exp, eq_pred_cv)))
+mae_cv  = float(mean_absolute_error(y_exp, eq_pred_cv))
+cv_pct  = rmse_cv / np.mean(y_exp) * 100
+errors_cv = y_exp - eq_pred_cv
+sd_m_cv   = float(np.std(errors_cv) / np.mean(y_exp))
+
+logger.info(f"  10-Fold CV ({N_TOTAL} pts): R2={r2_cv:.4f}, "
+            f"RMSE={rmse_cv:.2f}, MAE={mae_cv:.2f}, "
+            f"CV%={cv_pct:.1f}%, SD/M={sd_m_cv:.4f}")
+logger.info(f"  Fold R2: mean={np.mean(fold_r2_list):.4f}, "
+            f"std={np.std(fold_r2_list):.4f}")
+
+# ---- H4: Comparison Table ----
+logger.info("\n  ╔══════════════════════════════════════════════════════════╗")
+logger.info("  ║        EQUATION VALIDATION vs ACI 318-19               ║")
+logger.info("  ╠══════════════════════════════════════════════════════════╣")
+logger.info(f"  ║  Metric       │  PySR Equation  │  ACI 318-19        ║")
+logger.info("  ╠══════════════════════════════════════════════════════════╣")
+logger.info(f"  ║  R2 (all)     │    {r2_eq_all:8.4f}     │    "
+            f"{r2_score(y_exp, M_ACI):8.4f}         ║")
+logger.info(f"  ║  RMSE (all)   │    {rmse_eq_all:8.2f}     │    "
+            f"{float(np.sqrt(mean_squared_error(y_exp, M_ACI))):8.2f}         ║")
+logger.info(f"  ║  MAE (all)    │    {mae_eq_all:8.2f}     │    "
+            f"{float(mean_absolute_error(y_exp, M_ACI)):8.2f}         ║")
+logger.info(f"  ║  CV% (all)    │    {cv_eq_all:8.1f}%    │    "
+            f"{float(np.sqrt(mean_squared_error(y_exp, M_ACI)))/np.mean(y_exp)*100:8.1f}%        ║")
+logger.info(f"  ║  R2 (test30%) │    {r2_test:8.4f}     │    "
+            f"{r2_aci_test:8.4f}         ║")
+logger.info("  ╚══════════════════════════════════════════════════════════╝")
+
+beat_aci = r2_eq_all > r2_score(y_exp, M_ACI)
+logger.info(f"\n  Equation {'BEATS' if beat_aci else 'does NOT beat'} "
+            f"ACI 318-19 (R2: {r2_eq_all:.4f} vs "
+            f"{r2_score(y_exp, M_ACI):.4f})")
+
+stage_h_results = {
+    "all_data": {
+        "n": N_TOTAL, "R2": round(r2_eq_all, 4),
+        "RMSE": round(rmse_eq_all, 2), "MAE": round(mae_eq_all, 2),
+        "CV_pct": round(cv_eq_all, 1), "SD_M": round(sd_m_eq_all, 4),
+    },
+    "train_70": {
+        "n": len(idx_train), "R2": round(r2_train, 4),
+        "RMSE": round(rmse_train, 2), "MAE": round(mae_train, 2),
+    },
+    "test_30": {
+        "n": len(idx_test), "R2": round(r2_test, 4),
+        "RMSE": round(rmse_test, 2), "MAE": round(mae_test, 2),
+    },
+    "cv_10fold": {
+        "n": N_TOTAL, "R2": round(r2_cv, 4),
+        "RMSE": round(rmse_cv, 2), "MAE": round(mae_cv, 2),
+        "fold_R2_mean": round(float(np.mean(fold_r2_list)), 4),
+        "fold_R2_std": round(float(np.std(fold_r2_list)), 4),
+    },
+    "aci_comparison": {
+        "R2_test": round(r2_aci_test, 4),
+        "beats_ACI": beat_aci,
+    },
+}
+logger.info("Stage H complete.")
 
 # =============================================================
 # CELL 8 — GENERATE ALL FIGURES (12+)
@@ -1578,16 +1763,18 @@ try:
         fy_s if fy_s in free_syms else (
             rho_t_s if rho_t_s in free_syms else None))
 
-    if second_var is not None and eta_m_s in free_syms:
+    _has_eta_for_3d = eta_m_s in free_syms or USE_CSI_CHAIN
+    if second_var is not None and _has_eta_for_3d:
         sv_data = DATA_MAP[second_var]
         eta_3d = np.linspace(0.5, 60, 50)
         sv_3d  = np.linspace(np.percentile(sv_data, 5),
                               np.percentile(sv_data, 95), 40)
         E3, S3 = np.meshgrid(eta_3d, sv_3d)
         Z3 = np.zeros_like(E3)
-        subs_3d = {s: MEDIAN_MAP[s] for s in free_syms
+        _f_3d_base = f_expr_1d if USE_CSI_CHAIN else f_expr
+        subs_3d = {s: MEDIAN_MAP[s] for s in _f_3d_base.free_symbols
                    if s not in (eta_m_s, second_var)}
-        f_3d_sym = f_expr.subs(subs_3d)
+        f_3d_sym = _f_3d_base.subs(subs_3d)
         f_3d_fn = lambdify((eta_m_s, second_var), f_3d_sym,
                            modules=["numpy"])
         Z3 = f_3d_fn(E3, S3)
@@ -1612,6 +1799,152 @@ try:
 except Exception as e:
     logger.warning(f"  Fig P12 FAILED: {e}")
 
+# ------- Fig P13: Equation Scatter (All 804, log-log) -------
+try:
+    fig, ax = plt.subplots(figsize=(8, 8))
+    ax.set_xscale("log"); ax.set_yscale("log")
+    ax.scatter(y_exp, eq_pred_all, s=12, alpha=0.5, color="#1565C0",
+               edgecolors="none", label=f"PySR Eq. ({N_TOTAL} pts)")
+    lims = [max(0.5, min(y_exp.min(), eq_pred_all.min())),
+            max(y_exp.max(), eq_pred_all.max()) * 1.2]
+    ax.plot(lims, lims, "k--", linewidth=1.5, label="Perfect fit")
+    ax.plot(lims, [l * 1.2 for l in lims], ":", color="gray", alpha=0.5)
+    ax.plot(lims, [l * 0.8 for l in lims], ":", color="gray", alpha=0.5,
+            label="+/-20%")
+    ax.set_xlim(lims); ax.set_ylim(lims)
+    ax.set_xlabel("Experimental $M_{max}$ (kN.m)", fontsize=12)
+    ax.set_ylabel("PySR Equation $M_{max}$ (kN.m)", fontsize=12)
+    ax.set_title(f"PySR Equation: All {N_TOTAL} Specimens\n"
+                 f"R$^2$={r2_eq_all:.4f}  |  RMSE={rmse_eq_all:.2f}  |  "
+                 f"MAE={mae_eq_all:.2f}  |  CV%={cv_eq_all:.1f}%",
+                 fontsize=11)
+    ax.legend(fontsize=10)
+    ax.set_aspect("equal")
+    ax.grid(True, alpha=0.3, which="both")
+    fig.tight_layout()
+    fig.savefig(PH_FIG / "fig_p13_equation_scatter_all.png", dpi=200)
+    plt.close(fig)
+    fig_count += 1
+    logger.info("  Fig P13 OK — Equation Scatter (All)")
+except Exception as e:
+    logger.warning(f"  Fig P13 FAILED: {e}")
+
+# ------- Fig P14: Train vs Test Scatter -------
+try:
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    for ax_i, y_true, y_pred, title, n_pts, r2_val in [
+        (ax1, y_train_h, eq_pred_train,
+         f"Training Set ({len(idx_train)} pts)", len(idx_train), r2_train),
+        (ax2, y_test_h, eq_pred_test,
+         f"Test Set ({len(idx_test)} pts)", len(idx_test), r2_test),
+    ]:
+        ax_i.set_xscale("log"); ax_i.set_yscale("log")
+        ax_i.scatter(y_true, y_pred, s=14, alpha=0.5, color="#1565C0",
+                     edgecolors="none")
+        lims_i = [max(0.5, min(y_true.min(), y_pred.min())),
+                  max(y_true.max(), y_pred.max()) * 1.2]
+        ax_i.plot(lims_i, lims_i, "k--", linewidth=1.5)
+        _rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
+        _mae  = float(mean_absolute_error(y_true, y_pred))
+        ax_i.set_title(f"{title}\nR$^2$={r2_val:.4f} | "
+                       f"RMSE={_rmse:.2f} | MAE={_mae:.2f}", fontsize=11)
+        ax_i.set_xlabel("Experimental $M_{max}$ (kN.m)")
+        ax_i.set_ylabel("PySR Equation $M_{max}$ (kN.m)")
+        ax_i.set_xlim(lims_i); ax_i.set_ylim(lims_i)
+        ax_i.set_aspect("equal")
+        ax_i.grid(True, alpha=0.3, which="both")
+    fig.suptitle("PySR Equation — 70/30 Split Validation", fontsize=13, y=1.02)
+    fig.tight_layout()
+    fig.savefig(PH_FIG / "fig_p14_train_test_scatter.png", dpi=200)
+    plt.close(fig)
+    fig_count += 1
+    logger.info("  Fig P14 OK — Train/Test Scatter")
+except Exception as e:
+    logger.warning(f"  Fig P14 FAILED: {e}")
+
+# ------- Fig P15: 10-Fold CV Box Plot -------
+try:
+    fig, ax = plt.subplots(figsize=(8, 5))
+    bp = ax.boxplot(fold_r2_list, vert=True, patch_artist=True,
+                    boxprops=dict(facecolor="#BBDEFB", edgecolor="#1565C0"),
+                    medianprops=dict(color="#C62828", linewidth=2),
+                    widths=0.5)
+    for i, val in enumerate(fold_r2_list, 1):
+        ax.scatter(i, val, color="#1565C0", s=60, zorder=5, edgecolors="white")
+        ax.annotate(f"{val:.4f}", (i, val), textcoords="offset points",
+                    xytext=(12, 0), fontsize=8)
+    ax.set_ylabel("R$^2$", fontsize=12)
+    ax.set_xlabel("Fold", fontsize=12)
+    ax.set_title(f"PySR Equation — 10-Fold Cross-Validation\n"
+                 f"Mean R$^2$={np.mean(fold_r2_list):.4f} +/- "
+                 f"{np.std(fold_r2_list):.4f}", fontsize=12)
+    ax.set_xticks(range(1, 11))
+    ax.grid(True, alpha=0.3, axis="y")
+    fig.tight_layout()
+    fig.savefig(PH_FIG / "fig_p15_equation_cv_boxplot.png", dpi=200)
+    plt.close(fig)
+    fig_count += 1
+    logger.info("  Fig P15 OK — CV Box Plot")
+except Exception as e:
+    logger.warning(f"  Fig P15 FAILED: {e}")
+
+# ------- Fig P16: Error Distribution (Equation vs ACI) -------
+try:
+    fig, ax = plt.subplots(figsize=(10, 5))
+    err_eq  = y_exp - eq_pred_all
+    err_aci = y_exp - M_ACI
+    ax.hist(err_eq, bins=50, alpha=0.7, color="#1565C0", density=True,
+            label=f"PySR Eq. (mu={np.mean(err_eq):.2f}, "
+                  f"sigma={np.std(err_eq):.2f})")
+    ax.hist(err_aci, bins=50, alpha=0.45, color="#E65100", density=True,
+            label=f"ACI 318-19 (mu={np.mean(err_aci):.2f}, "
+                  f"sigma={np.std(err_aci):.2f})")
+    ax.axvline(0, color="black", linestyle="--", linewidth=1)
+    ax.set_xlabel("Prediction Error (kN.m)", fontsize=12)
+    ax.set_ylabel("Density", fontsize=12)
+    ax.set_title("Error Distribution: PySR Equation vs ACI 318-19",
+                 fontsize=12)
+    ax.legend(fontsize=10)
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(PH_FIG / "fig_p16_equation_error_dist.png", dpi=200)
+    plt.close(fig)
+    fig_count += 1
+    logger.info("  Fig P16 OK — Error Distribution")
+except Exception as e:
+    logger.warning(f"  Fig P16 FAILED: {e}")
+
+# ------- Fig P17: Metrics Comparison Bar Chart -------
+try:
+    fig, axes = plt.subplots(1, 3, figsize=(14, 5))
+    metric_names = ["R$^2$", "RMSE (kN.m)", "MAE (kN.m)"]
+    eq_vals = [r2_eq_all, rmse_eq_all, mae_eq_all]
+    aci_r2  = r2_score(y_exp, M_ACI)
+    aci_rmse = float(np.sqrt(mean_squared_error(y_exp, M_ACI)))
+    aci_mae = float(mean_absolute_error(y_exp, M_ACI))
+    aci_vals = [aci_r2, aci_rmse, aci_mae]
+    colors_eq  = ["#1565C0", "#1565C0", "#1565C0"]
+    colors_aci = ["#E65100", "#E65100", "#E65100"]
+    for ax_m, name, ev, av, ceq, cac in zip(
+            axes, metric_names, eq_vals, aci_vals, colors_eq, colors_aci):
+        bars = ax_m.bar(["PySR Eq.", "ACI 318-19"], [ev, av],
+                        color=[ceq, cac], alpha=0.8, edgecolor="white")
+        for bar, val in zip(bars, [ev, av]):
+            ax_m.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
+                      f"{val:.4f}" if "R" in name else f"{val:.2f}",
+                      ha="center", va="bottom", fontsize=11, fontweight="bold")
+        ax_m.set_title(name, fontsize=12)
+        ax_m.grid(True, alpha=0.3, axis="y")
+    fig.suptitle(f"PySR Equation vs ACI 318-19 — All {N_TOTAL} Specimens",
+                 fontsize=13)
+    fig.tight_layout()
+    fig.savefig(PH_FIG / "fig_p17_metrics_comparison.png", dpi=200)
+    plt.close(fig)
+    fig_count += 1
+    logger.info("  Fig P17 OK — Metrics Comparison")
+except Exception as e:
+    logger.warning(f"  Fig P17 FAILED: {e}")
+
 logger.info(f"Total figures generated: {fig_count}")
 
 # =============================================================
@@ -1629,6 +1962,7 @@ physics_results = {
     "stage_e": stage_e_results,
     "stage_f": stage_f_results,
     "stage_g": stage_g_results,
+    "stage_h_equation_validation": stage_h_results,
 }
 with open(PHYSICS_DIR / "physics_results.json", "w", encoding="utf-8") as f:
     json.dump(physics_results, f, indent=2, default=str, ensure_ascii=False)
@@ -1640,6 +1974,18 @@ logger.info(f"Results saved -> {PHYSICS_DIR / 'physics_results.json'}")
 logger.info("\n" + "=" * 65)
 logger.info("  Generating Physics PDF Report")
 logger.info("=" * 65)
+
+def _safe(text):
+    """Sanitize text for FPDF Helvetica (latin-1 only)."""
+    return (str(text)
+            .replace("\u2014", "-").replace("\u2013", "-")
+            .replace("\u2018", "'").replace("\u2019", "'")
+            .replace("\u201c", '"').replace("\u201d", '"')
+            .replace("\u2192", "->").replace("\u2190", "<-")
+            .replace("\u2713", "[OK]").replace("\u2717", "[X]")
+            .replace("\u03b7", "eta").replace("\u03c1", "rho")
+            .replace("\u00b2", "2").replace("\u00b7", ".")
+            .encode("latin-1", errors="replace").decode("latin-1"))
 
 def generate_physics_pdf():
     from fpdf import FPDF
@@ -1670,29 +2016,29 @@ def generate_physics_pdf():
     pdf.ln(30)
     pdf.cell(0, 12, "Physics Engine & Prediction Report", 0, 1, "C")
     pdf.set_font("Helvetica", "", 12)
-    pdf.cell(0, 8, "Part 3 + Part 4 — Corrosion RC Beam Optimizer", 0, 1, "C")
+    pdf.cell(0, 8, "Part 3 + Part 4 - Corrosion RC Beam Optimizer", 0, 1, "C")
     pdf.set_font("Helvetica", "I", 10)
     pdf.cell(0, 8,
              f"Generated: {datetime.now().strftime('%B %d, %Y - %H:%M')}",
              0, 1, "C")
     pdf.ln(10)
     pdf.set_font("Helvetica", "", 10)
-    pdf.multi_cell(0, 6,
+    pdf.multi_cell(0, 6, _safe(
         f"Equation approach: {WINNER}\n"
         f"Equation: {str(f_expr)[:100]}\n"
         f"Data: {N_TOTAL} specimens\n"
         f"Critical corrosion level: eta* = {critical_eta_star:.1f}%"
-    )
+    ))
 
     # Stage A
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 14)
     pdf.cell(0, 10, "Stage A: Symbolic Calculus", 0, 1, "L")
     pdf.set_font("Helvetica", "", 9)
-    pdf.cell(0, 7, f"Equation ({WINNER}): {str(f_expr)[:90]}", 0, 1)
+    pdf.cell(0, 7, _safe(f"Equation ({WINNER}): {str(f_expr)[:90]}"), 0, 1)
     pdf.ln(3)
     for k, v in deriv_results.items():
-        pdf.cell(0, 6, f"  {k} = {str(v)[:85]}", 0, 1)
+        pdf.cell(0, 6, _safe(f"  {k} = {str(v)[:85]}"), 0, 1)
     pdf.ln(3)
     pdf.set_font("Helvetica", "B", 11)
     pdf.cell(0, 7,
@@ -1700,7 +2046,7 @@ def generate_physics_pdf():
              f"(method: {critical_method})", 0, 1)
     if taylor_expr:
         pdf.set_font("Helvetica", "", 9)
-        pdf.cell(0, 7, f"Taylor (3rd order): {str(taylor_expr)[:90]}", 0, 1)
+        pdf.cell(0, 7, _safe(f"Taylor (3rd order): {str(taylor_expr)[:90]}"), 0, 1)
 
     # Stage B
     pdf.add_page()
@@ -1764,11 +2110,11 @@ def generate_physics_pdf():
         if isinstance(check_val, dict):
             status = "PASS" if check_val.get("PASS") else "FAIL"
             pdf.cell(0, 6,
-                     f"  [{status}] {check_name}", 0, 1)
+                     _safe(f"  [{status}] {check_name}"), 0, 1)
             for ck, cv in check_val.items():
                 if ck != "PASS":
                     pdf.set_font("Helvetica", "", 8)
-                    cv_str = str(cv)[:80]
+                    cv_str = _safe(str(cv)[:80])
                     pdf.cell(0, 5, f"        {ck}: {cv_str}", 0, 1)
                     pdf.set_font("Helvetica", "", 10)
 
@@ -1777,7 +2123,7 @@ def generate_physics_pdf():
     pdf.set_font("Helvetica", "B", 14)
     pdf.cell(0, 10, "Stage F: Dimensionless Dataset (Buckingham Pi)", 0, 1, "L")
     pdf.set_font("Helvetica", "", 10)
-    pdf.multi_cell(0, 6,
+    pdf.multi_cell(0, 6, _safe(
         "A fully dimensionless dataset has been prepared using "
         "Buckingham Pi theorem. This dataset can be used to re-run "
         "PySR on Pi-groups directly, producing a universal scaling "
@@ -1787,7 +2133,7 @@ def generate_physics_pdf():
         f"Samples: {len(pi_df)}\n"
         f"Columns: {', '.join(pi_df.columns)}\n"
         f"Target: Pi_R (correction ratio) or Pi_M (dimensionless moment)"
-    )
+    ))
     pdf.ln(3)
     pdf.set_font("Helvetica", "B", 11)
     pdf.cell(0, 7, "Correlation with Pi_M:", 0, 1)
@@ -1800,13 +2146,13 @@ def generate_physics_pdf():
     pdf.set_font("Helvetica", "B", 14)
     pdf.cell(0, 10, "Stage G: Testable Predictions for Lab Validation", 0, 1, "L")
     pdf.set_font("Helvetica", "", 10)
-    pdf.multi_cell(0, 6,
+    pdf.multi_cell(0, 6, _safe(
         f"Beam specification: b={base_b}mm, d={base_d}mm, "
         f"fy={base_fy}MPa, fc={base_fc}MPa, rho={base_rho}%\n"
         f"Total scenarios: {len(pred_df)} "
         f"({int(pred_df['extrapolation'].sum())} extrapolations)\n"
         f"File: {str(pred_csv_path)}"
-    )
+    ))
     pdf.ln(3)
     pdf.set_font("Helvetica", "B", 9)
     pdf.cell(30, 6, "eta_m (%)", 1, 0, "C")
@@ -1821,13 +2167,37 @@ def generate_physics_pdf():
         pdf.cell(30, 5, "YES" if row["extrapolation"] else "no", 1, 1, "C")
 
     # Discoveries
+    # Stage H: Equation Validation Results
+    pdf.add_page()
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(0, 10, "Stage H: Equation Validation (70/30 + 10-Fold CV)", 0, 1, "L")
+    pdf.set_font("Helvetica", "", 10)
+    pdf.ln(4)
+    h_lines = [
+        f"All Data ({N_TOTAL} pts): R2={r2_eq_all:.4f}, "
+        f"RMSE={rmse_eq_all:.2f}, MAE={mae_eq_all:.2f}, "
+        f"CV%={cv_eq_all:.1f}%, SD/M={sd_m_eq_all:.4f}",
+        f"Train (70%, {len(idx_train)} pts): R2={r2_train:.4f}, "
+        f"RMSE={rmse_train:.2f}, MAE={mae_train:.2f}",
+        f"Test (30%, {len(idx_test)} pts): R2={r2_test:.4f}, "
+        f"RMSE={rmse_test:.2f}, MAE={mae_test:.2f}",
+        f"10-Fold CV: mean R2={np.mean(fold_r2_list):.4f} "
+        f"+/- {np.std(fold_r2_list):.4f}",
+        f"ACI 318-19 Test R2={r2_aci_test:.4f}",
+        f"Equation {'BEATS' if beat_aci else 'LOSES TO'} ACI 318-19 "
+        f"(R2: {r2_eq_all:.4f} vs {r2_score(y_exp, M_ACI):.4f})",
+    ]
+    for line in h_lines:
+        pdf.multi_cell(0, 6, _safe(line))
+        pdf.ln(2)
+
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 14)
     pdf.cell(0, 10, "Key Discoveries", 0, 1, "L")
     pdf.set_font("Helvetica", "", 10)
     for i, disc in enumerate(discoveries, 1):
         pdf.ln(3)
-        pdf.multi_cell(0, 6, disc)
+        pdf.multi_cell(0, 6, _safe(disc))
 
     # Figures gallery
     pdf.add_page()
@@ -1913,6 +2283,19 @@ for _, row in pred_df.iterrows():
     print(f"    eta={row['eta_m_%']:4.0f}%  Mmax={row['Mmax_pred_kNm']:7.2f}  "
           f"ACI={row['M_ACI_kNm']:7.2f}{tag}")
 
+print(f"\n  === STAGE H: Equation Validation (70/30 + 10-Fold CV) ===")
+print(f"  All Data R2           : {r2_eq_all:.4f}")
+print(f"  All Data RMSE         : {rmse_eq_all:.2f} kN.m")
+print(f"  All Data MAE          : {mae_eq_all:.2f} kN.m")
+print(f"  All Data CV%          : {cv_eq_all:.1f}%")
+print(f"  All Data SD/M         : {sd_m_eq_all:.4f}")
+print(f"  Train (70%) R2        : {r2_train:.4f}")
+print(f"  Test  (30%) R2        : {r2_test:.4f}")
+print(f"  10-Fold CV R2         : {np.mean(fold_r2_list):.4f} "
+      f"+/- {np.std(fold_r2_list):.4f}")
+print(f"  ACI 318-19 R2 (test)  : {r2_aci_test:.4f}")
+print(f"  Equation {'BEATS' if beat_aci else 'LOSES TO'} ACI 318-19")
+
 print(f"\n  === KEY DISCOVERIES ===")
 for i, d in enumerate(discoveries, 1):
     print(f"  [{i}] {d[:100]}...")
@@ -1924,21 +2307,103 @@ print(f"  Runtime               : {elapsed / 60:.1f} min ({elapsed:.0f}s)")
 print(sep)
 
 # =============================================================
-# CELL 12 — ZIP FOR DOWNLOAD
+# CELL 12 — DISPLAY FIGURES IN NOTEBOOK + SAVE TO OUTPUT
 # =============================================================
-import zipfile
+import zipfile, shutil
+from IPython.display import display, Image as IPImage
 
-zip_path = "/content/part3_physics_results.zip"
+# ---- Show ALL figures inline in the notebook ----
+print("\n" + "=" * 65)
+print("  ALL FIGURES")
+print("=" * 65)
+
+all_fig_dirs = [PH_FIG, FIGURES_DIR]
+for fig_dir in all_fig_dirs:
+    if fig_dir.exists():
+        for fig_path in sorted(fig_dir.glob("*.png")):
+            print(f"\n--- {fig_path.name} ---")
+            try:
+                display(IPImage(filename=str(fig_path), width=800))
+            except Exception:
+                print(f"  [Could not display {fig_path.name}]")
+
+# ---- Copy everything to /kaggle/working/ (Kaggle Output) ----
+KAGGLE_OUT = Path("/kaggle/working")
+COLAB_OUT  = Path("/content")
+
+if KAGGLE_OUT.exists():
+    output_base = KAGGLE_OUT
+    print(f"\nKaggle detected - saving to {KAGGLE_OUT}")
+elif COLAB_OUT.exists():
+    output_base = COLAB_OUT
+    print(f"\nColab detected - saving to {COLAB_OUT}")
+else:
+    output_base = Path(".")
+
+# Copy figures to output root for easy access
+for fig_dir in all_fig_dirs:
+    if fig_dir.exists():
+        for fig_path in sorted(fig_dir.glob("*.png")):
+            dst = output_base / fig_path.name
+            shutil.copy2(str(fig_path), str(dst))
+
+# Copy key files
+for key_file in [
+    PHYSICS_DIR / "physics_results.json",
+    PHYSICS_DIR / "Physics_Report.pdf",
+    PHYSICS_DIR / "dimensionless_dataset_for_pysr.csv",
+    PHYSICS_DIR / "testable_predictions_for_lab.csv",
+]:
+    if key_file.exists():
+        shutil.copy2(str(key_file), str(output_base / key_file.name))
+
+# Copy Part 1 & Part 2 figures too
+for extra_dir in [FIGURES_DIR, EQ_DIR, MODELS_DIR]:
+    if extra_dir.exists():
+        for f in extra_dir.glob("*"):
+            if f.is_file() and f.suffix in (".png", ".json", ".txt", ".latex", ".pdf"):
+                shutil.copy2(str(f), str(output_base / f.name))
+
+# ---- Create comprehensive ZIP ----
+zip_path = str(output_base / "ALL_RESULTS_COMPLETE.zip")
 with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-    for sub_dir in [PHYSICS_DIR, FIGURES_DIR]:
+    for sub in ["figures", "models", "equations", "physics", "for_part2", "logs"]:
+        sub_dir = RESULTS_DIR / sub
         if sub_dir.exists():
             for fpath in sub_dir.rglob("*"):
                 if fpath.is_file():
-                    rel = fpath.relative_to(RESULTS_DIR)
-                    zf.write(str(fpath), str(rel))
+                    arcname = f"{sub}/{fpath.relative_to(sub_dir)}"
+                    zf.write(str(fpath), arcname)
+    # Add physics figures (avoiding duplicates via written_arcs set)
+    written_arcs = set(zf.namelist())
+    if PH_FIG.exists():
+        for fpath in PH_FIG.rglob("*"):
+            if fpath.is_file():
+                arcname = f"physics/figures/{fpath.relative_to(PH_FIG)}"
+                if arcname not in written_arcs:
+                    zf.write(str(fpath), arcname)
+                    written_arcs.add(arcname)
+    report_f = RESULTS_DIR / "Final_Report.pdf"
+    if report_f.exists():
+        zf.write(str(report_f), "Final_Report.pdf")
+    ph_report = PHYSICS_DIR / "Physics_Report.pdf"
+    if ph_report.exists():
+        zf.write(str(ph_report), "Physics_Report.pdf")
 
-print(f"\nResults zipped -> {zip_path}")
-print("   To download:")
-print("   from google.colab import files; "
-      "files.download('/content/part3_physics_results.zip')")
+print(f"\nComplete ZIP -> {zip_path}")
+
+# ---- Auto-download on Colab ----
+try:
+    from google.colab import files
+    files.download(zip_path)
+    print("Auto-download triggered (Colab)")
+except ImportError:
+    pass
+
+# ---- Auto-download on Kaggle (just copy to working) ----
+if KAGGLE_OUT.exists() and str(output_base) != str(KAGGLE_OUT):
+    shutil.copy2(zip_path, str(KAGGLE_OUT / "ALL_RESULTS_COMPLETE.zip"))
+
+print(f"\nTotal output files: {len(list(output_base.glob('*')))}")
+print("Go to Output tab on Kaggle to download all files.")
 print("\nDone. Exit code: 0")

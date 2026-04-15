@@ -1,0 +1,55 @@
+{
+  "target": "Mmax,exp (kNm)",
+  "log_transform": true,
+  "best_model": "Stacking",
+  "models": {
+    "XGBoost": {
+      "train_R2": 0.9965,
+      "test_R2": 0.9737,
+      "test_RMSE": 4.1043,
+      "test_MAE": 2.1199,
+      "test_MAPE": 12.38,
+      "L1_broken": true,
+      "L2_broken": true
+    },
+    "RandomForest": {
+      "train_R2": 0.986,
+      "test_R2": 0.9672,
+      "test_RMSE": 4.583,
+      "test_MAE": 2.4293,
+      "test_MAPE": 13.46,
+      "L1_broken": true,
+      "L2_broken": false
+    },
+    "GBR": {
+      "train_R2": 0.9989,
+      "test_R2": 0.9681,
+      "test_RMSE": 4.5202,
+      "test_MAE": 2.305,
+      "test_MAPE": 12.36,
+      "L1_broken": true,
+      "L2_broken": false
+    },
+    "CatBoost": {
+      "train_R2": 0.9929,
+      "test_R2": 0.975,
+      "test_RMSE": 3.9957,
+      "test_MAE": 2.0778,
+      "test_MAPE": 11.86,
+      "L1_broken": true,
+      "L2_broken": true
+    },
+    "Stacking": {
+      "train_R2": 0.9956,
+      "test_R2": 0.9763,
+      "test_RMSE": 3.8908,
+      "test_MAE": 2.0191,
+      "test_MAPE": 11.67,
+      "L1_broken": true,
+      "L2_broken": true
+    }
+  },
+  "L1_broken": true,
+  "L2_broken": true,
+  "saved_at": "2026-04-15 14:48:02.956453"
+}

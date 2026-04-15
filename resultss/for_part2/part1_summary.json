@@ -1,0 +1,102 @@
+{
+  "n_total": 804,
+  "n_train": 562,
+  "n_test": 242,
+  "test_size": 0.3,
+  "log_transform": true,
+  "aci_metrics": {
+    "R2": 0.8839,
+    "RMSE": 8.2289,
+    "MAE": 5.0617,
+    "MAPE": 29.9,
+    "ratio_mean": 1.1845,
+    "ratio_std": 0.5874,
+    "ratio_min": 0.2735,
+    "ratio_max": 5.2832,
+    "underestimate_pct": 48.5,
+    "n_specimens": 804
+  },
+  "best_model_name": "Stacking",
+  "all_model_metrics": {
+    "XGBoost": {
+      "train_R2": 0.9965,
+      "test_R2": 0.9737,
+      "test_RMSE": 4.1043,
+      "test_MAE": 2.1199,
+      "test_MAPE": 12.38,
+      "L1_broken": true,
+      "L2_broken": true
+    },
+    "RandomForest": {
+      "train_R2": 0.986,
+      "test_R2": 0.9672,
+      "test_RMSE": 4.583,
+      "test_MAE": 2.4293,
+      "test_MAPE": 13.46,
+      "L1_broken": true,
+      "L2_broken": false
+    },
+    "GBR": {
+      "train_R2": 0.9989,
+      "test_R2": 0.9681,
+      "test_RMSE": 4.5202,
+      "test_MAE": 2.305,
+      "test_MAPE": 12.36,
+      "L1_broken": true,
+      "L2_broken": false
+    },
+    "CatBoost": {
+      "train_R2": 0.9929,
+      "test_R2": 0.975,
+      "test_RMSE": 3.9957,
+      "test_MAE": 2.0778,
+      "test_MAPE": 11.86,
+      "L1_broken": true,
+      "L2_broken": true
+    },
+    "Stacking": {
+      "train_R2": 0.9956,
+      "test_R2": 0.9763,
+      "test_RMSE": 3.8908,
+      "test_MAE": 2.0191,
+      "test_MAPE": 11.67,
+      "L1_broken": true,
+      "L2_broken": true
+    }
+  },
+  "mlp_test_R2": 0.9535,
+  "test_metrics": {
+    "R2": 0.9763,
+    "RMSE": 3.8908,
+    "MAE": 2.0191,
+    "CV_pct": 16.71,
+    "SD_M": 0.1666
+  },
+  "cv_all_metrics": {
+    "R2": 0.9756,
+    "RMSE": 3.7698,
+    "MAE": 1.8547,
+    "CV_pct": 16.61,
+    "SD_M": 0.1659,
+    "Mean_Pred_Exp": 1.0129,
+    "Std_Pred_Exp": 0.1955,
+    "n_samples": 804,
+    "per_fold_R2": [
+      0.9636,
+      0.9843,
+      0.9512,
+      0.9712,
+      0.9808,
+      0.9807,
+      0.9876,
+      0.9714,
+      0.9889,
+      0.9717
+    ],
+    "per_fold_R2_mean": 0.9751,
+    "per_fold_R2_std": 0.0111
+  },
+  "L1_TARGET_R2": 0.9,
+  "L2_TARGET_R2": 0.972,
+  "generated_at": "2026-04-15 15:03:44.801320"
+}

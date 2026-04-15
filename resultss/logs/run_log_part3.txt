@@ -1,0 +1,205 @@
+2026-04-15 15:21:01 | INFO     | =================================================================
+2026-04-15 15:21:01 | INFO     |   Part 3 + 4: Physics Engine & Prediction
+2026-04-15 15:21:01 | INFO     |   Started: 2026-04-15 15:21:01
+2026-04-15 15:21:01 | INFO     | =================================================================
+2026-04-15 15:21:01 | INFO     | Loading data & equation ...
+2026-04-15 15:21:01 | INFO     | ══════════════════════════════════════════════════
+2026-04-15 15:21:01 | INFO     |  Starting Preprocessing Pipeline
+2026-04-15 15:21:01 | INFO     | ══════════════════════════════════════════════════
+2026-04-15 15:21:01 | INFO     | Loading raw data from: /kaggle/working/corrosion-rc-beam-optimizer/data/Database.csv
+2026-04-15 15:21:01 | INFO     | Raw data loaded (encoding=utf-8-sig) — shape: (804, 60)
+2026-04-15 15:21:01 | INFO     | Column names normalised: ['No.', 'Mass Loss (Tensile bars), ηm (%)', 'Mmax,exp (kNm)', 'Mmax,exp (kNm)']
+2026-04-15 15:21:01 | INFO     | After column fix — shape: (804, 59)
+2026-04-15 15:21:01 | INFO     | === Dataset Inspection ===
+2026-04-15 15:21:01 | INFO     |   Rows    : 804
+2026-04-15 15:21:01 | INFO     |   Columns : 59
+2026-04-15 15:21:01 | INFO     |   Missing %:
+Comments                                         7.09
+fy Longitudinal Bars (Tensile), (MPa)            0.87
+fsu Long Bars, (MPa)                             4.48
+Stirrup Bar Type                                22.64
+fy,s Stirrup Bars                               14.80
+Max Aggregate Size (mm)                         19.53
+Cathode Type                                     7.09
+Corrosion Current Density, Icorr (ÃÂ¼A/cm2)     9.58
+Duration, (days)                                12.56
+Wet/Dry Cyclic Ratio (days)                     91.04
+Mass Loss (Tensile bars), ηm (%)                 1.62
+Average Sample Length, (mm)                      0.87
+Py (kN)                                         17.91
+Pmax (kN)                                        1.00
+Residual Capacity, R (%)                         1.74
+ÃÂy (mm)                                      13.43
+ÃÂult (mm)                                    15.55
+Elastic Stiffness, k (kN/mm)                    13.43
+Displacement Ductility, ÃÂ¼ÃÂ                15.55
+Extra Notes                                      7.46
+2026-04-15 15:21:01 | INFO     | Starting data cleaning ...
+2026-04-15 15:21:01 | INFO     | Columns selected: 20 (3 categorical + 15 numeric)
+2026-04-15 15:21:01 | INFO     | Dropped 0 rows with missing target (Mmax,exp (kNm)).
+2026-04-15 15:21:01 | INFO     |   Imputed 'fy Longitudinal Bars (Tensile), (MPa) ' (7 nulls) with median = 374.860
+2026-04-15 15:21:01 | INFO     |   Imputed 'fy,s Stirrup Bars' (119 nulls) with median = 250.000
+2026-04-15 15:21:01 | INFO     |   Imputed 'Mass Loss (Tensile bars), ηm (%)' (13 nulls) with median = 6.980
+2026-04-15 15:21:01 | INFO     | Physical filter (ηm 0-64%): removed 0 rows.
+2026-04-15 15:21:01 | INFO     | Physical filter (Mmax > 0): removed 0 rows.
+2026-04-15 15:21:01 | INFO     | Clean data shape: (804, 20)
+2026-04-15 15:21:01 | INFO     | Applied log1p transform to ηm → 'eta_log'
+2026-04-15 15:21:01 | INFO     | Feature engineering: 5 derived features added.
+2026-04-15 15:21:01 | INFO     | Encoded 'Longitudinal Bar Type': {0: 'D', 1: 'P'}
+2026-04-15 15:21:01 | INFO     | Encoded 'Test Type and Configuration': {0: 'SS-FPB-MONO', 1: 'SS_CONT_TPB_MONO', 2: 'SS_FPB_MONO', 3: 'SS_FPB_MONO_SUST', 4: 'SS_FPB_MONO_SUST_PREC', 5: 'SS_TPB_MONO', 6: 'SS_TPB_MONO_SUST'}
+2026-04-15 15:21:01 | INFO     | Encoded 'Corrosion Method': {0: 'C', 1: 'EI', 2: 'IC', 3: 'N'}
+2026-04-15 15:21:01 | INFO     | Encoder mapping saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/cat_encoders.json
+2026-04-15 15:21:01 | INFO     | Clean data saved → /kaggle/working/corrosion-rc-beam-optimizer/data/clean_data.csv  (804 rows)
+2026-04-15 15:21:02 | INFO     | Features total: 23 (15 numeric + 3 categorical + 5 engineered)
+2026-04-15 15:21:02 | INFO     | Train: 562 | Test: 242
+2026-04-15 15:21:02 | INFO     | y_train — mean: 22.45, std: 23.66
+2026-04-15 15:21:02 | INFO     | y_test  — mean: 23.28,  std: 25.34
+2026-04-15 15:21:02 | INFO     | Scalers saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/scaler_X.pkl, /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/scaler_y.pkl
+2026-04-15 15:21:02 | INFO     | ══════════════════════════════════════════════════
+2026-04-15 15:21:02 | INFO     |  Preprocessing complete ✓
+2026-04-15 15:21:02 | INFO     | ══════════════════════════════════════════════════
+2026-04-15 15:21:02 | INFO     | ══════════════════════════════════════
+2026-04-15 15:21:02 | INFO     |  ACI 318-19 Benchmark Results
+2026-04-15 15:21:02 | INFO     | ══════════════════════════════════════
+2026-04-15 15:21:02 | INFO     |   Specimens     : 804
+2026-04-15 15:21:02 | INFO     |   R²            : 0.8839
+2026-04-15 15:21:02 | INFO     |   RMSE          : 8.2289 kN·m
+2026-04-15 15:21:02 | INFO     |   MAE           : 5.0617 kN·m
+2026-04-15 15:21:02 | INFO     |   MAPE          : 29.9 %
+2026-04-15 15:21:02 | INFO     |   Ratio mean    : 1.1845  (target = 1.0)
+2026-04-15 15:21:02 | INFO     |   Ratio std     : 0.5874
+2026-04-15 15:21:02 | INFO     |   Ratio range   : 0.2735 – 5.2832
+2026-04-15 15:21:02 | INFO     |   Underestimates: 48.5 % of specimens
+2026-04-15 15:21:02 | INFO     | ══════════════════════════════════════
+2026-04-15 15:21:02 | INFO     | Data loaded: 804 samples
+2026-04-15 15:21:02 | INFO     | Equation loaded from JSON  |  Winner: DIRECT
+2026-04-15 15:21:02 | INFO     | Equation string: (CSI**0.70042914 - b)*RI**0.4337962*(-0.0045141946)*(d + fc + fc - 1*192.42197) - (rho_t*(-4.026101) - 1*(-1.4026995))
+2026-04-15 15:21:02 | INFO     | 
+=================================================================
+2026-04-15 15:21:02 | INFO     |   STAGE A — Symbolic Calculus
+2026-04-15 15:21:02 | INFO     | =================================================================
+2026-04-15 15:21:02 | SUCCESS  | Parsed OK: -0.0045141946*RI**0.4337962*(CSI**0.70042914 - b)*(d + 2*fc - 192.42197) + 4.026101*rho_t - 1.4026995
+2026-04-15 15:21:02 | INFO     | Free symbols: ['CSI', 'RI', 'b', 'd', 'fc', 'rho_t']
+2026-04-15 15:21:02 | INFO     | Mode: Direct Mmax equation
+2026-04-15 15:21:02 | INFO     | Equation eval: median=12.5652, range=[-0.6373, 137.6497]
+2026-04-15 15:21:02 | INFO     | Computed 7 derivatives
+2026-04-15 15:21:02 | INFO     |   df/d_eta = 0
+2026-04-15 15:21:02 | INFO     |   d2f/d_eta2 = 0
+2026-04-15 15:21:02 | INFO     |   d3f/d_eta3 = 0
+2026-04-15 15:21:02 | INFO     |   df/d_d = 0.0045141946*RI**0.4337962*(-CSI**0.70042914 + b)
+2026-04-15 15:21:02 | INFO     |   df/d_b = RI**0.4337962*(0.0045141946*d + 0.0090283892*fc - 0.868630217895362)
+2026-04-15 15:21:02 | INFO     |   df/d_fc = 0.0090283892*RI**0.4337962*(-CSI**0.70042914 + b)
+2026-04-15 15:21:02 | INFO     |   df/d_rho_t = 4.02610100000000
+2026-04-15 15:21:02 | SUCCESS  | Critical eta* = 0.50% (spline)
+2026-04-15 15:21:02 | INFO     | Integral: int(f, 0..eta) = 13.2158787920666*eta_upper
+2026-04-15 15:21:02 | INFO     | Taylor (order 3): 13.2158787920666
+2026-04-15 15:21:02 | INFO     | Stage A complete.
+2026-04-15 15:21:02 | INFO     | 
+=================================================================
+2026-04-15 15:21:02 | INFO     |   STAGE B — Non-Dimensionalization & Master Curve
+2026-04-15 15:21:02 | INFO     | =================================================================
+2026-04-15 15:21:02 | INFO     | Pi_M range: [0.0061, 0.2697]
+2026-04-15 15:21:02 | INFO     | omega range: [0.0117, 0.7178]
+2026-04-15 15:21:02 | INFO     | R_ratio range: [0.273, 5.283]
+2026-04-15 15:21:02 | INFO     | Master curve fits: Poly2: R2=0.3546 | ExpDecay: R2=-0.0000 | Pade: R2=0.3530
+2026-04-15 15:21:02 | SUCCESS  | Best master curve: Poly2 (R2=0.3546)
+2026-04-15 15:21:02 | SUCCESS  | Compound parameter: omega^0.56 * (1-eta/100)^0.54  |  R2 = 0.5666
+2026-04-15 15:21:02 | INFO     | Stage B complete.
+2026-04-15 15:21:02 | INFO     | 
+=================================================================
+2026-04-15 15:21:02 | INFO     |   STAGE C — Sensitivity Analysis & Phase Diagram
+2026-04-15 15:21:02 | INFO     | =================================================================
+2026-04-15 15:21:03 | INFO     | Sobol samples: 8192 (6 vars)
+2026-04-15 15:21:03 | INFO     | Sobol S1: CSI=0.023 | RI=0.080 | b=0.228 | d=0.475 | fc=0.069 | rho_t=0.006
+2026-04-15 15:21:03 | INFO     | Sobol ST: CSI=0.029 | RI=0.116 | b=0.313 | d=0.567 | fc=0.085 | rho_t=0.006
+2026-04-15 15:21:03 | INFO     | Phase diagram computed.
+2026-04-15 15:21:03 | INFO     | Spider sensitivity: CSI=0.049 | RI=0.211 | b=0.546 | d=1.641 | fc=0.749 | rho_t=0.188
+2026-04-15 15:21:03 | INFO     | Stage C complete.
+2026-04-15 15:21:03 | INFO     | 
+=================================================================
+2026-04-15 15:21:03 | INFO     |   STAGE D — Prediction & Validation
+2026-04-15 15:21:03 | INFO     | =================================================================
+2026-04-15 15:21:03 | INFO     | Predicted near-zero capacity at eta = 90.0%
+2026-04-15 15:21:12 | INFO     | Bootstrap CI (95%): width at eta*=0% is [9.549, 21.281]
+2026-04-15 15:21:12 | INFO     | Degradation rates: eta=5%: 0.0 | eta=10%: 0.0 | eta=15%: 0.0 | eta=20%: 0.0 | eta=30%: 0.0 | eta=40%: 0.0 | eta=50%: 0.0
+2026-04-15 15:21:12 | INFO     |   DISCOVERY 1: The corrosion degradation exhibits a regime change (inflection point) at eta_m* = 0.5%. Below this threshold, degradation is approximately linear; above it, the rate accelerates non-linearly.
+2026-04-15 15:21:12 | INFO     |   DISCOVERY 4: The model predicts near-complete capacity loss at eta_m = 90%, which defines the ultimate service life limit for corroded RC beams.
+2026-04-15 15:21:12 | INFO     | Stage D complete.
+2026-04-15 15:21:12 | INFO     | 
+=================================================================
+2026-04-15 15:21:12 | INFO     |   STAGE E — Physical Validation (Nature-level checks)
+2026-04-15 15:21:12 | INFO     | =================================================================
+2026-04-15 15:21:12 | INFO     |   E1 | eta=0: predicted=13.2159, deviation=22.6% FAIL
+2026-04-15 15:21:12 | INFO     |   E2 | eta=100: predicted=13.2159 FAIL
+2026-04-15 15:21:12 | INFO     |   E3 | Monotonicity: 100.0% (0 violations) PASS
+2026-04-15 15:21:12 | INFO     |   E4 | Positivity: min=13.2159, negatives=0 PASS
+2026-04-15 15:21:12 | INFO     |   E5 | Dimensions: DIRECT approach: equation has units of kN.m. Dimensional consistency depends on ...
+2026-04-15 15:21:12 | INFO     |   E6 | Eq vs data: R2=0.9392, RMSE=5.95
+2026-04-15 15:21:12 | INFO     | 
+  Physical Validation: 2/5 checks PASSED
+2026-04-15 15:21:12 | INFO     | Stage E complete.
+2026-04-15 15:21:12 | INFO     | 
+=================================================================
+2026-04-15 15:21:12 | INFO     |   STAGE F — Dimensionless Dataset (Pi-groups for future PySR)
+2026-04-15 15:21:12 | INFO     | =================================================================
+2026-04-15 15:21:12 | INFO     |   Dimensionless dataset saved: /kaggle/working/corrosion-rc-beam-optimizer/final_results/physics/dimensionless_dataset_for_pysr.csv
+2026-04-15 15:21:12 | INFO     |   Shape: (804, 8)
+2026-04-15 15:21:12 | INFO     |   Columns: ['Pi_M', 'Pi_omega', 'Pi_geom', 'Pi_bar', 'Pi_eta', 'Pi_rho', 'Pi_M_aci', 'Pi_R']
+2026-04-15 15:21:12 | INFO     |   --- Use this CSV to re-run PySR on Pi-groups directly ---
+2026-04-15 15:21:12 | INFO     |   --- PySR target: 'Pi_R' (or 'Pi_M') ---
+2026-04-15 15:21:12 | INFO     |   --- Result = universal law valid in ANY unit system ---
+2026-04-15 15:21:12 | INFO     |   Correlation with Pi_M:
+Pi_M_aci    0.764333
+Pi_omega    0.717895
+Pi_rho      0.586550
+Pi_bar      0.328593
+Pi_geom     0.069850
+Pi_R       -0.029318
+Pi_eta     -0.397116
+2026-04-15 15:21:12 | INFO     | 
+=================================================================
+2026-04-15 15:21:12 | INFO     |   STAGE G — Testable Predictions (for independent validation)
+2026-04-15 15:21:12 | INFO     | =================================================================
+2026-04-15 15:21:12 | INFO     |   Testable predictions saved: /kaggle/working/corrosion-rc-beam-optimizer/final_results/physics/testable_predictions_for_lab.csv
+2026-04-15 15:21:12 | INFO     |   13 scenarios (including 3 extrapolations beyond data)
+2026-04-15 15:21:12 | INFO     | 
+  Beam specification: b=150.0mm, d=250.0mm, fy=400.0MPa, fc=30.0MPa, rho=1.5%
+2026-04-15 15:21:12 | INFO     | 
+  PREDICTIONS TABLE:
+2026-04-15 15:21:12 | INFO     |     eta=   5%  |  Mmax=  30.39 kN.m  |  ACI=  45.38 kN.m
+2026-04-15 15:21:12 | INFO     |     eta=  10%  |  Mmax=  30.39 kN.m  |  ACI=  41.22 kN.m
+2026-04-15 15:21:12 | INFO     |     eta=  15%  |  Mmax=  30.39 kN.m  |  ACI=  37.19 kN.m
+2026-04-15 15:21:12 | INFO     |     eta=  20%  |  Mmax=  30.39 kN.m  |  ACI=  33.29 kN.m
+2026-04-15 15:21:12 | INFO     |     eta=  25%  |  Mmax=  30.39 kN.m  |  ACI=  29.55 kN.m
+2026-04-15 15:21:12 | INFO     |     eta=  30%  |  Mmax=  30.39 kN.m  |  ACI=  25.97 kN.m
+2026-04-15 15:21:12 | INFO     |     eta=  35%  |  Mmax=  30.39 kN.m  |  ACI=  22.58 kN.m
+2026-04-15 15:21:12 | INFO     |     eta=  40%  |  Mmax=  30.39 kN.m  |  ACI=  19.39 kN.m
+2026-04-15 15:21:12 | INFO     |     eta=  50%  |  Mmax=  30.39 kN.m  |  ACI=  13.65 kN.m
+2026-04-15 15:21:12 | INFO     |     eta=  60%  |  Mmax=  30.39 kN.m  |  ACI=   8.83 kN.m
+2026-04-15 15:21:12 | INFO     |     eta=  70%  |  Mmax=  30.39 kN.m  |  ACI=   5.01 kN.m *** EXTRAPOLATION
+2026-04-15 15:21:12 | INFO     |     eta=  80%  |  Mmax=  30.39 kN.m  |  ACI=   2.24 kN.m *** EXTRAPOLATION
+2026-04-15 15:21:12 | INFO     |     eta=  90%  |  Mmax=  30.39 kN.m  |  ACI=   0.56 kN.m *** EXTRAPOLATION
+2026-04-15 15:21:12 | INFO     | Stage G complete.
+2026-04-15 15:21:12 | INFO     | 
+=================================================================
+2026-04-15 15:21:12 | INFO     |   Generating Physics Figures
+2026-04-15 15:21:12 | INFO     | =================================================================
+2026-04-15 15:21:13 | INFO     |   Fig P1 OK — Degradation Curve
+2026-04-15 15:21:13 | INFO     |   Fig P2 OK — First Derivative
+2026-04-15 15:21:14 | INFO     |   Fig P3 OK — Second Derivative + Critical Point
+2026-04-15 15:21:14 | INFO     |   Fig P4 OK — Cumulative Damage Integral
+2026-04-15 15:21:15 | INFO     |   Fig P5 OK — Master Curve
+2026-04-15 15:21:16 | INFO     |   Fig P6 OK — Data Collapse
+2026-04-15 15:21:16 | INFO     |   Fig P7 OK — Sobol Sensitivity
+2026-04-15 15:21:17 | INFO     |   Fig P8 OK — Phase Diagram
+2026-04-15 15:21:17 | INFO     |   Fig P9 OK — Spider Sensitivity
+2026-04-15 15:21:18 | INFO     |   Fig P10 OK — Extrapolation
+2026-04-15 15:21:18 | INFO     |   Fig P11 OK — PySR vs ACI
+2026-04-15 15:21:19 | INFO     |   Fig P12 OK — 3D Surface
+2026-04-15 15:21:19 | INFO     | Total figures generated: 12
+2026-04-15 15:21:19 | INFO     | Results saved -> /kaggle/working/corrosion-rc-beam-optimizer/final_results/physics/physics_results.json
+2026-04-15 15:21:19 | INFO     | 
+=================================================================
+2026-04-15 15:21:19 | INFO     |   Generating Physics PDF Report
+2026-04-15 15:21:19 | INFO     | =================================================================
+2026-04-15 15:21:21 | INFO     | PDF Report saved -> /kaggle/working/corrosion-rc-beam-optimizer/final_results/physics/Physics_Report.pdf

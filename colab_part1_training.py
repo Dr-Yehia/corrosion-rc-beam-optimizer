@@ -46,15 +46,17 @@ for p in ["loguru", "catboost", "xgboost", "optuna", "shap",
         install(p)
 
 REPO = "corrosion-rc-beam-optimizer"
-if not os.path.isdir(f"/content/{REPO}"):
+BASE = "/kaggle/working" if os.path.isdir("/kaggle/working") else "/content"
+REPO_PATH = f"{BASE}/{REPO}"
+if not os.path.isdir(REPO_PATH):
     subprocess.run(["git", "clone",
                     "https://github.com/Dr-Yehia/corrosion-rc-beam-optimizer.git",
-                    f"/content/{REPO}"], check=True)
+                    REPO_PATH], check=True)
 else:
-    subprocess.run(["git", "-C", f"/content/{REPO}", "pull"], check=False)
+    subprocess.run(["git", "-C", REPO_PATH, "pull"], check=False)
 
 # ============= PATCH 70/30 SPLIT =============
-config_path = f"/content/{REPO}/src/config.py"
+config_path = f"{REPO_PATH}/src/config.py"
 with open(config_path, "r") as f:
     cfg_txt = f.read()
 cfg_txt = cfg_txt.replace("TEST_SIZE    = 0.20", "TEST_SIZE    = 0.30")
@@ -62,8 +64,8 @@ with open(config_path, "w") as f:
     f.write(cfg_txt)
 print("CONFIG PATCHED: TEST_SIZE = 0.30 (70/30 split)")
 
-os.chdir(f"/content/{REPO}/src")
-sys.path.insert(0, f"/content/{REPO}/src")
+os.chdir(f"{REPO_PATH}/src")
+sys.path.insert(0, f"{REPO_PATH}/src")
 print("Setup complete.")
 
 # =============================================================
@@ -887,8 +889,13 @@ print(sep)
 # CELL 12: CLEAN ZIP (figures + models + for_part2 only)
 # =============================================================
 import shutil, zipfile
+from pathlib import Path as _P
 
-zip_path = "/content/part1_results.zip"
+_kaggle = _P("/kaggle/working")
+_colab  = _P("/content")
+_out = _kaggle if _kaggle.exists() else _colab
+
+zip_path = str(_out / "part1_results.zip")
 with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
     for sub in ["figures", "models", "for_part2", "logs"]:
         sub_dir = RESULTS_DIR / sub
@@ -898,9 +905,14 @@ with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
                     arcname = f"{sub}/{fpath.relative_to(sub_dir)}"
                     zf.write(str(fpath), arcname)
 
+if _kaggle.exists():
+    for fig_p in (RESULTS_DIR / "figures").glob("*.png"):
+        shutil.copy2(str(fig_p), str(_kaggle / fig_p.name))
+
 print(f"\nClean ZIP -> {zip_path}")
-print("   (equations folder EXCLUDED — that is Part 2)")
-print("   To download:")
-print("   from google.colab import files; "
-      "files.download('/content/part1_results.zip')")
+try:
+    from google.colab import files
+    files.download(zip_path)
+except ImportError:
+    pass
 print("\nPart 1 Done. Ready for Part 2 (PySR).")

@@ -1,0 +1,10 @@
+{
+  "approach": "Direct Mmax prediction",
+  "R2": 0.9392,
+  "RMSE": 5.9548,
+  "MAE": 4.0348,
+  "MAPE": 31.55,
+  "equation": "(CSI**0.70042914 - b)*RI**0.4337962*(-0.0045141946)*(d + fc + fc - 1*192.42197) - (rho_t*(-4.026101) - 1*(-1.4026995))",
+  "equation_latex": "\\left(CSI^{0.700} - b\\right) RI^{0.434} \\left(-0.00451\\right) \\left(d + fc + fc - 192.\\right) - \\left(\\rho_{t} \\left(-4.03\\right) - -1.40\\right)",
+  "n_samples": 804
+}
