@@ -1,0 +1,39 @@
+{
+  "n_total": 804,
+  "n_train": 562,
+  "n_test": 242,
+  "test_size": 0.3,
+  "aci_metrics": {
+    "R2": 0.8839,
+    "RMSE": 8.2289,
+    "MAE": 5.0617,
+    "MAPE": 29.9,
+    "ratio_mean": 1.1845,
+    "ratio_std": 0.5874,
+    "ratio_min": 0.2735,
+    "ratio_max": 5.2832,
+    "underestimate_pct": 48.5,
+    "n_specimens": 804
+  },
+  "best_model_name": "CatBoost",
+  "test_metrics": {
+    "R2": 0.9753,
+    "RMSE": 3.9717,
+    "MAE": 2.2996,
+    "CV_pct": 17.06,
+    "SD_M": 0.1702
+  },
+  "cv_all_metrics": {
+    "R2": 0.9678,
+    "RMSE": 4.3316,
+    "MAE": 2.0837,
+    "CV_pct": 19.08,
+    "SD_M": 0.1908,
+    "Mean_Pred_Exp": 1.0197,
+    "Std_Pred_Exp": 0.2173,
+    "n_samples": 804
+  },
+  "L1_TARGET_R2": 0.9,
+  "L2_TARGET_R2": 0.972,
+  "generated_at": "2026-04-15 11:57:59.397142"
+}

@@ -1,0 +1,10 @@
+{
+  "top5_features": [
+    "Depth (mm)",
+    "Diameter Tensile Bars, db,t (mm)",
+    "Width (mm)",
+    "Stirrup Spacing, s (mm) ",
+    "Shear Span, x (mm)"
+  ],
+  "generated_at": "2026-04-15 11:57:34.656151"
+}

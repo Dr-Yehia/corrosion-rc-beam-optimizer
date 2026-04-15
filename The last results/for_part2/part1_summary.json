@@ -1,0 +1,102 @@
+{
+  "n_total": 804,
+  "n_train": 562,
+  "n_test": 242,
+  "test_size": 0.3,
+  "log_transform": true,
+  "aci_metrics": {
+    "R2": 0.8839,
+    "RMSE": 8.2289,
+    "MAE": 5.0617,
+    "MAPE": 29.9,
+    "ratio_mean": 1.1845,
+    "ratio_std": 0.5874,
+    "ratio_min": 0.2735,
+    "ratio_max": 5.2832,
+    "underestimate_pct": 48.5,
+    "n_specimens": 804
+  },
+  "best_model_name": "CatBoost",
+  "all_model_metrics": {
+    "XGBoost": {
+      "train_R2": 0.9965,
+      "test_R2": 0.9737,
+      "test_RMSE": 4.1043,
+      "test_MAE": 2.1199,
+      "test_MAPE": 12.38,
+      "L1_broken": true,
+      "L2_broken": true
+    },
+    "RandomForest": {
+      "train_R2": 0.9861,
+      "test_R2": 0.9673,
+      "test_RMSE": 4.573,
+      "test_MAE": 2.4264,
+      "test_MAPE": 13.47,
+      "L1_broken": true,
+      "L2_broken": false
+    },
+    "GBR": {
+      "train_R2": 0.9988,
+      "test_R2": 0.9677,
+      "test_RMSE": 4.5421,
+      "test_MAE": 2.3502,
+      "test_MAPE": 12.49,
+      "L1_broken": true,
+      "L2_broken": false
+    },
+    "CatBoost": {
+      "train_R2": 0.9951,
+      "test_R2": 0.9747,
+      "test_RMSE": 4.0239,
+      "test_MAE": 2.0535,
+      "test_MAPE": 11.95,
+      "L1_broken": true,
+      "L2_broken": true
+    },
+    "Stacking": {
+      "train_R2": 0.9974,
+      "test_R2": 0.9744,
+      "test_RMSE": 4.0471,
+      "test_MAE": 2.1066,
+      "test_MAPE": 11.91,
+      "L1_broken": true,
+      "L2_broken": true
+    }
+  },
+  "mlp_test_R2": 0.9535,
+  "test_metrics": {
+    "R2": 0.9747,
+    "RMSE": 4.0239,
+    "MAE": 2.0535,
+    "CV_pct": 17.28,
+    "SD_M": 0.1721
+  },
+  "cv_all_metrics": {
+    "R2": 0.9745,
+    "RMSE": 3.8589,
+    "MAE": 1.8989,
+    "CV_pct": 17.0,
+    "SD_M": 0.1699,
+    "Mean_Pred_Exp": 1.0146,
+    "Std_Pred_Exp": 0.1882,
+    "n_samples": 804,
+    "per_fold_R2": [
+      0.9587,
+      0.9812,
+      0.9453,
+      0.9708,
+      0.9779,
+      0.9825,
+      0.9902,
+      0.9712,
+      0.9873,
+      0.9737
+    ],
+    "per_fold_R2_mean": 0.9739,
+    "per_fold_R2_std": 0.0129
+  },
+  "L1_TARGET_R2": 0.9,
+  "L2_TARGET_R2": 0.972,
+  "generated_at": "2026-04-15 12:41:51.936515"
+}

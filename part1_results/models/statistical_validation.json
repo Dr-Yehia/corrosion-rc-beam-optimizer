@@ -1,0 +1,136 @@
+{
+  "wilcoxon": {
+    "test": "Wilcoxon Signed-Rank (one-sided, less)",
+    "statistic": 5912.0,
+    "p_value": 0.0,
+    "alpha": 0.05,
+    "significant": true,
+    "interpretation": "Model errors are statistically SMALLER than ACI errors (p=0.0000 < \u03b1=0.05).\nThe improvement over ACI 318-19 is statistically significant.",
+    "median_err_model": 1.2113,
+    "median_err_aci": 2.7758
+  },
+  "bootstrap": {
+    "n_bootstrap": 1000,
+    "ci_level": 0.95,
+    "R2": 0.9753,
+    "R2_CI": [
+      0.9601,
+      0.9851
+    ],
+    "RMSE": 3.9717,
+    "RMSE_CI": [
+      3.0678,
+      4.8778
+    ],
+    "MAE": 2.2996,
+    "MAE_CI": [
+      1.9112,
+      2.7358
+    ],
+    "R2_boot_mean": 0.9751,
+    "R2_boot_std": 0.0063
+  },
+  "kfold": {
+    "n_folds": 10,
+    "folds": [
+      {
+        "fold": 1,
+        "R2": 0.9638,
+        "RMSE": 0.169,
+        "MAE": 0.0908
+      },
+      {
+        "fold": 2,
+        "R2": 0.9744,
+        "RMSE": 0.1582,
+        "MAE": 0.0929
+      },
+      {
+        "fold": 3,
+        "R2": 0.9386,
+        "RMSE": 0.2411,
+        "MAE": 0.0991
+      },
+      {
+        "fold": 4,
+        "R2": 0.9641,
+        "RMSE": 0.1963,
+        "MAE": 0.1057
+      },
+      {
+        "fold": 5,
+        "R2": 0.9579,
+        "RMSE": 0.1784,
+        "MAE": 0.1037
+      },
+      {
+        "fold": 6,
+        "R2": 0.9784,
+        "RMSE": 0.1176,
+        "MAE": 0.0813
+      },
+      {
+        "fold": 7,
+        "R2": 0.9868,
+        "RMSE": 0.1266,
+        "MAE": 0.0766
+      },
+      {
+        "fold": 8,
+        "R2": 0.9685,
+        "RMSE": 0.1431,
+        "MAE": 0.0969
+      },
+      {
+        "fold": 9,
+        "R2": 0.9822,
+        "RMSE": 0.1302,
+        "MAE": 0.0752
+      },
+      {
+        "fold": 10,
+        "R2": 0.9647,
+        "RMSE": 0.1841,
+        "MAE": 0.0996
+      }
+    ],
+    "R2_mean": 0.9679,
+    "R2_std": 0.0131,
+    "R2_min": 0.9386,
+    "R2_max": 0.9868,
+    "RMSE_mean": 0.1645,
+    "RMSE_std": 0.0358,
+    "MAE_mean": 0.0922,
+    "MAE_std": 0.0104,
+    "L1_all_folds": true,
+    "L2_all_folds": false
+  },
+  "cohens_d": {
+    "cohens_d": 0.4792,
+    "magnitude": "small",
+    "mean_diff": 2.8647,
+    "std_diff": 5.9777
+  },
+  "mcnemar": {
+    "test": "McNemar (exact, continuity corrected)",
+    "tolerance_pct": 10.0,
+    "b_model_ok": 32,
+    "c_aci_ok": 1,
+    "chi2_statistic": 27.2727,
+    "p_value": 0.0,
+    "significant": true,
+    "model_accuracy": 96.69,
+    "aci_accuracy": 83.88
+  },
+  "summary": {
+    "wilcoxon_significant": true,
+    "bootstrap_R2_lower_bound": true,
+    "kfold_L1_all_folds": true,
+    "kfold_L2_all_folds": false,
+    "effect_size_large": false,
+    "mcnemar_significant": true,
+    "model_R2": 0.9753
+  },
+  "verdict": "\u2705 STATISTICAL VALIDATION PASSED \u2014 Benchmark improvement confirmed with p<0.05.",
+  "generated_at": "2026-04-15 11:57:55.686807"
+}

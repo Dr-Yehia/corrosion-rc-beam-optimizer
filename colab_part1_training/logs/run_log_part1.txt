@@ -1,0 +1,334 @@
+2026-04-15 12:29:01 | INFO     | =================================================================
+2026-04-15 12:29:01 | INFO     |   Corrosion RC Beam Optimizer -- Part 1: ML Training (v2)
+2026-04-15 12:29:01 | INFO     |   Split: 70/30 (TEST_SIZE = 0.3)
+2026-04-15 12:29:01 | INFO     |   Log-Transform: True
+2026-04-15 12:29:01 | INFO     |   Started: 2026-04-15 12:29:01
+2026-04-15 12:29:01 | INFO     | =================================================================
+2026-04-15 12:29:01 | INFO     | ══════════════════════════════════════════════════
+2026-04-15 12:29:01 | INFO     |  Starting Preprocessing Pipeline
+2026-04-15 12:29:01 | INFO     | ══════════════════════════════════════════════════
+2026-04-15 12:29:01 | INFO     | Loading raw data from: /content/corrosion-rc-beam-optimizer/data/Database.csv
+2026-04-15 12:29:01 | INFO     | Raw data loaded (encoding=utf-8-sig) — shape: (804, 60)
+2026-04-15 12:29:01 | INFO     | Column names normalised: ['No.', 'Mass Loss (Tensile bars), ηm (%)', 'Mmax,exp (kNm)', 'Mmax,exp (kNm)']
+2026-04-15 12:29:01 | INFO     | After column fix — shape: (804, 59)
+2026-04-15 12:29:01 | INFO     | === Dataset Inspection ===
+2026-04-15 12:29:01 | INFO     |   Rows    : 804
+2026-04-15 12:29:01 | INFO     |   Columns : 59
+2026-04-15 12:29:01 | INFO     |   Missing %:
+Comments                                         7.09
+fy Longitudinal Bars (Tensile), (MPa)            0.87
+fsu Long Bars, (MPa)                             4.48
+Stirrup Bar Type                                22.64
+fy,s Stirrup Bars                               14.80
+Max Aggregate Size (mm)                         19.53
+Cathode Type                                     7.09
+Corrosion Current Density, Icorr (ÃÂ¼A/cm2)     9.58
+Duration, (days)                                12.56
+Wet/Dry Cyclic Ratio (days)                     91.04
+Mass Loss (Tensile bars), ηm (%)                 1.62
+Average Sample Length, (mm)                      0.87
+Py (kN)                                         17.91
+Pmax (kN)                                        1.00
+Residual Capacity, R (%)                         1.74
+ÃÂy (mm)                                      13.43
+ÃÂult (mm)                                    15.55
+Elastic Stiffness, k (kN/mm)                    13.43
+Displacement Ductility, ÃÂ¼ÃÂ                15.55
+Extra Notes                                      7.46
+2026-04-15 12:29:01 | INFO     | Starting data cleaning ...
+2026-04-15 12:29:01 | INFO     | Columns selected: 20 (3 categorical + 15 numeric)
+2026-04-15 12:29:01 | INFO     | Dropped 0 rows with missing target (Mmax,exp (kNm)).
+2026-04-15 12:29:01 | INFO     |   Imputed 'fy Longitudinal Bars (Tensile), (MPa) ' (7 nulls) with median = 374.860
+2026-04-15 12:29:01 | INFO     |   Imputed 'fy,s Stirrup Bars' (119 nulls) with median = 250.000
+2026-04-15 12:29:01 | INFO     |   Imputed 'Mass Loss (Tensile bars), ηm (%)' (13 nulls) with median = 6.980
+2026-04-15 12:29:01 | INFO     | Physical filter (ηm 0-64%): removed 0 rows.
+2026-04-15 12:29:01 | INFO     | Physical filter (Mmax > 0): removed 0 rows.
+2026-04-15 12:29:01 | INFO     | Clean data shape: (804, 20)
+2026-04-15 12:29:01 | INFO     | Applied log1p transform to ηm → 'eta_log'
+2026-04-15 12:29:01 | INFO     | Feature engineering: 5 derived features added.
+2026-04-15 12:29:01 | INFO     | Encoded 'Longitudinal Bar Type': {0: 'D', 1: 'P'}
+2026-04-15 12:29:01 | INFO     | Encoded 'Test Type and Configuration': {0: 'SS-FPB-MONO', 1: 'SS_CONT_TPB_MONO', 2: 'SS_FPB_MONO', 3: 'SS_FPB_MONO_SUST', 4: 'SS_FPB_MONO_SUST_PREC', 5: 'SS_TPB_MONO', 6: 'SS_TPB_MONO_SUST'}
+2026-04-15 12:29:01 | INFO     | Encoded 'Corrosion Method': {0: 'C', 1: 'EI', 2: 'IC', 3: 'N'}
+2026-04-15 12:29:01 | INFO     | Encoder mapping saved → /content/corrosion-rc-beam-optimizer/final_results/models/cat_encoders.json
+2026-04-15 12:29:01 | INFO     | Clean data saved → /content/corrosion-rc-beam-optimizer/data/clean_data.csv  (804 rows)
+2026-04-15 12:29:01 | INFO     | Features total: 23 (15 numeric + 3 categorical + 5 engineered)
+2026-04-15 12:29:01 | INFO     | Train: 562 | Test: 242
+2026-04-15 12:29:01 | INFO     | y_train — mean: 22.45, std: 23.66
+2026-04-15 12:29:01 | INFO     | y_test  — mean: 23.28,  std: 25.34
+2026-04-15 12:29:01 | INFO     | Scalers saved → /content/corrosion-rc-beam-optimizer/final_results/models/scaler_X.pkl, /content/corrosion-rc-beam-optimizer/final_results/models/scaler_y.pkl
+2026-04-15 12:29:01 | INFO     | ══════════════════════════════════════════════════
+2026-04-15 12:29:01 | INFO     |  Preprocessing complete ✓
+2026-04-15 12:29:01 | INFO     | ══════════════════════════════════════════════════
+2026-04-15 12:29:01 | INFO     | ══════════════════════════════════════
+2026-04-15 12:29:01 | INFO     |  ACI 318-19 Benchmark Results
+2026-04-15 12:29:01 | INFO     | ══════════════════════════════════════
+2026-04-15 12:29:01 | INFO     |   Specimens     : 804
+2026-04-15 12:29:01 | INFO     |   R²            : 0.8839
+2026-04-15 12:29:01 | INFO     |   RMSE          : 8.2289 kN·m
+2026-04-15 12:29:01 | INFO     |   MAE           : 5.0617 kN·m
+2026-04-15 12:29:01 | INFO     |   MAPE          : 29.9 %
+2026-04-15 12:29:01 | INFO     |   Ratio mean    : 1.1845  (target = 1.0)
+2026-04-15 12:29:01 | INFO     |   Ratio std     : 0.5874
+2026-04-15 12:29:01 | INFO     |   Ratio range   : 0.2735 – 5.2832
+2026-04-15 12:29:01 | INFO     |   Underestimates: 48.5 % of specimens
+2026-04-15 12:29:01 | INFO     | ══════════════════════════════════════
+2026-04-15 12:29:01 | INFO     | ACI results saved → /content/corrosion-rc-beam-optimizer/final_results/models/aci_benchmark_predictions.csv
+2026-04-15 12:29:01 | INFO     | ACI metrics saved → /content/corrosion-rc-beam-optimizer/final_results/models/aci_benchmark_metrics.json
+2026-04-15 12:29:01 | INFO     | ACI baseline -- R2=0.8839  RMSE=8.2289
+2026-04-15 12:29:01 | INFO     | Data: 804 samples | Train: 562 | Test: 242
+2026-04-15 12:29:01 | INFO     | LOG TRANSFORM ACTIVE: models train on log1p(Mmax)
+2026-04-15 12:29:01 | INFO     |   y_train log range: [0.191, 5.091]
+2026-04-15 12:29:01 | INFO     | 
+============================================================
+2026-04-15 12:29:01 | INFO     |   Phase 1A -- MLP Baseline
+2026-04-15 12:29:01 | INFO     | ============================================================
+2026-04-15 12:29:01 | INFO     | ══════════════════════════════════════
+2026-04-15 12:29:01 | INFO     |  Phase 1A — MLP Baseline
+2026-04-15 12:29:01 | INFO     | ══════════════════════════════════════
+2026-04-15 12:29:01 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:29:01 | INFO     | Training MLP ...
+2026-04-15 12:29:02 | INFO     | MLP training complete — iterations: 68
+2026-04-15 12:29:02 | INFO     | Final training loss: 0.003568
+2026-04-15 12:29:02 | INFO     | [Train] R²=0.9901  RMSE=0.0941  MAE=0.0659  MAPE=3.16%  L1:✓  L2:✓
+2026-04-15 12:29:02 | INFO     | [Test] R²=0.9634  RMSE=0.1897  MAE=0.1263  MAPE=6.06%  L1:✓  L2:✗
+2026-04-15 12:29:02 | INFO     | Running 10-Fold CV (MLP) ...
+2026-04-15 12:29:02 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:29:04 | INFO     |   Fold  1 — R²=0.9717  RMSE=0.1550
+2026-04-15 12:29:04 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:29:06 | INFO     |   Fold  2 — R²=0.9829  RMSE=0.1254
+2026-04-15 12:29:06 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:29:07 | INFO     |   Fold  3 — R²=0.9674  RMSE=0.1741
+2026-04-15 12:29:07 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:29:09 | INFO     |   Fold  4 — R²=0.9737  RMSE=0.1557
+2026-04-15 12:29:09 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:29:10 | INFO     |   Fold  5 — R²=0.9647  RMSE=0.1725
+2026-04-15 12:29:10 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:29:11 | INFO     |   Fold  6 — R²=0.9640  RMSE=0.1773
+2026-04-15 12:29:11 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:29:14 | INFO     |   Fold  7 — R²=0.9883  RMSE=0.1171
+2026-04-15 12:29:14 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:29:16 | INFO     |   Fold  8 — R²=0.9741  RMSE=0.1559
+2026-04-15 12:29:16 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:29:17 | INFO     |   Fold  9 — R²=0.9767  RMSE=0.1473
+2026-04-15 12:29:17 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:29:18 | INFO     |   Fold 10 — R²=0.9585  RMSE=0.1761
+2026-04-15 12:29:18 | INFO     | CV complete — R² = 0.9722 ± 0.0086
+2026-04-15 12:29:18 | INFO     | Model saved → /content/corrosion-rc-beam-optimizer/final_results/models/best_mlp.pkl
+2026-04-15 12:29:18 | INFO     | Metrics saved → /content/corrosion-rc-beam-optimizer/final_results/models/mlp_metrics.json
+2026-04-15 12:29:18 | INFO     | ✓ L1 broken. Ensemble expected to break L2.
+2026-04-15 12:29:18 | INFO     | ══════════════════════════════════════
+2026-04-15 12:29:18 | INFO     |  Phase 1A Complete
+2026-04-15 12:29:18 | INFO     | ══════════════════════════════════════
+2026-04-15 12:29:18 | INFO     | MLP (original scale): R2=0.9535  RMSE=5.4542  MAE=2.9058
+2026-04-15 12:29:18 | INFO     | 
+============================================================
+2026-04-15 12:29:18 | INFO     |   Phase 1B -- Ensemble Model Training
+2026-04-15 12:29:18 | INFO     | ============================================================
+2026-04-15 12:29:18 | INFO     |   NOTE: Internal metrics below are in LOG-SPACE.
+2026-04-15 12:29:18 | INFO     |         Original-scale metrics are computed after.
+2026-04-15 12:29:18 | INFO     | ══════════════════════════════════════════════════
+2026-04-15 12:29:18 | INFO     |  Phase 1B — Ensemble Model Training
+2026-04-15 12:29:18 | INFO     |  Target: Mmax,exp (kN·m)
+2026-04-15 12:29:18 | INFO     |  Models: XGBoost + RF + GBR + CatBoost(Optuna) + Stacking
+2026-04-15 12:29:18 | INFO     | ══════════════════════════════════════════════════
+2026-04-15 12:29:18 | INFO     | Training XGBoost ...
+2026-04-15 12:29:19 | INFO     | [XGBoost-Train] R²=0.9974  RMSE=0.0484  MAE=0.0308  MAPE=1.53%  L1:✓  L2:✓
+2026-04-15 12:29:19 | INFO     | [XGBoost-Test] R²=0.9734  RMSE=0.1616  MAE=0.0973  MAPE=4.98%  L1:✓  L2:✓
+2026-04-15 12:29:19 | INFO     | XGBoost saved.
+2026-04-15 12:29:19 | INFO     | Training Random Forest ...
+2026-04-15 12:29:21 | INFO     | [RF-Train] R²=0.9922  RMSE=0.0833  MAE=0.0537  MAPE=2.86%  L1:✓  L2:✓
+2026-04-15 12:29:21 | INFO     | [RF-Test] R²=0.9703  RMSE=0.1708  MAE=0.1061  MAPE=5.50%  L1:✓  L2:✗
+2026-04-15 12:29:21 | INFO     | Random Forest saved.
+2026-04-15 12:29:21 | INFO     | Training Gradient Boosting ...
+2026-04-15 12:29:23 | INFO     | [GBR-Train] R²=0.9983  RMSE=0.0394  MAE=0.0197  MAPE=0.96%  L1:✓  L2:✓
+2026-04-15 12:29:23 | INFO     | [GBR-Test] R²=0.9714  RMSE=0.1678  MAE=0.1007  MAPE=4.95%  L1:✓  L2:✗
+2026-04-15 12:29:23 | INFO     | Gradient Boosting saved.
+2026-04-15 12:29:23 | INFO     | ════════════════════════════════════════
+2026-04-15 12:29:23 | INFO     |  CatBoost + Optuna Hyperparameter Tuning
+2026-04-15 12:29:23 | INFO     | ════════════════════════════════════════
+2026-04-15 12:29:23 | INFO     | Optuna tuning: 100 trials, 5-fold CV, timeout=600s
+2026-04-15 12:39:38 | INFO     | Optuna best trial: R²=0.9776
+2026-04-15 12:39:38 | INFO     | Optuna best params: {'iterations': 1968, 'depth': 4, 'learning_rate': 0.03820032461605887, 'l2_leaf_reg': 0.8311022960352484, 'subsample': 0.6037893555120913, 'colsample_bylevel': 0.5198303999669479, 'min_child_samples': 22}
+2026-04-15 12:39:38 | INFO     | Training CatBoost with params: {'iterations': 1968, 'depth': 4, 'learning_rate': 0.03820032461605887, 'l2_leaf_reg': 0.8311022960352484, 'subsample': 0.6037893555120913, 'colsample_bylevel': 0.5198303999669479, 'min_child_samples': 22}
+2026-04-15 12:39:39 | INFO     | [CatBoost-Train] R²=0.9962  RMSE=0.0586  MAE=0.0411  MAPE=1.92%  L1:✓  L2:✓
+2026-04-15 12:39:39 | INFO     | [CatBoost-Test] R²=0.9756  RMSE=0.1550  MAE=0.0947  MAPE=4.79%  L1:✓  L2:✓
+2026-04-15 12:39:39 | INFO     | CatBoost saved.
+2026-04-15 12:39:39 | INFO     | Training Stacking Ensemble ...
+2026-04-15 12:40:16 | INFO     | [Stacking-Train] R²=0.9975  RMSE=0.0475  MAE=0.0309  MAPE=1.54%  L1:✓  L2:✓
+2026-04-15 12:40:17 | INFO     | [Stacking-Test] R²=0.9754  RMSE=0.1555  MAE=0.0944  MAPE=4.76%  L1:✓  L2:✓
+2026-04-15 12:40:17 | INFO     | Stacking Ensemble saved.
+2026-04-15 12:40:17 | INFO     | 🏆 Best model: CatBoost  Test R²=0.9756
+2026-04-15 12:40:32 | INFO     | CV R² (CatBoost) = 0.9782 ± 0.0081
+2026-04-15 12:40:32 | INFO     | CV per fold: [np.float64(0.9771), np.float64(0.9776), np.float64(0.9892), np.float64(0.9835), np.float64(0.9738), np.float64(0.9716), np.float64(0.9837), np.float64(0.9708), np.float64(0.9905), np.float64(0.9636)]
+2026-04-15 12:40:32 | INFO     | Best model saved → /content/corrosion-rc-beam-optimizer/final_results/models/best_model.pkl
+2026-04-15 12:40:32 | INFO     | ⭐⭐⭐ BOTH BENCHMARKS BROKEN! ⭐⭐⭐
+2026-04-15 12:40:32 | INFO     | Ensemble metrics saved → /content/corrosion-rc-beam-optimizer/final_results/models/ensemble_metrics.json
+2026-04-15 12:40:32 | INFO     | ══════════════════════════════════════════════════
+2026-04-15 12:40:32 | INFO     |  Phase 1B Complete
+2026-04-15 12:40:32 | INFO     | ══════════════════════════════════════════════════
+2026-04-15 12:40:32 | INFO     | 
+============================================================
+2026-04-15 12:40:32 | INFO     |   Re-evaluating ALL models in ORIGINAL kN·m scale
+2026-04-15 12:40:32 | INFO     | ============================================================
+2026-04-15 12:40:32 | INFO     |   [XGBoost] R2=0.9737  RMSE=4.10  MAE=2.12  L1:✓  L2:✓
+2026-04-15 12:40:32 | INFO     |   [RandomForest] R2=0.9673  RMSE=4.57  MAE=2.43  L1:✓  L2:✗
+2026-04-15 12:40:32 | INFO     |   [GBR] R2=0.9677  RMSE=4.54  MAE=2.35  L1:✓  L2:✗
+2026-04-15 12:40:32 | INFO     |   [CatBoost] R2=0.9747  RMSE=4.02  MAE=2.05  L1:✓  L2:✓
+2026-04-15 12:40:32 | INFO     |   [Stacking] R2=0.9744  RMSE=4.05  MAE=2.11  L1:✓  L2:✓
+2026-04-15 12:40:32 | INFO     | 
+  TRUE BEST (original scale): CatBoost  R2=0.9747
+2026-04-15 12:40:32 | SUCCESS  |   L1 + L2 BOTH BROKEN!
+2026-04-15 12:40:32 | INFO     | 
+============================================================
+2026-04-15 12:40:32 | INFO     |   10-Fold Cross-Validation -- ALL samples
+2026-04-15 12:40:32 | INFO     | ============================================================
+2026-04-15 12:40:32 | INFO     | Running cross_val_predict (CatBoost) on 804 samples ...
+2026-04-15 12:40:48 | INFO     | 10-Fold CV predictions complete for ALL samples.
+2026-04-15 12:40:48 | INFO     | Per-fold R2 (original scale): [0.9587, 0.9812, 0.9453, 0.9708, 0.9779, 0.9825, 0.9902, 0.9712, 0.9873, 0.9737]
+2026-04-15 12:40:48 | INFO     |   Mean R2  = 0.9739 ± 0.0129
+2026-04-15 12:40:48 | INFO     |   Min fold = 0.9453  Max fold = 0.9902
+2026-04-15 12:40:48 | INFO     | 
+  10-Fold CV Results (ALL 804 samples, original kN·m):
+2026-04-15 12:40:48 | INFO     |     R2    = 0.9745
+2026-04-15 12:40:48 | INFO     |     RMSE  = 3.8589 kN.m
+2026-04-15 12:40:48 | INFO     |     MAE   = 1.8989 kN.m
+2026-04-15 12:40:48 | INFO     |     CV%   = 17.00%
+2026-04-15 12:40:48 | INFO     |     SD/M  = 0.1699
+2026-04-15 12:40:48 | INFO     |     Mean(Pred/Exp) = 1.0146
+2026-04-15 12:40:48 | INFO     |     Std(Pred/Exp)  = 0.1882
+2026-04-15 12:40:48 | INFO     | 
+  Test Set (30%) Metrics (original kN·m):
+2026-04-15 12:40:48 | INFO     |     R2    = 0.9747
+2026-04-15 12:40:48 | INFO     |     RMSE  = 4.0239 kN.m
+2026-04-15 12:40:48 | INFO     |     MAE   = 2.0535 kN.m
+2026-04-15 12:40:48 | INFO     |     CV%   = 17.28%
+2026-04-15 12:40:48 | INFO     |     SD/M  = 0.1721
+2026-04-15 12:40:48 | INFO     | 
+============================================================
+2026-04-15 12:40:48 | INFO     |   Phase 4 -- SHAP Analysis
+2026-04-15 12:40:48 | INFO     | ============================================================
+2026-04-15 12:40:48 | INFO     | ============================================================
+2026-04-15 12:40:48 | INFO     |  SHAP Analysis — Feature Importance
+2026-04-15 12:40:48 | INFO     | ============================================================
+2026-04-15 12:40:48 | INFO     | SHAP KernelExplainer built with 50 background clusters.
+2026-04-15 12:40:48 | INFO     | Computing SHAP values for 200 samples ...
+2026-04-15 12:41:26 | INFO     | SHAP values computed.
+2026-04-15 12:41:26 | INFO     | Feature Importance Ranking (SHAP):
+2026-04-15 12:41:26 | INFO     |   # 1  Depth (mm)                                     SHAP=0.2837
+2026-04-15 12:41:26 | INFO     |   # 2  Width (mm)                                     SHAP=0.2028
+2026-04-15 12:41:26 | INFO     |   # 3  Diameter Tensile Bars, db,t (mm)               SHAP=0.1057
+2026-04-15 12:41:26 | INFO     |   # 4  Stirrup Diameter, ds (mm)                      SHAP=0.0942
+2026-04-15 12:41:26 | INFO     |   # 5  Stirrup Spacing, s (mm)                        SHAP=0.0523
+2026-04-15 12:41:26 | INFO     |   # 6  corr_severity_idx                              SHAP=0.0469
+2026-04-15 12:41:26 | INFO     |   # 7  # Tensile Bars                                 SHAP=0.0438
+2026-04-15 12:41:26 | INFO     |   # 8  Shear Span, x (mm)                             SHAP=0.0431
+2026-04-15 12:41:26 | INFO     |   # 9  Tension Reinforcement Ratio, pten (%)          SHAP=0.0416
+2026-04-15 12:41:26 | INFO     |   #10  eta_log                                        SHAP=0.0360
+2026-04-15 12:41:26 | INFO     |   #11  f'c (MPa)                                      SHAP=0.0310
+2026-04-15 12:41:26 | INFO     |   #12  reinf_index                                    SHAP=0.0252
+2026-04-15 12:41:26 | INFO     |   #13  Mass Loss (Tensile bars), ηm (%)               SHAP=0.0218
+2026-04-15 12:41:26 | INFO     |   #14  Test Length (mm)                               SHAP=0.0207
+2026-04-15 12:41:26 | INFO     |   #15  fy Longitudinal Bars (Tensile), (MPa)          SHAP=0.0132
+2026-04-15 12:41:26 | INFO     |   #16  eta_d_interaction                              SHAP=0.0122
+2026-04-15 12:41:26 | INFO     |   #17  d_b_ratio                                      SHAP=0.0087
+2026-04-15 12:41:26 | INFO     |   #18  W/C Ratio                                      SHAP=0.0056
+2026-04-15 12:41:26 | INFO     |   #19  Test Type and Configuration                    SHAP=0.0050
+2026-04-15 12:41:26 | INFO     |   #20  fy,s Stirrup Bars                              SHAP=0.0049
+2026-04-15 12:41:26 | INFO     |   #21  Bottom Cover to Ctr of Tension Bar (mm)        SHAP=0.0019
+2026-04-15 12:41:26 | INFO     |   #22  Corrosion Method                               SHAP=0.0005
+2026-04-15 12:41:26 | INFO     |   #23  Longitudinal Bar Type                          SHAP=0.0001
+2026-04-15 12:41:27 | INFO     | SHAP bar chart saved → /content/corrosion-rc-beam-optimizer/final_results/figures/shap_importance.png
+2026-04-15 12:41:29 | INFO     | SHAP beeswarm saved → /content/corrosion-rc-beam-optimizer/final_results/figures/shap_beeswarm.png
+2026-04-15 12:41:29 | INFO     | SHAP dependence plot saved → /content/corrosion-rc-beam-optimizer/final_results/figures/shap_dependence_Depth_(mm).png
+2026-04-15 12:41:29 | INFO     | SHAP importance table saved → /content/corrosion-rc-beam-optimizer/final_results/models/shap_importance.csv
+2026-04-15 12:41:29 | INFO     | SHAP values saved → /content/corrosion-rc-beam-optimizer/final_results/models/shap_values.csv
+2026-04-15 12:41:29 | INFO     | Top-5 features saved → /content/corrosion-rc-beam-optimizer/final_results/models/top5_shap_features.json
+2026-04-15 12:41:29 | INFO     | Top-5 features for PySR: ['Depth (mm)', 'Width (mm)', 'Diameter Tensile Bars, db,t (mm)', 'Stirrup Diameter, ds (mm)', 'Stirrup Spacing, s (mm) ']
+2026-04-15 12:41:29 | INFO     | ============================================================
+2026-04-15 12:41:29 | INFO     |  SHAP Analysis Complete ✓
+2026-04-15 12:41:29 | INFO     | ============================================================
+2026-04-15 12:41:29 | INFO     | 
+============================================================
+2026-04-15 12:41:29 | INFO     |   Phase 5 -- Statistical Validation
+2026-04-15 12:41:29 | INFO     | ============================================================
+2026-04-15 12:41:29 | INFO     | ============================================================
+2026-04-15 12:41:29 | INFO     |  Phase 4 — Statistical Validation
+2026-04-15 12:41:29 | INFO     | ============================================================
+2026-04-15 12:41:29 | INFO     | ═══════════════════════════════════════════════════════
+2026-04-15 12:41:29 | INFO     |  Wilcoxon Signed-Rank Test
+2026-04-15 12:41:29 | INFO     | ═══════════════════════════════════════════════════════
+2026-04-15 12:41:29 | INFO     |   Statistic      : 3803.0
+2026-04-15 12:41:29 | INFO     |   p-value        : 0.0
+2026-04-15 12:41:29 | INFO     |   Significant ✓ : True  (α=0.05)
+2026-04-15 12:41:29 | INFO     |   Median |e| model : 0.707
+2026-04-15 12:41:29 | INFO     |   Median |e| ACI   : 2.7758
+2026-04-15 12:41:29 | INFO     | ═══════════════════════════════════════════════════════
+2026-04-15 12:41:31 | INFO     | ═══════════════════════════════════════════════════════
+2026-04-15 12:41:31 | INFO     |  Bootstrap CI  (1000 iterations, 95% CI)
+2026-04-15 12:41:31 | INFO     | ═══════════════════════════════════════════════════════
+2026-04-15 12:41:31 | INFO     |   R²    = 0.9747  CI: [0.9591, 0.9853]
+2026-04-15 12:41:31 | INFO     |   RMSE  = 4.0239 CI: [3.0642, 4.9483]
+2026-04-15 12:41:31 | INFO     |   MAE   = 2.0535  CI: [1.6387, 2.5086]
+2026-04-15 12:41:31 | INFO     | ═══════════════════════════════════════════════════════
+2026-04-15 12:41:31 | INFO     | ═══════════════════════════════════════════════════════
+2026-04-15 12:41:31 | INFO     |  10-Fold Cross-Validation
+2026-04-15 12:41:31 | INFO     | ═══════════════════════════════════════════════════════
+2026-04-15 12:41:31 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:41:33 | INFO     |   Fold  1 ─ R²=0.9717  RMSE=0.1550  MAE=0.1073
+2026-04-15 12:41:33 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:41:35 | INFO     |   Fold  2 ─ R²=0.9829  RMSE=0.1254  MAE=0.0921
+2026-04-15 12:41:35 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:41:36 | INFO     |   Fold  3 ─ R²=0.9674  RMSE=0.1741  MAE=0.1101
+2026-04-15 12:41:36 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:41:38 | INFO     |   Fold  4 ─ R²=0.9737  RMSE=0.1557  MAE=0.1064
+2026-04-15 12:41:38 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:41:40 | INFO     |   Fold  5 ─ R²=0.9647  RMSE=0.1725  MAE=0.1179
+2026-04-15 12:41:40 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:41:41 | INFO     |   Fold  6 ─ R²=0.9640  RMSE=0.1773  MAE=0.1219
+2026-04-15 12:41:41 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:41:43 | INFO     |   Fold  7 ─ R²=0.9883  RMSE=0.1171  MAE=0.0885
+2026-04-15 12:41:43 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:41:45 | INFO     |   Fold  8 ─ R²=0.9741  RMSE=0.1559  MAE=0.1081
+2026-04-15 12:41:45 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:41:46 | INFO     |   Fold  9 ─ R²=0.9767  RMSE=0.1473  MAE=0.0931
+2026-04-15 12:41:46 | INFO     | MLP built — layers: [128, 64, 32], lr: 0.001
+2026-04-15 12:41:47 | INFO     |   Fold 10 ─ R²=0.9585  RMSE=0.1761  MAE=0.1160
+2026-04-15 12:41:47 | INFO     | ───────────────────────────────────────────────────────
+2026-04-15 12:41:47 | INFO     |   Aggregate ─ R²=0.9722 ± 0.0086  RMSE=0.1556 ± 0.0199
+2026-04-15 12:41:47 | INFO     |   L1 all folds: True  L2 all folds: False
+2026-04-15 12:41:47 | INFO     | ═══════════════════════════════════════════════════════
+2026-04-15 12:41:47 | INFO     |   Cohen’s d = 0.5241  (medium effect)
+2026-04-15 12:41:47 | INFO     | ═══════════════════════════════════════════════════════
+2026-04-15 12:41:47 | INFO     |  McNemar Test (classification accuracy)
+2026-04-15 12:41:47 | INFO     | ═══════════════════════════════════════════════════════
+2026-04-15 12:41:47 | INFO     |   Tolerance          : ±10.0% R
+2026-04-15 12:41:47 | INFO     |   Model accuracy     : 95.04%
+2026-04-15 12:41:47 | INFO     |   ACI accuracy       : 83.88%
+2026-04-15 12:41:47 | INFO     |   χ² statistic       : 23.3103
+2026-04-15 12:41:47 | INFO     |   p-value            : 1e-06
+2026-04-15 12:41:47 | INFO     |   Significant        : True
+2026-04-15 12:41:47 | INFO     | ═══════════════════════════════════════════════════════
+2026-04-15 12:41:47 | INFO     | ✅ STATISTICAL VALIDATION PASSED — Benchmark improvement confirmed with p<0.05.
+2026-04-15 12:41:47 | INFO     | Statistical validation results saved → /content/corrosion-rc-beam-optimizer/final_results/models/statistical_validation.json
+2026-04-15 12:41:47 | INFO     | ============================================================
+2026-04-15 12:41:47 | INFO     |  Phase 4 Complete ✓
+2026-04-15 12:41:47 | INFO     | ============================================================
+2026-04-15 12:41:47 | INFO     | 
+============================================================
+2026-04-15 12:41:47 | INFO     |   Generating Publication-Quality Figures
+2026-04-15 12:41:47 | INFO     | ============================================================
+2026-04-15 12:41:48 | INFO     |   Fig 1 OK -- 10-Fold CV Scatter LOG-LOG (804 pts)
+2026-04-15 12:41:49 | INFO     |   Fig 1b OK -- Linear Scatter (backup)
+2026-04-15 12:41:49 | INFO     |   Fig 2 OK -- Test Set Scatter (242 points)
+2026-04-15 12:41:50 | INFO     |   Fig 3 OK -- Ensemble vs ACI (log-log)
+2026-04-15 12:41:50 | INFO     |   Fig 4 OK -- K-Fold Box Plot (original scale)
+2026-04-15 12:41:51 | INFO     |   Fig 5 OK -- Error Distribution
+2026-04-15 12:41:51 | INFO     |   Fig 6 OK -- Model Comparison Bar Chart
+2026-04-15 12:41:51 | INFO     |   Fig 7 OK -- Taylor Diagram
+2026-04-15 12:41:51 | INFO     |   Total figures generated: 7/7
+2026-04-15 12:41:51 | INFO     | 
+============================================================
+2026-04-15 12:41:51 | INFO     |   Saving Artifacts for Part 2 (PySR)
+2026-04-15 12:41:51 | INFO     | ============================================================
+2026-04-15 12:41:51 | INFO     | XGBoost model + predictions saved for Part 2
+2026-04-15 12:41:51 | INFO     | All Part 2 artifacts saved -> /content/corrosion-rc-beam-optimizer/final_results/for_part2

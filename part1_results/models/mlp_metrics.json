@@ -1,0 +1,30 @@
+{
+  "train": {
+    "split": "Train",
+    "R2": 0.99,
+    "RMSE": 2.3674,
+    "MAE": 1.3364,
+    "MAPE": 8.19,
+    "L1_broken": true,
+    "L2_broken": true,
+    "timestamp": "2026-04-15 11:44:36.636662"
+  },
+  "test": {
+    "split": "Test",
+    "R2": 0.9638,
+    "RMSE": 4.8111,
+    "MAE": 2.6044,
+    "MAPE": 15.81,
+    "L1_broken": true,
+    "L2_broken": false,
+    "timestamp": "2026-04-15 11:44:36.644481"
+  },
+  "cv": {
+    "cv_R2_mean": 0.9679,
+    "cv_R2_std": 0.0131,
+    "cv_RMSE_mean": 0.1645,
+    "cv_RMSE_std": 0.0358,
+    "n_folds": 10
+  },
+  "saved_at": "2026-04-15 11:44:54.296222"
+}

@@ -1,0 +1,5 @@
+# Best PySR Equation
+# Generated: 2026-04-07 08:06:39.568384
+# R² = 0.9328 | RMSE = 6.261
+
+Mmax = fy**log(log(0.181835380351301*sqrt(d)))*(14.475787 - sqrt(eta_m))*(-d_b + rho_t + 2.6924007)
