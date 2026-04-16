@@ -25,12 +25,14 @@ REPO = "corrosion-rc-beam-optimizer"
 BASE = "/kaggle/working" if os.path.isdir("/kaggle/working") else "/content"
 REPO_PATH = f"{BASE}/{REPO}"
 if not os.path.isdir(REPO_PATH):
-    subprocess.run(
-        ["git", "clone",
-         "https://github.com/Dr-Yehia/corrosion-rc-beam-optimizer.git",
-         REPO_PATH],
-        check=True,
-    )
+    try:
+        subprocess.run(
+            ["git", "clone",
+             "https://github.com/Dr-Yehia/corrosion-rc-beam-optimizer.git",
+             REPO_PATH], check=True, timeout=30)
+    except Exception:
+        if not os.path.isdir(REPO_PATH):
+            raise RuntimeError("Repo not found. Run Part 1 first.")
 
 os.chdir(f"{REPO_PATH}/src")
 sys.path.insert(0, f"{REPO_PATH}/src")

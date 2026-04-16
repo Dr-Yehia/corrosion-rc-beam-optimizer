@@ -49,9 +49,19 @@ REPO = "corrosion-rc-beam-optimizer"
 BASE = "/kaggle/working" if os.path.isdir("/kaggle/working") else "/content"
 REPO_PATH = f"{BASE}/{REPO}"
 if not os.path.isdir(REPO_PATH):
-    subprocess.run(["git", "clone",
-                    "https://github.com/Dr-Yehia/corrosion-rc-beam-optimizer.git",
-                    REPO_PATH], check=True)
+    try:
+        subprocess.run(["git", "clone",
+                        "https://github.com/Dr-Yehia/corrosion-rc-beam-optimizer.git",
+                        REPO_PATH], check=True, timeout=60)
+    except Exception as _clone_err:
+        if not os.path.isdir(REPO_PATH):
+            raise RuntimeError(
+                f"git clone failed: {_clone_err}\n"
+                "Please add the repo as a Kaggle dataset instead:\n"
+                "  1. Upload repo files to a Kaggle dataset\n"
+                "  2. Add it as input to your notebook\n"
+                f"  3. Copy to {REPO_PATH}"
+            )
 else:
     subprocess.run(["git", "-C", REPO_PATH, "pull"], check=False)
 

@@ -41,12 +41,24 @@ REPO = "corrosion-rc-beam-optimizer"
 BASE = "/kaggle/working" if os.path.isdir("/kaggle/working") else "/content"
 REPO_PATH = f"{BASE}/{REPO}"
 if not os.path.isdir(REPO_PATH):
-    subprocess.run(
-        ["git", "clone",
-         "https://github.com/Dr-Yehia/corrosion-rc-beam-optimizer.git",
-         REPO_PATH],
-        check=True,
-    )
+    try:
+        subprocess.run(
+            ["git", "clone",
+             "https://github.com/Dr-Yehia/corrosion-rc-beam-optimizer.git",
+             REPO_PATH],
+            check=True, timeout=30,
+        )
+    except Exception:
+        print("git clone failed — trying pip install from GitHub...")
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install",
+                                   "-q", "git+https://github.com/Dr-Yehia/"
+                                   "corrosion-rc-beam-optimizer.git"])
+        except Exception:
+            if not os.path.isdir(REPO_PATH):
+                raise RuntimeError(
+                    "Cannot access repo. Please upload the repo files "
+                    "manually to Kaggle as a dataset.")
 
 # Patch 70/30 if not already patched
 config_path = f"{REPO_PATH}/src/config.py"
@@ -161,34 +173,42 @@ def _sanitize_name(name):
     return clean if clean else "x"
 
 
-# ======= PySR HYPERPARAMETERS (adjust for Colab runtime) =======
-# For Colab free tier (~4h limit): niterations=300, populations=60
-# For Colab Pro / local:           niterations=800, populations=100
+# ======= PySR HYPERPARAMETERS — OPTIMIZED FOR BEST RMSE+MAE+CV% =======
 PYSR_COMMON = dict(
-    niterations=400,
-    maxsize=25,
-    populations=60,
+    niterations=800,
+    maxsize=30,
+    populations=80,
+    population_size=50,
+    ncycles_per_iteration=800,
     binary_operators=["+", "-", "*", "/", "^"],
-    unary_operators=["sqrt", "log", "exp"],
+    unary_operators=["sqrt", "log", "exp", "abs"],
     nested_constraints={
-        "sqrt": {"sqrt": 0, "log": 1, "exp": 0},
-        "log": {"log": 0, "exp": 0, "sqrt": 1},
-        "exp": {"exp": 0, "log": 0, "sqrt": 1},
+        "sqrt": {"sqrt": 0, "log": 1, "exp": 0, "abs": 1},
+        "log":  {"log": 0, "exp": 0, "sqrt": 1, "abs": 1},
+        "exp":  {"exp": 0, "log": 0, "sqrt": 1, "abs": 0},
+        "abs":  {"abs": 0, "sqrt": 1, "log": 1, "exp": 0},
     },
-    constraints={"^": (-1, 1), "sqrt": 9, "log": 9, "exp": 5},
+    constraints={"^": (-1, 1), "sqrt": 9, "log": 9, "exp": 5, "abs": 9},
     model_selection="accuracy",
-    elementwise_loss="loss(x, y) = (x - y)^2",
+    elementwise_loss=(
+        "loss(x, y) = (x - y)^2 + 0.3 * ((x - y) / (abs(y) + 0.5))^2"
+    ),
     verbosity=1,
     random_state=RANDOM_STATE,
     deterministic=False,
     parallelism="multithreading",
     turbo=True,
-    extra_sympy_mappings={},
+    adaptive_parsimony_scaling=100.0,
+    fraction_replaced_hof=0.1,
+    weight_mutate_constant=0.05,
+    extra_sympy_mappings={"abs": "Abs"},
 )
 
 logger.info(f"PySR config: niterations={PYSR_COMMON['niterations']}, "
             f"maxsize={PYSR_COMMON['maxsize']}, "
-            f"populations={PYSR_COMMON['populations']}")
+            f"populations={PYSR_COMMON['populations']}, "
+            f"ncycles={PYSR_COMMON['ncycles_per_iteration']}")
+logger.info(f"Loss: hybrid MSE + 0.3*relative_MSE | Weights: 1/sqrt(y)")
 
 # =============================================================
 # CELL 5: PySR -- RATIO APPROACH (Mmax_exp / M_ACI)
@@ -230,9 +250,13 @@ M_ACI_R = M_ACI_all[valid_R]
 logger.info(f"  Ratio: {X_ratio.shape[0]} samples, features: {safe_names_R}")
 logger.info(f"  Ratio range: [{y_ratio.min():.3f}, {y_ratio.max():.3f}]")
 
+w_ratio = 1.0 / np.sqrt(np.maximum(y_mmax_R, 0.5))
+w_ratio = w_ratio / w_ratio.mean()
+logger.info(f"  Ratio weights: min={w_ratio.min():.3f}, max={w_ratio.max():.3f}")
+
 pysr_ratio = PySRRegressor(**PYSR_COMMON)
 logger.info("  Starting PySR Ratio training ...")
-pysr_ratio.fit(X_ratio, y_ratio, variable_names=safe_names_R)
+pysr_ratio.fit(X_ratio, y_ratio, variable_names=safe_names_R, weights=w_ratio)
 logger.info("  Ratio training complete.")
 
 sys.stdout.flush()
@@ -277,12 +301,22 @@ for idx in range(len(equations_R)):
             f"{eq_str_i[:55]}"
         )
 
-        if r2_mmax_i > best_R_r2:
-            best_R_r2, best_R_idx = r2_mmax_i, idx
+        rmse_mmax_i = float(np.sqrt(mean_squared_error(y_mmax_R, mmax_i)))
+        mae_mmax_i = float(mean_absolute_error(y_mmax_R, mmax_i))
+        cv_mmax_i = rmse_mmax_i / max(np.mean(y_mmax_R), 1e-6) * 100
+
+        composite_i = (0.30 * r2_mmax_i
+                       + 0.25 * max(0, 1 - rmse_mmax_i / 15.0)
+                       + 0.20 * max(0, 1 - mae_mmax_i / 10.0)
+                       + 0.15 * max(0, 1 - mape_mmax_i / 50.0)
+                       + 0.10 * max(0, 1 - cv_mmax_i / 50.0))
+
+        if composite_i > best_R_r2:
+            best_R_r2, best_R_idx = composite_i, idx
     except Exception as e:
         logger.warning(f"  R| Eq {idx} failed: {e}")
 
-logger.info(f"\n  Ratio best: idx={best_R_idx}, Mmax R2={best_R_r2:.4f}")
+logger.info(f"\n  Ratio best: idx={best_R_idx}, composite={best_R_r2:.4f}")
 
 # Extract Ratio best
 if best_R_idx is not None:
@@ -354,9 +388,13 @@ M_ACI_D = M_ACI_all[valid_D]
 
 logger.info(f"  Direct: {X_direct.shape[0]} samples, features: {safe_names_D}")
 
+w_direct = 1.0 / np.sqrt(np.maximum(y_direct, 0.5))
+w_direct = w_direct / w_direct.mean()
+logger.info(f"  Direct weights: min={w_direct.min():.3f}, max={w_direct.max():.3f}")
+
 pysr_direct = PySRRegressor(**PYSR_COMMON)
 logger.info("  Starting PySR Direct training ...")
-pysr_direct.fit(X_direct, y_direct, variable_names=safe_names_D)
+pysr_direct.fit(X_direct, y_direct, variable_names=safe_names_D, weights=w_direct)
 logger.info("  Direct training complete.")
 
 sys.stdout.flush()
@@ -398,12 +436,20 @@ for idx in range(len(equations_D)):
             f"MAPE={mape_d:.1f}% | {eq_str_d[:55]}"
         )
 
-        if r2_d > best_D_r2:
-            best_D_r2, best_D_idx = r2_d, idx
+        cv_d = rmse_d / max(np.mean(y_direct), 1e-6) * 100
+
+        composite_d = (0.30 * r2_d
+                       + 0.25 * max(0, 1 - rmse_d / 15.0)
+                       + 0.20 * max(0, 1 - mae_d / 10.0)
+                       + 0.15 * max(0, 1 - mape_d / 50.0)
+                       + 0.10 * max(0, 1 - cv_d / 50.0))
+
+        if composite_d > best_D_r2:
+            best_D_r2, best_D_idx = composite_d, idx
     except Exception as e:
         logger.warning(f"  D| Eq {idx} failed: {e}")
 
-logger.info(f"\n  Direct best: idx={best_D_idx}, R2={best_D_r2:.4f}")
+logger.info(f"\n  Direct best: idx={best_D_idx}, composite={best_D_r2:.4f}")
 
 # Extract Direct best
 if best_D_idx is not None:
@@ -448,16 +494,19 @@ with open(MODELS_DIR / "pysr_metrics_direct.json", "w", encoding="utf-8") as f:
 logger.info("\n" + "=" * 60)
 logger.info("  FINAL COMPARISON -- Ratio vs Direct")
 logger.info("=" * 60)
-logger.info(f"  Ratio  : Mmax R2={best_R_r2:.4f} | RMSE={ratio_rmse:.2f} | "
-            f"MAPE={ratio_mape:.1f}%")
-logger.info(f"  Direct : Mmax R2={best_D_r2:.4f} | RMSE={direct_rmse:.2f} | "
-            f"MAPE={direct_mape:.1f}%")
+ratio_r2_actual = r2_score(y_mmax_R, ratio_mmax_pred) if best_R_idx is not None else -999
+direct_r2_actual = r2_score(y_direct, direct_pred_best) if best_D_idx is not None else -999
+
+logger.info(f"  Ratio  : Composite={best_R_r2:.4f} | R2={ratio_r2_actual:.4f} | "
+            f"RMSE={ratio_rmse:.2f} | MAPE={ratio_mape:.1f}%")
+logger.info(f"  Direct : Composite={best_D_r2:.4f} | R2={direct_r2_actual:.4f} | "
+            f"RMSE={direct_rmse:.2f} | MAPE={direct_mape:.1f}%")
 
 if best_D_r2 > best_R_r2:
     WINNER = "DIRECT"
     best_eq_str = direct_best_str
     best_eq_latex = direct_best_latex
-    r2_mmax = best_D_r2
+    r2_mmax = direct_r2_actual
     rmse_mmax = direct_rmse
     mae_mmax = direct_mae
     mape_mmax = direct_mape
@@ -469,12 +518,13 @@ if best_D_r2 > best_R_r2:
     best_idx_winner = best_D_idx
     safe_names_winner = safe_names_D
     X_winner = X_direct
-    logger.success(f"  >>> WINNER: Direct (R2={best_D_r2:.4f})")
+    logger.success(f"  >>> WINNER: Direct (R2={direct_r2_actual:.4f}, "
+                   f"composite={best_D_r2:.4f})")
 else:
     WINNER = "RATIO"
     best_eq_str = ratio_best_str
     best_eq_latex = ratio_best_latex
-    r2_mmax = best_R_r2
+    r2_mmax = ratio_r2_actual
     rmse_mmax = ratio_rmse
     mae_mmax = ratio_mae
     mape_mmax = ratio_mape
@@ -486,7 +536,8 @@ else:
     best_idx_winner = best_R_idx
     safe_names_winner = safe_names_R
     X_winner = X_ratio
-    logger.success(f"  >>> WINNER: Ratio (Mmax R2={best_R_r2:.4f})")
+    logger.success(f"  >>> WINNER: Ratio (R2={ratio_r2_actual:.4f}, "
+                   f"composite={best_R_r2:.4f})")
 
 cv_pct_eq = (rmse_mmax / np.mean(y_exp_winner)) * 100
 sd_m_eq = float(np.std(y_exp_winner - y_pred_winner) / np.mean(y_exp_winner))
@@ -506,8 +557,8 @@ pysr_metrics = {
     "equation": best_eq_str,
     "equation_latex": best_eq_latex,
     "n_samples": n_winner,
-    "ratio_approach_R2": round(best_R_r2, 4),
-    "direct_approach_R2": round(best_D_r2, 4),
+    "ratio_approach_R2": round(ratio_r2_actual, 4),
+    "direct_approach_R2": round(direct_r2_actual, 4),
     "timestamp": str(datetime.now()),
 }
 

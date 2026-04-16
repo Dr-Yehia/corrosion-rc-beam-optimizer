@@ -1,0 +1,15 @@
+2026-04-16 13:50:46 | INFO     | =================================================================
+2026-04-16 13:50:46 | INFO     |   Part 5: Reports & Export — Loading state from Part 4
+2026-04-16 13:50:46 | INFO     | =================================================================
+2026-04-16 13:50:46 | INFO     | Part 5 state loaded: 804 samples, WINNER=DIRECT
+2026-04-16 13:50:46 | INFO     | Results saved -> /kaggle/working/corrosion-rc-beam-optimizer/final_results/physics/physics_results.json
+2026-04-16 13:50:46 | INFO     | 
+=================================================================
+2026-04-16 13:50:46 | INFO     |   Generating Physics PDF Report
+2026-04-16 13:50:46 | INFO     | =================================================================
+2026-04-16 13:50:49 | INFO     | PDF Report saved -> /kaggle/working/corrosion-rc-beam-optimizer/final_results/physics/Physics_Report.pdf
+2026-04-16 13:50:49 | INFO     | 
+=================================================================
+2026-04-16 13:50:49 | INFO     |   Generating Mathematical Derivation Document
+2026-04-16 13:50:49 | INFO     | =================================================================
+2026-04-16 13:50:49 | INFO     | Derivation Document saved -> /kaggle/working/corrosion-rc-beam-optimizer/final_results/physics/Mathematical_Derivation_Report.pdf

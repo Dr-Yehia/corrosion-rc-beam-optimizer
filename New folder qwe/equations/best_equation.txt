@@ -1,0 +1,6 @@
+# Best PySR Equation (DIRECT Approach)
+# Generated: 2026-04-16 13:49:53.280874
+# Winner: DIRECT | R2=0.9351 | RMSE=6.1530 | MAE=4.0830 | MAPE=35.62% | CV%=27.11% | SD/M=0.2711
+# Ratio R2=0.9272 | Direct R2=0.9351
+
+Mmax = 1.44054648571482*(d + fc - 170.12386)*(-0.0035611875*sqrt(CSI) + RI + 0.0012547432*b - 1/fc**0.62208444) + 4.27352333181116

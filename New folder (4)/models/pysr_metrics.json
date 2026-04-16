@@ -1,0 +1,18 @@
+{
+  "winner": "DIRECT",
+  "approach": "Dual PySR -- winner: DIRECT",
+  "mmax_R2": 0.9387,
+  "mmax_RMSE": 5.9817,
+  "mmax_MAE": 4.0605,
+  "mmax_MAPE": 33.05,
+  "mmax_CV_pct": 26.35,
+  "mmax_SD_M": 0.2635,
+  "L1_broken": true,
+  "L2_broken": false,
+  "equation": "sqrt(RI)*(-CSI**0.6963602 + b)*(0.0052542244*d + 0.0107447664745715*fc - 1.04061879321926) - rho_t*(exp(RI) - 4.4420257)",
+  "equation_latex": "\\sqrt{RI} \\left(- CSI^{0.696} + b\\right) \\left(0.00525 d + 0.0107 fc - 1.04\\right) - \\rho_{t} \\left(e^{RI} - 4.44\\right)",
+  "n_samples": 804,
+  "ratio_approach_R2": 0.9241,
+  "direct_approach_R2": 0.9387,
+  "timestamp": "2026-04-16 12:56:42.393144"
+}

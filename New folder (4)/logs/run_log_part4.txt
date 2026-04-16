@@ -1,0 +1,166 @@
+2026-04-16 12:57:19 | INFO     | =================================================================
+2026-04-16 12:57:19 | INFO     |   Part 4: Validation & Figures — Loading state from Part 3
+2026-04-16 12:57:19 | INFO     | =================================================================
+2026-04-16 12:57:19 | INFO     | ══════════════════════════════════════════════════
+2026-04-16 12:57:19 | INFO     |  Starting Preprocessing Pipeline
+2026-04-16 12:57:19 | INFO     | ══════════════════════════════════════════════════
+2026-04-16 12:57:19 | INFO     | Loading raw data from: /kaggle/working/corrosion-rc-beam-optimizer/data/Database.csv
+2026-04-16 12:57:19 | INFO     | Raw data loaded (encoding=utf-8-sig) — shape: (804, 60)
+2026-04-16 12:57:19 | INFO     | Column names normalised: ['No.', 'Mass Loss (Tensile bars), ηm (%)', 'Mmax,exp (kNm)', 'Mmax,exp (kNm)']
+2026-04-16 12:57:19 | INFO     | After column fix — shape: (804, 59)
+2026-04-16 12:57:19 | INFO     | === Dataset Inspection ===
+2026-04-16 12:57:19 | INFO     |   Rows    : 804
+2026-04-16 12:57:19 | INFO     |   Columns : 59
+2026-04-16 12:57:19 | INFO     |   Missing %:
+Comments                                         7.09
+fy Longitudinal Bars (Tensile), (MPa)            0.87
+fsu Long Bars, (MPa)                             4.48
+Stirrup Bar Type                                22.64
+fy,s Stirrup Bars                               14.80
+Max Aggregate Size (mm)                         19.53
+Cathode Type                                     7.09
+Corrosion Current Density, Icorr (ÃÂ¼A/cm2)     9.58
+Duration, (days)                                12.56
+Wet/Dry Cyclic Ratio (days)                     91.04
+Mass Loss (Tensile bars), ηm (%)                 1.62
+Average Sample Length, (mm)                      0.87
+Py (kN)                                         17.91
+Pmax (kN)                                        1.00
+Residual Capacity, R (%)                         1.74
+ÃÂy (mm)                                      13.43
+ÃÂult (mm)                                    15.55
+Elastic Stiffness, k (kN/mm)                    13.43
+Displacement Ductility, ÃÂ¼ÃÂ                15.55
+Extra Notes                                      7.46
+2026-04-16 12:57:19 | INFO     | Starting data cleaning ...
+2026-04-16 12:57:19 | INFO     | Columns selected: 20 (3 categorical + 15 numeric)
+2026-04-16 12:57:19 | INFO     | Dropped 0 rows with missing target (Mmax,exp (kNm)).
+2026-04-16 12:57:19 | INFO     |   Imputed 'fy Longitudinal Bars (Tensile), (MPa) ' (7 nulls) with median = 374.860
+2026-04-16 12:57:19 | INFO     |   Imputed 'fy,s Stirrup Bars' (119 nulls) with median = 250.000
+2026-04-16 12:57:19 | INFO     |   Imputed 'Mass Loss (Tensile bars), ηm (%)' (13 nulls) with median = 6.980
+2026-04-16 12:57:19 | INFO     | Physical filter (ηm 0-64%): removed 0 rows.
+2026-04-16 12:57:19 | INFO     | Physical filter (Mmax > 0): removed 0 rows.
+2026-04-16 12:57:19 | INFO     | Clean data shape: (804, 20)
+2026-04-16 12:57:19 | INFO     | Applied log1p transform to ηm → 'eta_log'
+2026-04-16 12:57:19 | INFO     | Feature engineering: 5 derived features added.
+2026-04-16 12:57:19 | INFO     | Encoded 'Longitudinal Bar Type': {0: 'D', 1: 'P'}
+2026-04-16 12:57:19 | INFO     | Encoded 'Test Type and Configuration': {0: 'SS-FPB-MONO', 1: 'SS_CONT_TPB_MONO', 2: 'SS_FPB_MONO', 3: 'SS_FPB_MONO_SUST', 4: 'SS_FPB_MONO_SUST_PREC', 5: 'SS_TPB_MONO', 6: 'SS_TPB_MONO_SUST'}
+2026-04-16 12:57:19 | INFO     | Encoded 'Corrosion Method': {0: 'C', 1: 'EI', 2: 'IC', 3: 'N'}
+2026-04-16 12:57:19 | INFO     | Encoder mapping saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/cat_encoders.json
+2026-04-16 12:57:19 | INFO     | Clean data saved → /kaggle/working/corrosion-rc-beam-optimizer/data/clean_data.csv  (804 rows)
+2026-04-16 12:57:19 | INFO     | Features total: 23 (15 numeric + 3 categorical + 5 engineered)
+2026-04-16 12:57:19 | INFO     | Train: 562 | Test: 242
+2026-04-16 12:57:19 | INFO     | y_train — mean: 22.45, std: 23.66
+2026-04-16 12:57:19 | INFO     | y_test  — mean: 23.28,  std: 25.34
+2026-04-16 12:57:19 | INFO     | Scalers saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/scaler_X.pkl, /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/scaler_y.pkl
+2026-04-16 12:57:19 | INFO     | ══════════════════════════════════════════════════
+2026-04-16 12:57:19 | INFO     |  Preprocessing complete ✓
+2026-04-16 12:57:19 | INFO     | ══════════════════════════════════════════════════
+2026-04-16 12:57:19 | INFO     | Part 4 state loaded: 804 samples, WINNER=DIRECT
+2026-04-16 12:57:19 | INFO     | Equation: sqrt(RI)*(-CSI**0.6963602 + b)*(0.0052542244*d + 0.0107447664745715*fc - 1.04061879321926) - rho_t*(
+2026-04-16 12:57:19 | INFO     | 
+=================================================================
+2026-04-16 12:57:19 | INFO     |   STAGE E — Physical Validation (Nature-level checks)
+2026-04-16 12:57:19 | INFO     | =================================================================
+2026-04-16 12:57:19 | INFO     |   E1 | eta=0: predicted=14.4700, deviation=34.2% FAIL
+2026-04-16 12:57:19 | INFO     |   E2 | eta=100: predicted=5.5178 FAIL
+2026-04-16 12:57:19 | INFO     |   E3 | Monotonicity: 100.0% (0 violations) PASS
+2026-04-16 12:57:19 | INFO     |   E4 | Positivity: min=7.8631, negatives=0 PASS
+2026-04-16 12:57:19 | INFO     |   E5 | Dimensions: DIRECT approach: equation has units of kN.m. Dimensional consistency depends on ...
+2026-04-16 12:57:19 | INFO     |   E6 | Eq vs data: R2=0.9387, RMSE=5.98
+2026-04-16 12:57:19 | INFO     | 
+  Physical Validation: 2/5 checks PASSED
+2026-04-16 12:57:19 | INFO     | Stage E complete.
+2026-04-16 12:57:19 | INFO     | 
+=================================================================
+2026-04-16 12:57:19 | INFO     |   STAGE F — Dimensionless Dataset (Pi-groups for future PySR)
+2026-04-16 12:57:19 | INFO     | =================================================================
+2026-04-16 12:57:19 | INFO     |   Dimensionless dataset saved: /kaggle/working/corrosion-rc-beam-optimizer/final_results/physics/dimensionless_dataset_for_pysr.csv
+2026-04-16 12:57:19 | INFO     |   Shape: (804, 8)
+2026-04-16 12:57:19 | INFO     |   Columns: ['Pi_M', 'Pi_omega', 'Pi_geom', 'Pi_bar', 'Pi_eta', 'Pi_rho', 'Pi_M_aci', 'Pi_R']
+2026-04-16 12:57:19 | INFO     |   --- Use this CSV to re-run PySR on Pi-groups directly ---
+2026-04-16 12:57:19 | INFO     |   --- PySR target: 'Pi_R' (or 'Pi_M') ---
+2026-04-16 12:57:19 | INFO     |   --- Result = universal law valid in ANY unit system ---
+2026-04-16 12:57:19 | INFO     |   Correlation with Pi_M:
+Pi_M_aci    0.764333
+Pi_omega    0.717895
+Pi_rho      0.586550
+Pi_bar      0.328593
+Pi_geom     0.069850
+Pi_R       -0.029318
+Pi_eta     -0.397116
+2026-04-16 12:57:19 | INFO     | 
+=================================================================
+2026-04-16 12:57:19 | INFO     |   STAGE G — Testable Predictions (for independent validation)
+2026-04-16 12:57:19 | INFO     | =================================================================
+2026-04-16 12:57:19 | INFO     |   Testable predictions saved: /kaggle/working/corrosion-rc-beam-optimizer/final_results/physics/testable_predictions_for_lab.csv
+2026-04-16 12:57:19 | INFO     |   13 scenarios (including 3 extrapolations beyond data)
+2026-04-16 12:57:19 | INFO     | 
+  Beam specification: b=150.0mm, d=250.0mm, fy=400.0MPa, fc=30.0MPa, rho=1.5%
+2026-04-16 12:57:19 | INFO     | 
+  PREDICTIONS TABLE:
+2026-04-16 12:57:19 | INFO     |     eta=   5%  |  Mmax=   0.00 kN.m  |  ACI=  45.38 kN.m
+2026-04-16 12:57:19 | INFO     |     eta=  10%  |  Mmax=   0.00 kN.m  |  ACI=  41.22 kN.m
+2026-04-16 12:57:19 | INFO     |     eta=  15%  |  Mmax=   0.00 kN.m  |  ACI=  37.19 kN.m
+2026-04-16 12:57:19 | INFO     |     eta=  20%  |  Mmax=   0.00 kN.m  |  ACI=  33.29 kN.m
+2026-04-16 12:57:19 | INFO     |     eta=  25%  |  Mmax=   0.00 kN.m  |  ACI=  29.55 kN.m
+2026-04-16 12:57:19 | INFO     |     eta=  30%  |  Mmax=   0.00 kN.m  |  ACI=  25.97 kN.m
+2026-04-16 12:57:19 | INFO     |     eta=  35%  |  Mmax=   0.00 kN.m  |  ACI=  22.58 kN.m
+2026-04-16 12:57:19 | INFO     |     eta=  40%  |  Mmax=   0.00 kN.m  |  ACI=  19.39 kN.m
+2026-04-16 12:57:19 | INFO     |     eta=  50%  |  Mmax=   0.00 kN.m  |  ACI=  13.65 kN.m
+2026-04-16 12:57:19 | INFO     |     eta=  60%  |  Mmax=   0.00 kN.m  |  ACI=   8.83 kN.m
+2026-04-16 12:57:19 | INFO     |     eta=  70%  |  Mmax=   0.00 kN.m  |  ACI=   5.01 kN.m *** EXTRAPOLATION
+2026-04-16 12:57:19 | INFO     |     eta=  80%  |  Mmax=   0.00 kN.m  |  ACI=   2.24 kN.m *** EXTRAPOLATION
+2026-04-16 12:57:19 | INFO     |     eta=  90%  |  Mmax=   0.00 kN.m  |  ACI=   0.56 kN.m *** EXTRAPOLATION
+2026-04-16 12:57:19 | INFO     | Stage G complete.
+2026-04-16 12:57:19 | INFO     | 
+=================================================================
+2026-04-16 12:57:19 | INFO     |   STAGE H — Equation Validation (70/30 + 10-Fold CV)
+2026-04-16 12:57:19 | INFO     | =================================================================
+2026-04-16 12:57:19 | INFO     |   ALL DATA (804 pts): R2=0.9387, RMSE=5.98, MAE=4.06, CV%=26.4%, SD/M=0.2635
+2026-04-16 12:57:19 | INFO     |   TRAIN (562 pts): R2=0.9422, RMSE=5.96, MAE=4.06
+2026-04-16 12:57:19 | INFO     |   TEST  (242 pts): R2=0.9286, RMSE=6.04, MAE=4.06
+2026-04-16 12:57:19 | INFO     |   ACI 318-19 Test R2=0.8535
+2026-04-16 12:57:19 | INFO     |   10-Fold CV (804 pts): R2=0.9387, RMSE=5.98, MAE=4.06, CV%=26.4%, SD/M=0.2635
+2026-04-16 12:57:19 | INFO     |   Fold R2: mean=0.9357, std=0.0165
+2026-04-16 12:57:19 | INFO     | 
+  ╔══════════════════════════════════════════════════════════╗
+2026-04-16 12:57:19 | INFO     |   ║        EQUATION VALIDATION vs ACI 318-19               ║
+2026-04-16 12:57:19 | INFO     |   ╠══════════════════════════════════════════════════════════╣
+2026-04-16 12:57:19 | INFO     |   ║  Metric       │  PySR Equation  │  ACI 318-19        ║
+2026-04-16 12:57:19 | INFO     |   ╠══════════════════════════════════════════════════════════╣
+2026-04-16 12:57:19 | INFO     |   ║  R2 (all)     │      0.9387     │      0.8839         ║
+2026-04-16 12:57:19 | INFO     |   ║  RMSE (all)   │        5.98     │        8.23         ║
+2026-04-16 12:57:19 | INFO     |   ║  MAE (all)    │        4.06     │        5.06         ║
+2026-04-16 12:57:19 | INFO     |   ║  CV% (all)    │        26.4%    │        36.3%        ║
+2026-04-16 12:57:19 | INFO     |   ║  R2 (test30%) │      0.9286     │      0.8535         ║
+2026-04-16 12:57:19 | INFO     |   ╚══════════════════════════════════════════════════════════╝
+2026-04-16 12:57:19 | INFO     | 
+  Equation BEATS ACI 318-19 (R2: 0.9387 vs 0.8839)
+2026-04-16 12:57:19 | INFO     | Stage H complete.
+2026-04-16 12:57:19 | INFO     | 
+=================================================================
+2026-04-16 12:57:19 | INFO     |   Generating Physics Figures
+2026-04-16 12:57:19 | INFO     | =================================================================
+2026-04-16 12:57:19 | INFO     |   Fig P1 OK — Degradation Curve
+2026-04-16 12:57:20 | INFO     |   Fig P2 OK — First Derivative
+2026-04-16 12:57:21 | INFO     |   Fig P3 OK — Second Derivative + Critical Point
+2026-04-16 12:57:21 | INFO     |   Fig P4 OK — Cumulative Damage Integral
+2026-04-16 12:57:22 | INFO     |   Fig P5 OK — Master Curve
+2026-04-16 12:57:22 | INFO     |   Fig P6 OK — Data Collapse
+2026-04-16 12:57:23 | INFO     |   Fig P7 OK — Sobol Sensitivity
+2026-04-16 12:57:23 | INFO     |   Fig P8 OK — Phase Diagram
+2026-04-16 12:57:24 | INFO     |   Fig P9 OK — Spider Sensitivity
+2026-04-16 12:57:24 | INFO     |   Fig P10 OK — Extrapolation
+2026-04-16 12:57:25 | INFO     |   Fig P11 OK — PySR vs ACI
+2026-04-16 12:57:26 | INFO     |   Fig P12 OK — 3D Surface
+2026-04-16 12:57:26 | INFO     |   Fig P13 OK — Equation Scatter (All)
+2026-04-16 12:57:27 | INFO     |   Fig P14 OK — Train/Test Scatter
+2026-04-16 12:57:27 | INFO     |   Fig P15 OK — CV Box Plot
+2026-04-16 12:57:28 | INFO     |   Fig P16 OK — Error Distribution
+2026-04-16 12:57:28 | INFO     |   Fig P17 OK — Metrics Comparison
+2026-04-16 12:57:28 | INFO     | Total figures generated: 17
+2026-04-16 12:57:28 | INFO     | Part 4 state saved -> /kaggle/working/corrosion-rc-beam-optimizer/final_results/physics/part4_state.pkl
+2026-04-16 12:57:28 | INFO     | =================================================================
+2026-04-16 12:57:28 | INFO     |   Part 4 DONE. Run Part 5 next.
+2026-04-16 12:57:28 | INFO     | =================================================================

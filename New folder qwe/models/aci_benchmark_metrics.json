@@ -1,0 +1,12 @@
+{
+  "R2": 0.8839,
+  "RMSE": 8.2289,
+  "MAE": 5.0617,
+  "MAPE": 29.9,
+  "ratio_mean": 1.1845,
+  "ratio_std": 0.5874,
+  "ratio_min": 0.2735,
+  "ratio_max": 5.2832,
+  "underestimate_pct": 48.5,
+  "n_specimens": 804
+}

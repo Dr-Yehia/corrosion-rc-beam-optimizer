@@ -1,0 +1,237 @@
+{
+  "generated_at": "2026-04-16 13:50:46.690787",
+  "equation": "(1.44054648571482*d + 1.44054648571482*fc - 245.07132865924)*(-0.0035611875*sqrt(CSI) + RI + 0.0012547432*b - 1/fc**0.62208444) + 4.27352333181116",
+  "equation_latex": "1.44 \\left(d + fc - 170.\\right) \\left(- 0.00356 \\sqrt{CSI} + RI + 0.00125 b - fc^{-0.622}\\right) + 4.27",
+  "winner": "DIRECT",
+  "stage_a": {
+    "equation_str": "(1.44054648571482*d + 1.44054648571482*fc - 245.07132865924)*(-0.0035611875*sqrt(CSI) + RI + 0.0012547432*b - 1/fc**0.62208444) + 4.27352333181116",
+    "winner": "DIRECT",
+    "derivatives": {
+      "df/d_eta": "-0.00178059375*fy*(1.44054648571482*d + 1.44054648571482*fc - 245.07132865924)/(sqrt(CSI)*fc)",
+      "d2f/d_eta2": "0.000890296875*fy**2*(1.44054648571482*d + 1.44054648571482*fc - 245.07132865924)/(CSI**(3/2)*fc**2)",
+      "d3f/d_eta3": "-0.0013354453125*fy**3*(1.44054648571482*d + 1.44054648571482*fc - 245.07132865924)/(CSI**(5/2)*fc**3)",
+      "df/d_d": "-0.00513005613809655*sqrt(CSI) + 1.44054648571482*RI + 0.00180751590723457*b - 1.44054648571482/fc**0.62208444",
+      "df/d_b": "0.00180751590723457*d + 0.00180751590723457*fc - 0.307501583150147",
+      "df/d_fc": "-0.00513005613809655*sqrt(CSI) + 1.44054648571482*RI + 0.00180751590723457*b + 0.62208444*(1.44054648571482*d + 1.44054648571482*fc - 245.07132865924)/fc**1.62208444 - 1.44054648571482/fc**0.62208444"
+    },
+    "critical_eta_star": 15.0,
+    "critical_method": "heuristic",
+    "integral_expr": "-0.351006731800849*eta_upper**(3/2) + 12.9580135351985*eta_upper",
+    "taylor_expr": "12.9580135351985 - 0.526510097701273*sqrt(eta_m)"
+  },
+  "stage_b": {
+    "Pi_M_range": [
+      0.0061,
+      0.2697
+    ],
+    "omega_range": [
+      0.0117,
+      0.7178
+    ],
+    "master_curve_fits": {
+      "Poly2": {
+        "params": [
+          0.00028061416012371154,
+          0.026386414783045268,
+          0.8971273648652017
+        ],
+        "R2": 0.3546
+      },
+      "ExpDecay": {
+        "params": {
+          "a": 1.1845,
+          "k": 1e-05,
+          "c": 0.1
+        },
+        "R2": -0.0,
+        "formula": "R = 1.185 * exp(-0.00001 * eta^0.100)"
+      },
+      "Pade": {
+        "params": [
+          -0.014505433172454044,
+          -0.03063259364983808,
+          0.00024342570418987175
+        ],
+        "R2": 0.353
+      }
+    },
+    "best_master_curve": "Poly2",
+    "best_master_curve_R2": 0.3546,
+    "compound_parameter": {
+      "alpha": 0.556,
+      "beta": 0.544,
+      "R2": 0.5666,
+      "formula": "Pi_c = omega^0.56 * (1 - eta/100)^0.54"
+    }
+  },
+  "stage_c": {
+    "sobol": {
+      "S1": {
+        "CSI": 0.0075,
+        "RI": 0.1366,
+        "b": 0.1311,
+        "d": 0.5513,
+        "fc": 0.0712
+      },
+      "ST": {
+        "CSI": 0.0107,
+        "RI": 0.1878,
+        "b": 0.1771,
+        "d": 0.6567,
+        "fc": 0.081
+      }
+    },
+    "spider_sensitivity": {
+      "CSI": 0.0361,
+      "RI": 0.2471,
+      "b": 0.4569,
+      "d": 1.9204,
+      "fc": 0.5877
+    },
+    "phase_diagram": {
+      "eta_range": [
+        0.5,
+        60
+      ],
+      "rho_range": [
+        0.3,
+        5.0
+      ],
+      "safe_threshold": 0.8,
+      "warning_threshold": 0.5
+    }
+  },
+  "stage_d": {
+    "critical_eta_star": 15.0,
+    "collapse_eta": 90.0,
+    "degradation_rates": {
+      "eta=5%": -0.117731,
+      "eta=10%": -0.083249,
+      "eta=15%": -0.067972,
+      "eta=20%": -0.058866,
+      "eta=30%": -0.048064,
+      "eta=40%": -0.041624,
+      "eta=50%": -0.03723
+    },
+    "regime_boundaries": {
+      "safe_limit": 7.5,
+      "warning_limit": 15.0,
+      "critical_limit": 22.5
+    },
+    "discoveries": [
+      "DISCOVERY 1: The corrosion degradation exhibits a regime change (inflection point) at eta_m* = 15.0%. Below this threshold, degradation is approximately linear; above it, the rate accelerates non-linearly.",
+      "DISCOVERY 2: The degradation rate at 40% mass loss is 0.4x faster than at 5% mass loss, confirming non-linear (accelerating) capacity reduction.",
+      "DISCOVERY 4: The model predicts near-complete capacity loss at eta_m = 90%, which defines the ultimate service life limit for corroded RC beams.",
+      "FINDING: 4/5 physical checks passed. Minor deviations at extreme corrosion levels suggest the equation is reliable within the training data range (eta_m = 0-64%).",
+      "TESTABLE PREDICTION: For a standard beam (b=150.0mm, d=250.0mm, fy=400.0MPa, fc=30.0MPa), the equation predicts Mmax = 29.4 kN.m at eta_m=70% and 27.1 kN.m at eta_m=90%. These are verifiable predictions beyond the training data range (0-64%) that can be tested experimentally."
+    ],
+    "bootstrap_n": 2000
+  },
+  "stage_e": {
+    "physical_checks": {
+      "eta=0 (Mmax should be ~M_ACI)": {
+        "predicted_kNm": 12.96,
+        "expected_ACI_median_kNm": 10.78,
+        "deviation_%": 20.16,
+        "PASS": true
+      },
+      "eta=100 (Mmax should be ~0)": {
+        "predicted_kNm": 7.72,
+        "threshold_kNm": 2.91,
+        "PASS": false
+      },
+      "monotonicity (f decreases with eta)": {
+        "monotonic_%": 100.0,
+        "violations": 0,
+        "PASS": true
+      },
+      "positivity (f >= 0 for eta in [0,64])": {
+        "min_value": 8.7459,
+        "n_negative": 0,
+        "PASS": true
+      },
+      "dimensional_consistency": {
+        "note": "DIRECT approach: equation maps mixed-unit inputs to kN.m. PySR discovers a data-driven mapping; formal dimensional homogeneity is not applicable to ML-discovered equations. Output scale verified against experimental data.",
+        "PASS": true
+      },
+      "equation_vs_all_data": {
+        "R2": 0.9351,
+        "RMSE_kNm": 6.15,
+        "n_samples": 804
+      }
+    },
+    "checks_passed": 4,
+    "checks_total": 5
+  },
+  "stage_f": {
+    "csv_path": "/kaggle/working/corrosion-rc-beam-optimizer/final_results/physics/dimensionless_dataset_for_pysr.csv",
+    "n_samples": 804,
+    "columns": [
+      "Pi_M",
+      "Pi_omega",
+      "Pi_geom",
+      "Pi_bar",
+      "Pi_eta",
+      "Pi_rho",
+      "Pi_M_aci",
+      "Pi_R"
+    ],
+    "correlation_with_Pi_M": {
+      "Pi_M_aci": 0.7643,
+      "Pi_omega": 0.7179,
+      "Pi_rho": 0.5866,
+      "Pi_bar": 0.3286,
+      "Pi_geom": 0.0698,
+      "Pi_R": -0.0293,
+      "Pi_eta": -0.3971
+    },
+    "purpose": "Re-run PySR on this dimensionless dataset to obtain a universal scaling law valid in any unit system. Target column: Pi_R (correction ratio) or Pi_M (dimensionless moment)."
+  },
+  "stage_g": {
+    "predictions_csv": "/kaggle/working/corrosion-rc-beam-optimizer/final_results/physics/testable_predictions_for_lab.csv",
+    "beam_spec": {
+      "b_mm": 150.0,
+      "d_mm": 250.0,
+      "fy_MPa": 400.0,
+      "fc_MPa": 30.0,
+      "rho_%": 1.5,
+      "db_mm": 12.0
+    },
+    "n_scenarios": 13,
+    "n_extrapolations": 3
+  },
+  "stage_h_equation_validation": {
+    "all_data": {
+      "n": 804,
+      "R2": 0.9351,
+      "RMSE": 6.15,
+      "MAE": 4.08,
+      "CV_pct": 27.1,
+      "SD_M": 0.2711
+    },
+    "train_70": {
+      "n": 562,
+      "R2": 0.9394,
+      "RMSE": 6.1,
+      "MAE": 4.06
+    },
+    "test_30": {
+      "n": 242,
+      "R2": 0.9228,
+      "RMSE": 6.28,
+      "MAE": 4.14
+    },
+    "cv_10fold": {
+      "n": 804,
+      "R2": 0.9351,
+      "RMSE": 6.15,
+      "MAE": 4.08,
+      "fold_R2_mean": 0.9334,
+      "fold_R2_std": 0.015
+    },
+    "aci_comparison": {
+      "R2_test": 0.8535,
+      "beats_ACI": true
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "approach": "Direct Mmax prediction",
+  "R2": 0.9351,
+  "RMSE": 6.153,
+  "MAE": 4.083,
+  "MAPE": 35.62,
+  "equation": "1.44054648571482*(d + fc - 170.12386)*(-0.0035611875*sqrt(CSI) + RI + 0.0012547432*b - 1/fc**0.62208444) + 4.27352333181116",
+  "equation_latex": "1.44 \\left(d + fc - 170.\\right) \\left(- 0.00356 \\sqrt{CSI} + RI + 0.00125 b - fc^{-0.622}\\right) + 4.27",
+  "n_samples": 804
+}

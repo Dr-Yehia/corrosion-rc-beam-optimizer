@@ -1,0 +1,4 @@
+% Best PySR Equation (DIRECT)
+% Generated: 2026-04-16 13:49:53.281276
+
+M_{\max} = 1.44 \left(d + fc - 170.\right) \left(- 0.00356 \sqrt{CSI} + RI + 0.00125 b - fc^{-0.622}\right) + 4.27

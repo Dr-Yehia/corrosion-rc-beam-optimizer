@@ -1,0 +1,820 @@
+{
+  "winner": "DIRECT",
+  "final_equation": "sqrt(RI)*(-CSI**0.6963602 + b)*(0.0052542244*d + 0.0107447664745715*fc - 1.04061879321926) - rho_t*(exp(RI) - 4.4420257)",
+  "final_equation_latex": "\\sqrt{RI} \\left(- CSI^{0.696} + b\\right) \\left(0.00525 d + 0.0107 fc - 1.04\\right) - \\rho_{t} \\left(e^{RI} - 4.44\\right)",
+  "ratio_approach": {
+    "best_equation": "-0.29305854 + (18.701345 + (0.0001643053*b*eta_m**1.683843 + sqrt(fc))/rho_t)/sqrt(fy)",
+    "best_equation_latex": "-0.293 + \\frac{18.7 + \\frac{0.000164 b \\eta_{m}^{1.68} + \\sqrt{fc}}{\\rho_{t}}}{\\sqrt{fy}}",
+    "mmax_R2": 0.9241,
+    "metrics": {
+      "approach": "Ratio = Mmax_exp / M_ACI",
+      "mmax_R2": 0.9241,
+      "mmax_RMSE": 6.6554,
+      "mmax_MAE": 4.0516,
+      "mmax_MAPE": 24.31,
+      "equation": "-0.29305854 + (18.701345 + (0.0001643053*b*eta_m**1.683843 + sqrt(fc))/rho_t)/sqrt(fy)",
+      "equation_latex": "-0.293 + \\frac{18.7 + \\frac{0.000164 b \\eta_{m}^{1.68} + \\sqrt{fc}}{\\rho_{t}}}{\\sqrt{fy}}",
+      "n_samples": 804
+    },
+    "all_equations": [
+      {
+        "complexity": 1,
+        "loss": 0.3446593,
+        "equation": "1.1844666",
+        "score": 0.0,
+        "sympy_format": "1.18446660000000",
+        "lambda_format": "PySRFunction(X=>1.18446660000000)"
+      },
+      {
+        "complexity": 3,
+        "loss": 0.22907145,
+        "equation": "1.0210657 ^ eta_m",
+        "score": 0.2042612146205237,
+        "sympy_format": "1.0210657**eta_m",
+        "lambda_format": "PySRFunction(X=>1.0210657**eta_m)"
+      },
+      {
+        "complexity": 5,
+        "loss": 0.22477052,
+        "equation": "(eta_m * 0.03637062) + 0.8551609",
+        "score": 0.00947699649660201,
+        "sympy_format": "eta_m*0.03637062 + 0.8551609",
+        "lambda_format": "PySRFunction(X=>eta_m*0.03637062 + 0.8551609)"
+      },
+      {
+        "complexity": 6,
+        "loss": 0.20811328,
+        "equation": "(376.77264 / fy) / sqrt(rho_t)",
+        "score": 0.07699742379325927,
+        "sympy_format": "376.77264/(fy*sqrt(rho_t))",
+        "lambda_format": "PySRFunction(X=>376.77264/(fy*sqrt(rho_t)))"
+      },
+      {
+        "complexity": 7,
+        "loss": 0.19404165,
+        "equation": "((eta_m * 0.026228221) / rho_t) - -0.8921807",
+        "score": 0.07000972009457554,
+        "sympy_format": "eta_m*0.026228221/rho_t - 1*(-0.8921807)",
+        "lambda_format": "PySRFunction(X=>eta_m*0.026228221/rho_t - 1*(-0.8921807))"
+      },
+      {
+        "complexity": 8,
+        "loss": 0.19135064,
+        "equation": "500.3233 / ((88.27653 + fy) * sqrt(rho_t))",
+        "score": 0.01396527021971596,
+        "sympy_format": "500.3233/(sqrt(rho_t)*(fy + 88.27653))",
+        "lambda_format": "PySRFunction(X=>500.3233/(sqrt(rho_t)*(fy + 88.27653)))"
+      },
+      {
+        "complexity": 9,
+        "loss": 0.18317945,
+        "equation": "(sqrt(eta_m) + 18.70202) / sqrt(fy * rho_t)",
+        "score": 0.043641283063363914,
+        "sympy_format": "(sqrt(eta_m) + 18.70202)/sqrt(fy*rho_t)",
+        "lambda_format": "PySRFunction(X=>(sqrt(eta_m) + 18.70202)/sqrt(fy*rho_t))"
+      },
+      {
+        "complexity": 10,
+        "loss": 0.1655431,
+        "equation": "((eta_m * 0.02238335) / rho_t) + (17.579275 / sqrt(fy))",
+        "score": 0.1012346895854731,
+        "sympy_format": "0.02238335*eta_m/rho_t + 17.579275/sqrt(fy)",
+        "lambda_format": "PySRFunction(X=>0.02238335*eta_m/rho_t + 17.579275/sqrt(fy))"
+      },
+      {
+        "complexity": 11,
+        "loss": 0.16452506,
+        "equation": "((eta_m * 0.020852137) + (17.540636 / sqrt(fy))) / sqrt(rho_t)",
+        "score": 0.0061686848453353675,
+        "sympy_format": "(0.020852137*eta_m + 17.540636/sqrt(fy))/sqrt(rho_t)",
+        "lambda_format": "PySRFunction(X=>(0.020852137*eta_m + 17.540636/sqrt(fy))/sqrt(rho_t))"
+      },
+      {
+        "complexity": 12,
+        "loss": 0.1569601,
+        "equation": "(((b * (eta_m * 0.0023534151)) / rho_t) + 18.21959) / sqrt(fy)",
+        "score": 0.047071266106489436,
+        "sympy_format": "(0.0023534151*b*eta_m/rho_t + 18.21959)/sqrt(fy)",
+        "lambda_format": "PySRFunction(X=>(0.0023534151*b*eta_m/rho_t + 18.21959)/sqrt(fy))"
+      },
+      {
+        "complexity": 13,
+        "loss": 0.15593234,
+        "equation": "((((sqrt(d) + eta_m) * 0.29569784) / rho_t) + 13.950256) / sqrt(fy)",
+        "score": 0.006569437703859883,
+        "sympy_format": "(13.950256 + (0.29569784*sqrt(d) + 0.29569784*eta_m)/rho_t)/sqrt(fy)",
+        "lambda_format": "PySRFunction(X=>(13.950256 + (0.29569784*sqrt(d) + 0.29569784*eta_m)/rho_t)/sqrt(fy))"
+      },
+      {
+        "complexity": 14,
+        "loss": 0.14981693,
+        "equation": "((((d * (eta_m * 0.0013309497)) + 4.213025) / rho_t) + 14.302874) / sqrt(fy)",
+        "score": 0.04000811316437096,
+        "sympy_format": "(14.302874 + (0.0013309497*d*eta_m + 4.213025)/rho_t)/sqrt(fy)",
+        "lambda_format": "PySRFunction(X=>(14.302874 + (0.0013309497*d*eta_m + 4.213025)/rho_t)/sqrt(fy))"
+      },
+      {
+        "complexity": 15,
+        "loss": 0.14897408,
+        "equation": "((((b * (eta_m * 0.0019994543)) + log(fc)) / rho_t) + 14.833907) / sqrt(fy)",
+        "score": 0.005641750972447615,
+        "sympy_format": "(14.833907 + (0.0019994543*b*eta_m + log(fc))/rho_t)/sqrt(fy)",
+        "lambda_format": "PySRFunction(X=>(14.833907 + (0.0019994543*b*eta_m + log(fc))/rho_t)/sqrt(fy))"
+      },
+      {
+        "complexity": 16,
+        "loss": 0.14840178,
+        "equation": "((((((d * eta_m) * 0.0012430968) + 4.7845616) / rho_t) + 18.311316) / sqrt(fy)) + -0.24315514",
+        "score": 0.003849005810656597,
+        "sympy_format": "-0.24315514 + (18.311316 + (0.0012430968*d*eta_m + 4.7845616)/rho_t)/sqrt(fy)",
+        "lambda_format": "PySRFunction(X=>-0.24315514 + (18.311316 + (0.0012430968*d*eta_m + 4.7845616)/rho_t)/sqrt(fy))"
+      },
+      {
+        "complexity": 17,
+        "loss": 0.14798753,
+        "equation": "(((((d * (eta_m * 0.0011591116)) + sqrt(fc)) / rho_t) + 18.693129) / sqrt(fy)) + -0.32800755",
+        "score": 0.0027953118129514444,
+        "sympy_format": "-0.32800755 + (18.693129 + (0.0011591116*d*eta_m + sqrt(fc))/rho_t)/sqrt(fy)",
+        "lambda_format": "PySRFunction(X=>-0.32800755 + (18.693129 + (0.0011591116*d*eta_m + sqrt(fc))/rho_t)/sqrt(fy))"
+      },
+      {
+        "complexity": 18,
+        "loss": 0.14262843,
+        "equation": "(((8.000769 / rho_t) + 15.7494955) / sqrt(fy)) + (((b * (eta_m ^ 1.9047759)) * 6.8900144e-6) - 0.2612353)",
+        "score": 0.036885156484738606,
+        "sympy_format": "6.8900144e-6*b*eta_m**1.9047759 - 0.2612353 + (15.7494955 + 8.000769/rho_t)/sqrt(fy)",
+        "lambda_format": "PySRFunction(X=>6.8900144e-6*b*eta_m**1.9047759 - 0.2612353 + (15.7494955 + 8.000769/rho_t)/sqrt(fy))"
+      },
+      {
+        "complexity": 19,
+        "loss": 0.14239646,
+        "equation": "((((sqrt(fc) + ((b * 0.0001643053) * (eta_m ^ 1.683843))) / rho_t) + 18.701345) / sqrt(fy)) + -0.29305854",
+        "score": 0.0016277178545099412,
+        "sympy_format": "-0.29305854 + (18.701345 + (0.0001643053*b*eta_m**1.683843 + sqrt(fc))/rho_t)/sqrt(fy)",
+        "lambda_format": "PySRFunction(X=>-0.29305854 + (18.701345 + (0.0001643053*b*eta_m**1.683843 + sqrt(fc))/rho_t)/sqrt(fy))"
+      },
+      {
+        "complexity": 20,
+        "loss": 0.13808905,
+        "equation": "(((16.689762 / rho_t) + 12.8587055) / sqrt(fy)) - (((((b * eta_m) * eta_m) * -2.8489767e-6) + 0.5333192) / rho_t)",
+        "score": 0.03071637221600866,
+        "sympy_format": "-(-2.8489767e-6*b*eta_m**2 + 0.5333192)/rho_t + (12.8587055 + 16.689762/rho_t)/sqrt(fy)",
+        "lambda_format": "PySRFunction(X=>-(-2.8489767e-6*b*eta_m**2 + 0.5333192)/rho_t + (12.8587055 + 16.689762/rho_t)/sqrt(fy))"
+      },
+      {
+        "complexity": 21,
+        "loss": 0.13805366,
+        "equation": "(((((eta_m ^ 1.8486094) / rho_t) * 5.265267e-6) * b) + (((sqrt(fc) / rho_t) + 21.63063) / sqrt(fy))) - 0.4406867",
+        "score": 0.0002563167442932378,
+        "sympy_format": "5.265267e-6*b*eta_m**1.8486094/rho_t - 0.4406867 + (sqrt(fc)/rho_t + 21.63063)/sqrt(fy)",
+        "lambda_format": "PySRFunction(X=>5.265267e-6*b*eta_m**1.8486094/rho_t - 0.4406867 + (sqrt(fc)/rho_t + 21.63063)/sqrt(fy))"
+      },
+      {
+        "complexity": 22,
+        "loss": 0.13606417,
+        "equation": "(((13.190804 / rho_t) + 15.176381) / sqrt(fy + eta_m)) - (((b * (-3.4178845e-6 * (eta_m * eta_m))) + 0.4387639) / rho_t)",
+        "score": 0.014515837467319076,
+        "sympy_format": "(15.176381 + 13.190804/rho_t)/sqrt(eta_m + fy) - (-3.4178845e-6*b*eta_m**2 + 0.4387639)/rho_t",
+        "lambda_format": "PySRFunction(X=>(15.176381 + 13.190804/rho_t)/sqrt(eta_m + fy) - (-3.4178845e-6*b*eta_m**2 + 0.4387639)/rho_t)"
+      },
+      {
+        "complexity": 24,
+        "loss": 0.13380685,
+        "equation": "(((12.972543 / rho_t) + 19.42836) / sqrt(fy + eta_m)) - ((((b * eta_m) * (eta_m * -6.6784687e-6)) + 1.0861439) / (rho_t - -0.5917283))",
+        "score": 0.008364635246186584,
+        "sympy_format": "(19.42836 + 12.972543/rho_t)/sqrt(eta_m + fy) - (-6.6784687e-6*b*eta_m**2 + 1.0861439)/(rho_t + 0.5917283)",
+        "lambda_format": "PySRFunction(X=>(19.42836 + 12.972543/rho_t)/sqrt(eta_m + fy) - (-6.6784687e-6*b*eta_m**2 + 1.0861439)/(rho_t + 0.5917283))"
+      }
+    ],
+    "pareto_evaluation": [
+      {
+        "index": 0,
+        "complexity": 1,
+        "loss": 0.3447,
+        "ratio_R2": -0.0,
+        "ratio_MAPE": 38.16,
+        "mmax_R2": 0.8064,
+        "mmax_MAPE": 38.16,
+        "equation": "1.18446660000000"
+      },
+      {
+        "index": 1,
+        "complexity": 3,
+        "loss": 0.2291,
+        "ratio_R2": 0.3354,
+        "ratio_MAPE": 32.98,
+        "mmax_R2": 0.8774,
+        "mmax_MAPE": 32.98,
+        "equation": "1.0210657**eta_m"
+      },
+      {
+        "index": 2,
+        "complexity": 5,
+        "loss": 0.2248,
+        "ratio_R2": 0.3478,
+        "ratio_MAPE": 30.31,
+        "mmax_R2": 0.8914,
+        "mmax_MAPE": 30.31,
+        "equation": "eta_m*0.03637062 + 0.8551609"
+      },
+      {
+        "index": 3,
+        "complexity": 6,
+        "loss": 0.2081,
+        "ratio_R2": 0.3962,
+        "ratio_MAPE": 26.61,
+        "mmax_R2": 0.8512,
+        "mmax_MAPE": 26.61,
+        "equation": "376.77264/(fy*sqrt(rho_t))"
+      },
+      {
+        "index": 4,
+        "complexity": 7,
+        "loss": 0.194,
+        "ratio_R2": 0.437,
+        "ratio_MAPE": 28.93,
+        "mmax_R2": 0.9155,
+        "mmax_MAPE": 28.93,
+        "equation": "eta_m*0.026228221/rho_t - 1*(-0.8921807)"
+      },
+      {
+        "index": 5,
+        "complexity": 8,
+        "loss": 0.1914,
+        "ratio_R2": 0.4448,
+        "ratio_MAPE": 27.59,
+        "mmax_R2": 0.869,
+        "mmax_MAPE": 27.59,
+        "equation": "500.3233/(sqrt(rho_t)*(fy + 88.27653))"
+      },
+      {
+        "index": 6,
+        "complexity": 9,
+        "loss": 0.1832,
+        "ratio_R2": 0.4685,
+        "ratio_MAPE": 28.39,
+        "mmax_R2": 0.9033,
+        "mmax_MAPE": 28.39,
+        "equation": "(sqrt(eta_m) + 18.70202)/sqrt(fy*rho_t)"
+      },
+      {
+        "index": 7,
+        "complexity": 10,
+        "loss": 0.1655,
+        "ratio_R2": 0.5197,
+        "ratio_MAPE": 26.44,
+        "mmax_R2": 0.9052,
+        "mmax_MAPE": 26.44,
+        "equation": "0.02238335*eta_m/rho_t + 17.579275/sqrt(fy)"
+      },
+      {
+        "index": 8,
+        "complexity": 11,
+        "loss": 0.1645,
+        "ratio_R2": 0.5226,
+        "ratio_MAPE": 27.18,
+        "mmax_R2": 0.9118,
+        "mmax_MAPE": 27.18,
+        "equation": "(0.020852137*eta_m + 17.540636/sqrt(fy))/sqrt(rho_t)"
+      },
+      {
+        "index": 9,
+        "complexity": 12,
+        "loss": 0.157,
+        "ratio_R2": 0.5446,
+        "ratio_MAPE": 25.62,
+        "mmax_R2": 0.8791,
+        "mmax_MAPE": 25.62,
+        "equation": "(0.0023534151*b*eta_m/rho_t + 18.21959)/sqrt(fy)"
+      },
+      {
+        "index": 10,
+        "complexity": 13,
+        "loss": 0.1559,
+        "ratio_R2": 0.5476,
+        "ratio_MAPE": 25.02,
+        "mmax_R2": 0.904,
+        "mmax_MAPE": 25.02,
+        "equation": "(13.950256 + (0.29569784*sqrt(d) + 0.29569784*eta_m)/rho_t)/sqrt(fy)"
+      },
+      {
+        "index": 11,
+        "complexity": 14,
+        "loss": 0.1498,
+        "ratio_R2": 0.5653,
+        "ratio_MAPE": 25.35,
+        "mmax_R2": 0.891,
+        "mmax_MAPE": 25.35,
+        "equation": "(14.302874 + (0.0013309497*d*eta_m + 4.213025)/rho_t)/sqrt(fy)"
+      },
+      {
+        "index": 12,
+        "complexity": 15,
+        "loss": 0.149,
+        "ratio_R2": 0.5678,
+        "ratio_MAPE": 24.99,
+        "mmax_R2": 0.9078,
+        "mmax_MAPE": 24.99,
+        "equation": "(14.833907 + (0.0019994543*b*eta_m + log(fc))/rho_t)/sqrt(fy)"
+      },
+      {
+        "index": 13,
+        "complexity": 16,
+        "loss": 0.1484,
+        "ratio_R2": 0.5694,
+        "ratio_MAPE": 25.0,
+        "mmax_R2": 0.8842,
+        "mmax_MAPE": 25.0,
+        "equation": "-0.24315514 + (18.311316 + (0.0012430968*d*eta_m + 4.7845616)/rho_t)/sqrt(fy)"
+      },
+      {
+        "index": 14,
+        "complexity": 17,
+        "loss": 0.148,
+        "ratio_R2": 0.5706,
+        "ratio_MAPE": 24.96,
+        "mmax_R2": 0.8989,
+        "mmax_MAPE": 24.96,
+        "equation": "-0.32800755 + (18.693129 + (0.0011591116*d*eta_m + sqrt(fc))/rho_t)/sqrt(fy)"
+      },
+      {
+        "index": 15,
+        "complexity": 18,
+        "loss": 0.1426,
+        "ratio_R2": 0.5862,
+        "ratio_MAPE": 25.05,
+        "mmax_R2": 0.9176,
+        "mmax_MAPE": 25.05,
+        "equation": "6.8900144e-6*b*eta_m**1.9047759 - 0.2612353 + (15.7494955 + 8.000769/rho_t)/sqrt(fy)"
+      },
+      {
+        "index": 16,
+        "complexity": 19,
+        "loss": 0.1424,
+        "ratio_R2": 0.5868,
+        "ratio_MAPE": 24.31,
+        "mmax_R2": 0.9241,
+        "mmax_MAPE": 24.31,
+        "equation": "-0.29305854 + (18.701345 + (0.0001643053*b*eta_m**1.683843 + sqrt(fc))/rho_t)/sqrt(fy)"
+      },
+      {
+        "index": 17,
+        "complexity": 20,
+        "loss": 0.1381,
+        "ratio_R2": 0.5993,
+        "ratio_MAPE": 24.35,
+        "mmax_R2": 0.91,
+        "mmax_MAPE": 24.35,
+        "equation": "-(-2.8489767e-6*b*eta_m**2 + 0.5333192)/rho_t + (12.8587055 + 16.689762/rho_t)/sqrt(fy)"
+      },
+      {
+        "index": 18,
+        "complexity": 21,
+        "loss": 0.1381,
+        "ratio_R2": 0.5994,
+        "ratio_MAPE": 24.2,
+        "mmax_R2": 0.9185,
+        "mmax_MAPE": 24.2,
+        "equation": "5.265267e-6*b*eta_m**1.8486094/rho_t - 0.4406867 + (sqrt(fc)/rho_t + 21.63063)/sqrt(fy)"
+      },
+      {
+        "index": 19,
+        "complexity": 22,
+        "loss": 0.1361,
+        "ratio_R2": 0.6052,
+        "ratio_MAPE": 24.44,
+        "mmax_R2": 0.9041,
+        "mmax_MAPE": 24.44,
+        "equation": "(15.176381 + 13.190804/rho_t)/sqrt(eta_m + fy) - (-3.4178845e-6*b*eta_m**2 + 0.4387639)/rho_t"
+      },
+      {
+        "index": 20,
+        "complexity": 24,
+        "loss": 0.1338,
+        "ratio_R2": 0.6118,
+        "ratio_MAPE": 24.39,
+        "mmax_R2": 0.8958,
+        "mmax_MAPE": 24.39,
+        "equation": "(19.42836 + 12.972543/rho_t)/sqrt(eta_m + fy) - (-6.6784687e-6*b*eta_m**2 + 1.0861439)/(rho_t + 0.5917283)"
+      }
+    ]
+  },
+  "direct_approach": {
+    "best_equation": "sqrt(RI)*(-CSI**0.6963602 + b)*(0.0052542244*d + 0.0107447664745715*fc - 1.04061879321926) - rho_t*(exp(RI) - 4.4420257)",
+    "best_equation_latex": "\\sqrt{RI} \\left(- CSI^{0.696} + b\\right) \\left(0.00525 d + 0.0107 fc - 1.04\\right) - \\rho_{t} \\left(e^{RI} - 4.44\\right)",
+    "R2": 0.9387,
+    "metrics": {
+      "approach": "Direct Mmax prediction",
+      "R2": 0.9387,
+      "RMSE": 5.9817,
+      "MAE": 4.0605,
+      "MAPE": 33.05,
+      "equation": "sqrt(RI)*(-CSI**0.6963602 + b)*(0.0052542244*d + 0.0107447664745715*fc - 1.04061879321926) - rho_t*(exp(RI) - 4.4420257)",
+      "equation_latex": "\\sqrt{RI} \\left(- CSI^{0.696} + b\\right) \\left(0.00525 d + 0.0107 fc - 1.04\\right) - \\rho_{t} \\left(e^{RI} - 4.44\\right)",
+      "n_samples": 804
+    },
+    "all_equations": [
+      {
+        "complexity": 1,
+        "loss": 542.0677,
+        "equation": "db_t",
+        "score": 0.0,
+        "sympy_format": "db_t",
+        "lambda_format": "PySRFunction(X=>db_t)"
+      },
+      {
+        "complexity": 3,
+        "loss": 289.36877,
+        "equation": "d * 0.13564135",
+        "score": 0.31384450296866245,
+        "sympy_format": "d*0.13564135",
+        "lambda_format": "PySRFunction(X=>d*0.13564135)"
+      },
+      {
+        "complexity": 4,
+        "loss": 282.25302,
+        "equation": "exp(db_t ^ 0.4530122)",
+        "score": 0.02489799274426774,
+        "sympy_format": "exp(db_t**0.4530122)",
+        "lambda_format": "PySRFunction(X=>exp(db_t**0.4530122))"
+      },
+      {
+        "complexity": 5,
+        "loss": 125.13099,
+        "equation": "-39.217346 - (d * -0.31237632)",
+        "score": 0.8134427940893847,
+        "sympy_format": "-(-0.31237632)*d - 39.217346",
+        "lambda_format": "PySRFunction(X=>-(-0.31237632)*d - 39.217346)"
+      },
+      {
+        "complexity": 6,
+        "loss": 83.93201,
+        "equation": "sqrt(RI) * (d + -130.47328)",
+        "score": 0.3993540422809126,
+        "sympy_format": "sqrt(RI)*(d - 130.47328)",
+        "lambda_format": "PySRFunction(X=>sqrt(RI)*(d - 130.47328))"
+      },
+      {
+        "complexity": 7,
+        "loss": 82.557846,
+        "equation": "(d + -126.37754) * (RI - -0.20025688)",
+        "score": 0.01650785505989004,
+        "sympy_format": "(RI - 1*(-0.20025688))*(d - 126.37754)",
+        "lambda_format": "PySRFunction(X=>(RI - 1*(-0.20025688))*(d - 126.37754))"
+      },
+      {
+        "complexity": 8,
+        "loss": 74.46233,
+        "equation": "(fc + (d + -165.90462)) * sqrt(RI)",
+        "score": 0.10320585135279084,
+        "sympy_format": "sqrt(RI)*(d + fc - 165.90462)",
+        "lambda_format": "PySRFunction(X=>sqrt(RI)*(d + fc - 165.90462))"
+      },
+      {
+        "complexity": 9,
+        "loss": 64.580505,
+        "equation": "(115.079445 - d) * ((b * -0.000933136) - RI)",
+        "score": 0.14238077486583542,
+        "sympy_format": "(115.079445 - d)*(-RI + b*(-0.000933136))",
+        "lambda_format": "PySRFunction(X=>(115.079445 - d)*(-RI + b*(-0.000933136)))"
+      },
+      {
+        "complexity": 10,
+        "loss": 64.289406,
+        "equation": "(sqrt(rho_t) * (b * -0.0015250529)) * (105.51635 - d)",
+        "score": 0.004517726331123302,
+        "sympy_format": "-0.0015250529*b*sqrt(rho_t)*(105.51635 - d)",
+        "lambda_format": "PySRFunction(X=>-0.0015250529*b*sqrt(rho_t)*(105.51635 - d))"
+      },
+      {
+        "complexity": 11,
+        "loss": 56.023,
+        "equation": "((152.27693 - d) - fc) * ((b * -0.00096965063) - RI)",
+        "score": 0.13763253802603267,
+        "sympy_format": "(-RI + b*(-0.00096965063))*(-d - fc + 152.27693)",
+        "lambda_format": "PySRFunction(X=>(-RI + b*(-0.00096965063))*(-d - fc + 152.27693))"
+      },
+      {
+        "complexity": 12,
+        "loss": 46.540108,
+        "equation": "(sqrt(fc * RI) * (111.04266 - d)) * (b * -0.00082030403)",
+        "score": 0.18544784224494165,
+        "sympy_format": "-0.00082030403*b*sqrt(RI*fc)*(111.04266 - d)",
+        "lambda_format": "PySRFunction(X=>-0.00082030403*b*sqrt(RI*fc)*(111.04266 - d))"
+      },
+      {
+        "complexity": 14,
+        "loss": 41.178288,
+        "equation": "(sqrt(RI * fc) * (b - eta_m)) * ((110.0804 - d) * -0.00084864115)",
+        "score": 0.0612016756499329,
+        "sympy_format": "sqrt(RI*fc)*(b - eta_m)*(0.00084864115*d - 0.09341875724846)",
+        "lambda_format": "PySRFunction(X=>sqrt(RI*fc)*(b - eta_m)*(0.00084864115*d - 0.09341875724846))"
+      },
+      {
+        "complexity": 16,
+        "loss": 39.013004,
+        "equation": "(108.84921 - d) * (((b - (CSI ^ 0.6762058)) * sqrt(fc * RI)) * -0.00088286825)",
+        "score": 0.027008050353171633,
+        "sympy_format": "-0.00088286825*sqrt(RI*fc)*(108.84921 - d)*(-CSI**0.6762058 + b)",
+        "lambda_format": "PySRFunction(X=>-0.00088286825*sqrt(RI*fc)*(108.84921 - d)*(-CSI**0.6762058 + b))"
+      },
+      {
+        "complexity": 18,
+        "loss": 37.643574,
+        "equation": "((b - (CSI ^ 0.68022853)) * (sqrt(RI) * -0.005016051)) * (((fc * -2.4226346) - d) + 192.06616)",
+        "score": 0.01786638203082397,
+        "sympy_format": "-0.005016051*sqrt(RI)*(-CSI**0.68022853 + b)*(-d - 2.4226346*fc + 192.06616)",
+        "lambda_format": "PySRFunction(X=>-0.005016051*sqrt(RI)*(-CSI**0.68022853 + b)*(-d - 2.4226346*fc + 192.06616))"
+      },
+      {
+        "complexity": 20,
+        "loss": 36.68259,
+        "equation": "((((d - ((fc * -2.248897) + 206.41557)) * -0.0052810544) * ((CSI ^ 0.70154774) - b)) - -11.239793) * sqrt(RI)",
+        "score": 0.012930003402784976,
+        "sympy_format": "sqrt(RI)*((CSI**0.70154774 - b)*(-0.0052810544*d - 0.0118765473969968*fc + 1.09009185417701) + 11.239793)",
+        "lambda_format": "PySRFunction(X=>sqrt(RI)*((CSI**0.70154774 - b)*(-0.0052810544*d - 0.0118765473969968*fc + 1.09009185417701) + 11.239793))"
+      },
+      {
+        "complexity": 21,
+        "loss": 36.68183,
+        "equation": "sqrt(RI) * ((((sqrt(CSI ^ 1.4034512) - b) * 0.005285334) * (((fc * -2.2543912) + 206.94406) - d)) - -11.435848)",
+        "score": 2.0718489971763876e-05,
+        "sympy_format": "sqrt(RI)*((-0.005285334*b + 0.005285334*sqrt(CSI**1.4034512))*(-d - 2.2543912*fc + 206.94406) + 11.435848)",
+        "lambda_format": "PySRFunction(X=>sqrt(RI)*((-0.005285334*b + 0.005285334*sqrt(CSI**1.4034512))*(-d - 2.2543912*fc + 206.94406) + 11.435848))"
+      },
+      {
+        "complexity": 22,
+        "loss": 35.96012,
+        "equation": "((((b - (CSI ^ 0.69393444)) * (((fc * -2.0696788) - d) + 198.05577)) * -0.0052415524) * sqrt(RI)) - (rho_t * -3.078904)",
+        "score": 0.019870990453489428,
+        "sympy_format": "-0.0052415524*sqrt(RI)*(-CSI**0.69393444 + b)*(-d - 2.0696788*fc + 198.05577) + 3.078904*rho_t",
+        "lambda_format": "PySRFunction(X=>-0.0052415524*sqrt(RI)*(-CSI**0.69393444 + b)*(-d - 2.0696788*fc + 198.05577) + 3.078904*rho_t)"
+      },
+      {
+        "complexity": 23,
+        "loss": 35.960117,
+        "equation": "((b - sqrt(CSI ^ 1.3879743)) * ((sqrt(RI) * -0.005241671) * (((fc * -2.0695925) - d) + 198.0558))) - (rho_t * -3.0796883)",
+        "score": 8.342575423197009e-08,
+        "sympy_format": "-0.005241671*sqrt(RI)*(b - sqrt(CSI**1.3879743))*(-d - 2.0695925*fc + 198.0558) + 3.0796883*rho_t",
+        "lambda_format": "PySRFunction(X=>-0.005241671*sqrt(RI)*(b - sqrt(CSI**1.3879743))*(-d - 2.0695925*fc + 198.0558) + 3.0796883*rho_t)"
+      },
+      {
+        "complexity": 24,
+        "loss": 35.852364,
+        "equation": "(((b - (CSI ^ 0.6957688)) * (sqrt(RI) * (((fc * -2.0531127) + 198.07277) - d))) * -0.005251214) - ((RI + -3.35988) * rho_t)",
+        "score": 0.003000956919070883,
+        "sympy_format": "-0.005251214*sqrt(RI)*(-CSI**0.6957688 + b)*(-d - 2.0531127*fc + 198.07277) - rho_t*(RI - 3.35988)",
+        "lambda_format": "PySRFunction(X=>-0.005251214*sqrt(RI)*(-CSI**0.6957688 + b)*(-d - 2.0531127*fc + 198.07277) - rho_t*(RI - 3.35988))"
+      },
+      {
+        "complexity": 25,
+        "loss": 35.79385,
+        "equation": "((((fc * -2.0449767) + (198.05374 - d)) * -0.0052542244) * ((b - (CSI ^ 0.6963602)) * sqrt(RI))) - ((exp(RI) + -4.4420257) * rho_t)",
+        "score": 0.0016334153542247995,
+        "sympy_format": "sqrt(RI)*(-CSI**0.6963602 + b)*(0.0052542244*d + 0.0107447664745715*fc - 1.04061879321926) - rho_t*(exp(RI) - 4.4420257)",
+        "lambda_format": "PySRFunction(X=>sqrt(RI)*(-CSI**0.6963602 + b)*(0.0052542244*d + 0.0107447664745715*fc - 1.04061879321926) - rho_t*(exp(RI) - 4.4420257))"
+      }
+    ],
+    "pareto_evaluation": [
+      {
+        "index": 0,
+        "complexity": 1,
+        "loss": 542.0677,
+        "ratio_R2": 0.0708,
+        "mmax_R2": 0.0708,
+        "mmax_RMSE": 23.2823,
+        "mmax_MAE": 13.6883,
+        "mmax_MAPE": 88.97,
+        "equation": "db_t"
+      },
+      {
+        "index": 1,
+        "complexity": 3,
+        "loss": 289.3688,
+        "ratio_R2": 0.504,
+        "mmax_R2": 0.504,
+        "mmax_RMSE": 17.0108,
+        "mmax_MAE": 13.5842,
+        "mmax_MAPE": 185.42,
+        "equation": "d*0.13564135"
+      },
+      {
+        "index": 2,
+        "complexity": 4,
+        "loss": 282.253,
+        "ratio_R2": 0.5162,
+        "mmax_R2": 0.5162,
+        "mmax_RMSE": 16.8004,
+        "mmax_MAE": 12.4214,
+        "mmax_MAPE": 165.66,
+        "equation": "exp(db_t**0.4530122)"
+      },
+      {
+        "index": 3,
+        "complexity": 5,
+        "loss": 125.131,
+        "ratio_R2": 0.7893,
+        "mmax_R2": 0.7893,
+        "mmax_RMSE": 11.0859,
+        "mmax_MAE": 7.1587,
+        "mmax_MAPE": 50.32,
+        "equation": "-(-0.31237632)*d - 39.217346"
+      },
+      {
+        "index": 4,
+        "complexity": 6,
+        "loss": 83.932,
+        "ratio_R2": 0.8614,
+        "mmax_R2": 0.8614,
+        "mmax_RMSE": 8.9932,
+        "mmax_MAE": 5.7666,
+        "mmax_MAPE": 39.64,
+        "equation": "sqrt(RI)*(d - 130.47328)"
+      },
+      {
+        "index": 5,
+        "complexity": 7,
+        "loss": 82.5578,
+        "ratio_R2": 0.862,
+        "mmax_R2": 0.862,
+        "mmax_RMSE": 8.9741,
+        "mmax_MAE": 5.8274,
+        "mmax_MAPE": 42.78,
+        "equation": "(RI - 1*(-0.20025688))*(d - 126.37754)"
+      },
+      {
+        "index": 6,
+        "complexity": 8,
+        "loss": 74.4623,
+        "ratio_R2": 0.8803,
+        "mmax_R2": 0.8803,
+        "mmax_RMSE": 8.3566,
+        "mmax_MAE": 5.4477,
+        "mmax_MAPE": 40.91,
+        "equation": "sqrt(RI)*(d + fc - 165.90462)"
+      },
+      {
+        "index": 7,
+        "complexity": 9,
+        "loss": 64.5805,
+        "ratio_R2": 0.8897,
+        "mmax_R2": 0.8897,
+        "mmax_RMSE": 8.0228,
+        "mmax_MAE": 5.1074,
+        "mmax_MAPE": 35.27,
+        "equation": "(115.079445 - d)*(-RI + b*(-0.000933136))"
+      },
+      {
+        "index": 8,
+        "complexity": 10,
+        "loss": 64.2894,
+        "ratio_R2": 0.8899,
+        "mmax_R2": 0.8899,
+        "mmax_RMSE": 8.0133,
+        "mmax_MAE": 4.8775,
+        "mmax_MAPE": 33.12,
+        "equation": "-0.0015250529*b*sqrt(rho_t)*(105.51635 - d)"
+      },
+      {
+        "index": 9,
+        "complexity": 11,
+        "loss": 56.023,
+        "ratio_R2": 0.9048,
+        "mmax_R2": 0.9048,
+        "mmax_RMSE": 7.4525,
+        "mmax_MAE": 4.7876,
+        "mmax_MAPE": 36.81,
+        "equation": "(-RI + b*(-0.00096965063))*(-d - fc + 152.27693)"
+      },
+      {
+        "index": 10,
+        "complexity": 12,
+        "loss": 46.5401,
+        "ratio_R2": 0.9204,
+        "mmax_R2": 0.9204,
+        "mmax_RMSE": 6.8141,
+        "mmax_MAE": 4.3061,
+        "mmax_MAPE": 29.64,
+        "equation": "-0.00082030403*b*sqrt(RI*fc)*(111.04266 - d)"
+      },
+      {
+        "index": 11,
+        "complexity": 14,
+        "loss": 41.1783,
+        "ratio_R2": 0.9296,
+        "mmax_R2": 0.9296,
+        "mmax_RMSE": 6.4109,
+        "mmax_MAE": 4.1263,
+        "mmax_MAPE": 28.16,
+        "equation": "sqrt(RI*fc)*(b - eta_m)*(0.00084864115*d - 0.09341875724846)"
+      },
+      {
+        "index": 12,
+        "complexity": 16,
+        "loss": 39.013,
+        "ratio_R2": 0.9333,
+        "mmax_R2": 0.9333,
+        "mmax_RMSE": 6.2401,
+        "mmax_MAE": 4.1151,
+        "mmax_MAPE": 26.96,
+        "equation": "-0.00088286825*sqrt(RI*fc)*(108.84921 - d)*(-CSI**0.6762058 + b)"
+      },
+      {
+        "index": 13,
+        "complexity": 18,
+        "loss": 37.6436,
+        "ratio_R2": 0.9357,
+        "mmax_R2": 0.9357,
+        "mmax_RMSE": 6.1229,
+        "mmax_MAE": 4.2434,
+        "mmax_MAPE": 32.94,
+        "equation": "-0.005016051*sqrt(RI)*(-CSI**0.68022853 + b)*(-d - 2.4226346*fc + 192.06616)"
+      },
+      {
+        "index": 14,
+        "complexity": 20,
+        "loss": 36.6826,
+        "ratio_R2": 0.9372,
+        "mmax_R2": 0.9372,
+        "mmax_RMSE": 6.0548,
+        "mmax_MAE": 4.1846,
+        "mmax_MAPE": 33.15,
+        "equation": "sqrt(RI)*((CSI**0.70154774 - b)*(-0.0052810544*d - 0.0118765473969968*fc + 1.09009185417701) + 11.239793)"
+      },
+      {
+        "index": 15,
+        "complexity": 21,
+        "loss": 36.6818,
+        "ratio_R2": 0.9372,
+        "mmax_R2": 0.9372,
+        "mmax_RMSE": 6.0548,
+        "mmax_MAE": 4.1878,
+        "mmax_MAPE": 33.25,
+        "equation": "sqrt(RI)*((-0.005285334*b + 0.005285334*sqrt(CSI**1.4034512))*(-d - 2.2543912*fc + 206.94406) + 11.435848)"
+      },
+      {
+        "index": 16,
+        "complexity": 22,
+        "loss": 35.9601,
+        "ratio_R2": 0.9384,
+        "mmax_R2": 0.9384,
+        "mmax_RMSE": 5.9954,
+        "mmax_MAE": 4.0558,
+        "mmax_MAPE": 32.23,
+        "equation": "-0.0052415524*sqrt(RI)*(-CSI**0.69393444 + b)*(-d - 2.0696788*fc + 198.05577) + 3.078904*rho_t"
+      },
+      {
+        "index": 17,
+        "complexity": 23,
+        "loss": 35.9601,
+        "ratio_R2": 0.9384,
+        "mmax_R2": 0.9384,
+        "mmax_RMSE": 5.9954,
+        "mmax_MAE": 4.0559,
+        "mmax_MAPE": 32.23,
+        "equation": "-0.005241671*sqrt(RI)*(b - sqrt(CSI**1.3879743))*(-d - 2.0695925*fc + 198.0558) + 3.0796883*rho_t"
+      },
+      {
+        "index": 18,
+        "complexity": 24,
+        "loss": 35.8524,
+        "ratio_R2": 0.9386,
+        "mmax_R2": 0.9386,
+        "mmax_RMSE": 5.9865,
+        "mmax_MAE": 4.0606,
+        "mmax_MAPE": 32.84,
+        "equation": "-0.005251214*sqrt(RI)*(-CSI**0.6957688 + b)*(-d - 2.0531127*fc + 198.07277) - rho_t*(RI - 3.35988)"
+      },
+      {
+        "index": 19,
+        "complexity": 25,
+        "loss": 35.7938,
+        "ratio_R2": 0.9387,
+        "mmax_R2": 0.9387,
+        "mmax_RMSE": 5.9817,
+        "mmax_MAE": 4.0605,
+        "mmax_MAPE": 33.05,
+        "equation": "sqrt(RI)*(-CSI**0.6963602 + b)*(0.0052542244*d + 0.0107447664745715*fc - 1.04061879321926) - rho_t*(exp(RI) - 4.4420257)"
+      }
+    ]
+  },
+  "final_metrics": {
+    "winner": "DIRECT",
+    "approach": "Dual PySR -- winner: DIRECT",
+    "mmax_R2": 0.9387,
+    "mmax_RMSE": 5.9817,
+    "mmax_MAE": 4.0605,
+    "mmax_MAPE": 33.05,
+    "mmax_CV_pct": 26.35,
+    "mmax_SD_M": 0.2635,
+    "L1_broken": true,
+    "L2_broken": false,
+    "equation": "sqrt(RI)*(-CSI**0.6963602 + b)*(0.0052542244*d + 0.0107447664745715*fc - 1.04061879321926) - rho_t*(exp(RI) - 4.4420257)",
+    "equation_latex": "\\sqrt{RI} \\left(- CSI^{0.696} + b\\right) \\left(0.00525 d + 0.0107 fc - 1.04\\right) - \\rho_{t} \\left(e^{RI} - 4.44\\right)",
+    "n_samples": 804,
+    "ratio_approach_R2": 0.9241,
+    "direct_approach_R2": 0.9387,
+    "timestamp": "2026-04-16 12:56:42.393144"
+  },
+  "generated_at": "2026-04-16 12:56:42.404236"
+}

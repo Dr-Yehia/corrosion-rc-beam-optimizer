@@ -1,0 +1,175 @@
+2026-04-16 12:43:04 | INFO     | =================================================================
+2026-04-16 12:43:04 | INFO     |   Corrosion RC Beam Optimizer -- Part 2: PySR Equations
+2026-04-16 12:43:04 | INFO     |   Started: 2026-04-16 12:43:04
+2026-04-16 12:43:04 | INFO     | =================================================================
+2026-04-16 12:43:04 | INFO     | Re-running preprocessing + ACI ...
+2026-04-16 12:43:04 | INFO     | ══════════════════════════════════════════════════
+2026-04-16 12:43:04 | INFO     |  Starting Preprocessing Pipeline
+2026-04-16 12:43:04 | INFO     | ══════════════════════════════════════════════════
+2026-04-16 12:43:04 | INFO     | Loading raw data from: /kaggle/working/corrosion-rc-beam-optimizer/data/Database.csv
+2026-04-16 12:43:04 | INFO     | Raw data loaded (encoding=utf-8-sig) — shape: (804, 60)
+2026-04-16 12:43:04 | INFO     | Column names normalised: ['No.', 'Mass Loss (Tensile bars), ηm (%)', 'Mmax,exp (kNm)', 'Mmax,exp (kNm)']
+2026-04-16 12:43:04 | INFO     | After column fix — shape: (804, 59)
+2026-04-16 12:43:04 | INFO     | === Dataset Inspection ===
+2026-04-16 12:43:04 | INFO     |   Rows    : 804
+2026-04-16 12:43:04 | INFO     |   Columns : 59
+2026-04-16 12:43:04 | INFO     |   Missing %:
+Comments                                         7.09
+fy Longitudinal Bars (Tensile), (MPa)            0.87
+fsu Long Bars, (MPa)                             4.48
+Stirrup Bar Type                                22.64
+fy,s Stirrup Bars                               14.80
+Max Aggregate Size (mm)                         19.53
+Cathode Type                                     7.09
+Corrosion Current Density, Icorr (ÃÂ¼A/cm2)     9.58
+Duration, (days)                                12.56
+Wet/Dry Cyclic Ratio (days)                     91.04
+Mass Loss (Tensile bars), ηm (%)                 1.62
+Average Sample Length, (mm)                      0.87
+Py (kN)                                         17.91
+Pmax (kN)                                        1.00
+Residual Capacity, R (%)                         1.74
+ÃÂy (mm)                                      13.43
+ÃÂult (mm)                                    15.55
+Elastic Stiffness, k (kN/mm)                    13.43
+Displacement Ductility, ÃÂ¼ÃÂ                15.55
+Extra Notes                                      7.46
+2026-04-16 12:43:04 | INFO     | Starting data cleaning ...
+2026-04-16 12:43:04 | INFO     | Columns selected: 20 (3 categorical + 15 numeric)
+2026-04-16 12:43:04 | INFO     | Dropped 0 rows with missing target (Mmax,exp (kNm)).
+2026-04-16 12:43:04 | INFO     |   Imputed 'fy Longitudinal Bars (Tensile), (MPa) ' (7 nulls) with median = 374.860
+2026-04-16 12:43:04 | INFO     |   Imputed 'fy,s Stirrup Bars' (119 nulls) with median = 250.000
+2026-04-16 12:43:04 | INFO     |   Imputed 'Mass Loss (Tensile bars), ηm (%)' (13 nulls) with median = 6.980
+2026-04-16 12:43:04 | INFO     | Physical filter (ηm 0-64%): removed 0 rows.
+2026-04-16 12:43:04 | INFO     | Physical filter (Mmax > 0): removed 0 rows.
+2026-04-16 12:43:04 | INFO     | Clean data shape: (804, 20)
+2026-04-16 12:43:04 | INFO     | Applied log1p transform to ηm → 'eta_log'
+2026-04-16 12:43:04 | INFO     | Feature engineering: 5 derived features added.
+2026-04-16 12:43:04 | INFO     | Encoded 'Longitudinal Bar Type': {0: 'D', 1: 'P'}
+2026-04-16 12:43:04 | INFO     | Encoded 'Test Type and Configuration': {0: 'SS-FPB-MONO', 1: 'SS_CONT_TPB_MONO', 2: 'SS_FPB_MONO', 3: 'SS_FPB_MONO_SUST', 4: 'SS_FPB_MONO_SUST_PREC', 5: 'SS_TPB_MONO', 6: 'SS_TPB_MONO_SUST'}
+2026-04-16 12:43:04 | INFO     | Encoded 'Corrosion Method': {0: 'C', 1: 'EI', 2: 'IC', 3: 'N'}
+2026-04-16 12:43:04 | INFO     | Encoder mapping saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/cat_encoders.json
+2026-04-16 12:43:04 | INFO     | Clean data saved → /kaggle/working/corrosion-rc-beam-optimizer/data/clean_data.csv  (804 rows)
+2026-04-16 12:43:04 | INFO     | Features total: 23 (15 numeric + 3 categorical + 5 engineered)
+2026-04-16 12:43:04 | INFO     | Train: 562 | Test: 242
+2026-04-16 12:43:04 | INFO     | y_train — mean: 22.45, std: 23.66
+2026-04-16 12:43:04 | INFO     | y_test  — mean: 23.28,  std: 25.34
+2026-04-16 12:43:04 | INFO     | Scalers saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/scaler_X.pkl, /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/scaler_y.pkl
+2026-04-16 12:43:04 | INFO     | ══════════════════════════════════════════════════
+2026-04-16 12:43:04 | INFO     |  Preprocessing complete ✓
+2026-04-16 12:43:04 | INFO     | ══════════════════════════════════════════════════
+2026-04-16 12:43:04 | INFO     | ══════════════════════════════════════
+2026-04-16 12:43:04 | INFO     |  ACI 318-19 Benchmark Results
+2026-04-16 12:43:04 | INFO     | ══════════════════════════════════════
+2026-04-16 12:43:04 | INFO     |   Specimens     : 804
+2026-04-16 12:43:04 | INFO     |   R²            : 0.8839
+2026-04-16 12:43:04 | INFO     |   RMSE          : 8.2289 kN·m
+2026-04-16 12:43:04 | INFO     |   MAE           : 5.0617 kN·m
+2026-04-16 12:43:04 | INFO     |   MAPE          : 29.9 %
+2026-04-16 12:43:04 | INFO     |   Ratio mean    : 1.1845  (target = 1.0)
+2026-04-16 12:43:04 | INFO     |   Ratio std     : 0.5874
+2026-04-16 12:43:04 | INFO     |   Ratio range   : 0.2735 – 5.2832
+2026-04-16 12:43:04 | INFO     |   Underestimates: 48.5 % of specimens
+2026-04-16 12:43:04 | INFO     | ══════════════════════════════════════
+2026-04-16 12:43:04 | INFO     | Data loaded: 804 samples
+2026-04-16 12:43:04 | INFO     | Part 1 summary loaded.
+2026-04-16 12:45:52 | INFO     | PySR config: niterations=400, maxsize=25, populations=60
+2026-04-16 12:45:52 | INFO     | 
+============================================================
+2026-04-16 12:45:52 | INFO     |   Phase 3A -- PySR Ratio Approach
+2026-04-16 12:45:52 | INFO     | ============================================================
+2026-04-16 12:45:52 | INFO     |   Ratio: 804 samples, features: ['eta_m', 'fy', 'fc', 'd', 'b', 'rho_t', 'd_b']
+2026-04-16 12:45:52 | INFO     |   Ratio range: [0.273, 5.283]
+2026-04-16 12:45:52 | INFO     |   Starting PySR Ratio training ...
+2026-04-16 12:51:52 | INFO     |   Ratio training complete.
+2026-04-16 12:51:53 | INFO     | ============================================================
+2026-04-16 12:51:53 | INFO     |   Evaluating Ratio Pareto Equations
+2026-04-16 12:51:53 | INFO     | ============================================================
+2026-04-16 12:51:54 | INFO     |   R| C= 1 | Ratio R2=-0.0000 | Mmax R2=0.8064 | MAPE=38.2% | 1.18446660000000
+2026-04-16 12:51:54 | INFO     |   R| C= 3 | Ratio R2=0.3354 | Mmax R2=0.8774 | MAPE=33.0% | 1.0210657**eta_m
+2026-04-16 12:51:54 | INFO     |   R| C= 5 | Ratio R2=0.3478 | Mmax R2=0.8914 | MAPE=30.3% | eta_m*0.03637062 + 0.8551609
+2026-04-16 12:51:54 | INFO     |   R| C= 6 | Ratio R2=0.3962 | Mmax R2=0.8512 | MAPE=26.6% | 376.77264/(fy*sqrt(rho_t))
+2026-04-16 12:51:54 | INFO     |   R| C= 7 | Ratio R2=0.4370 | Mmax R2=0.9155 | MAPE=28.9% | eta_m*0.026228221/rho_t - 1*(-0.8921807)
+2026-04-16 12:51:54 | INFO     |   R| C= 8 | Ratio R2=0.4448 | Mmax R2=0.8690 | MAPE=27.6% | 500.3233/(sqrt(rho_t)*(fy + 88.27653))
+2026-04-16 12:51:54 | INFO     |   R| C= 9 | Ratio R2=0.4685 | Mmax R2=0.9033 | MAPE=28.4% | (sqrt(eta_m) + 18.70202)/sqrt(fy*rho_t)
+2026-04-16 12:51:54 | INFO     |   R| C=10 | Ratio R2=0.5197 | Mmax R2=0.9052 | MAPE=26.4% | 0.02238335*eta_m/rho_t + 17.579275/sqrt(fy)
+2026-04-16 12:51:54 | INFO     |   R| C=11 | Ratio R2=0.5226 | Mmax R2=0.9118 | MAPE=27.2% | (0.020852137*eta_m + 17.540636/sqrt(fy))/sqrt(rho_t)
+2026-04-16 12:51:54 | INFO     |   R| C=12 | Ratio R2=0.5446 | Mmax R2=0.8791 | MAPE=25.6% | (0.0023534151*b*eta_m/rho_t + 18.21959)/sqrt(fy)
+2026-04-16 12:51:54 | INFO     |   R| C=13 | Ratio R2=0.5476 | Mmax R2=0.9040 | MAPE=25.0% | (13.950256 + (0.29569784*sqrt(d) + 0.29569784*eta_m)/rh
+2026-04-16 12:51:54 | INFO     |   R| C=14 | Ratio R2=0.5653 | Mmax R2=0.8910 | MAPE=25.3% | (14.302874 + (0.0013309497*d*eta_m + 4.213025)/rho_t)/s
+2026-04-16 12:51:54 | INFO     |   R| C=15 | Ratio R2=0.5678 | Mmax R2=0.9078 | MAPE=25.0% | (14.833907 + (0.0019994543*b*eta_m + log(fc))/rho_t)/sq
+2026-04-16 12:51:54 | INFO     |   R| C=16 | Ratio R2=0.5694 | Mmax R2=0.8842 | MAPE=25.0% | -0.24315514 + (18.311316 + (0.0012430968*d*eta_m + 4.78
+2026-04-16 12:51:54 | INFO     |   R| C=17 | Ratio R2=0.5706 | Mmax R2=0.8989 | MAPE=25.0% | -0.32800755 + (18.693129 + (0.0011591116*d*eta_m + sqrt
+2026-04-16 12:51:54 | INFO     |   R| C=18 | Ratio R2=0.5862 | Mmax R2=0.9176 | MAPE=25.0% | 6.8900144e-6*b*eta_m**1.9047759 - 0.2612353 + (15.74949
+2026-04-16 12:51:54 | INFO     |   R| C=19 | Ratio R2=0.5868 | Mmax R2=0.9241 | MAPE=24.3% | -0.29305854 + (18.701345 + (0.0001643053*b*eta_m**1.683
+2026-04-16 12:51:54 | INFO     |   R| C=20 | Ratio R2=0.5993 | Mmax R2=0.9100 | MAPE=24.4% | -(-2.8489767e-6*b*eta_m**2 + 0.5333192)/rho_t + (12.858
+2026-04-16 12:51:54 | INFO     |   R| C=21 | Ratio R2=0.5994 | Mmax R2=0.9185 | MAPE=24.2% | 5.265267e-6*b*eta_m**1.8486094/rho_t - 0.4406867 + (sqr
+2026-04-16 12:51:54 | INFO     |   R| C=22 | Ratio R2=0.6052 | Mmax R2=0.9041 | MAPE=24.4% | (15.176381 + 13.190804/rho_t)/sqrt(eta_m + fy) - (-3.41
+2026-04-16 12:51:54 | INFO     |   R| C=24 | Ratio R2=0.6118 | Mmax R2=0.8958 | MAPE=24.4% | (19.42836 + 12.972543/rho_t)/sqrt(eta_m + fy) - (-6.678
+2026-04-16 12:51:54 | INFO     | 
+  Ratio best: idx=16, Mmax R2=0.9241
+2026-04-16 12:51:54 | INFO     |   Ratio: R2=0.9241, RMSE=6.66, MAPE=24.3%
+2026-04-16 12:51:54 | INFO     | 
+============================================================
+2026-04-16 12:51:54 | INFO     |   Phase 3B -- PySR Direct Mmax Prediction
+2026-04-16 12:51:54 | INFO     | ============================================================
+2026-04-16 12:51:54 | INFO     |   Direct: 804 samples, features: ['eta_m', 'fy', 'fc', 'd', 'b', 'rho_t', 'db_t', 'd_b', 'RI', 'CSI']
+2026-04-16 12:51:54 | INFO     |   Starting PySR Direct training ...
+2026-04-16 12:56:40 | INFO     |   Direct training complete.
+2026-04-16 12:56:41 | INFO     | ============================================================
+2026-04-16 12:56:41 | INFO     |   Evaluating Direct Pareto Equations
+2026-04-16 12:56:41 | INFO     | ============================================================
+2026-04-16 12:56:41 | INFO     |   D| C= 1 R2=0.0708 RMSE=23.28 MAPE=89.0% | db_t
+2026-04-16 12:56:41 | INFO     |   D| C= 3 R2=0.5040 RMSE=17.01 MAPE=185.4% | d*0.13564135
+2026-04-16 12:56:41 | INFO     |   D| C= 4 R2=0.5162 RMSE=16.80 MAPE=165.7% | exp(db_t**0.4530122)
+2026-04-16 12:56:41 | INFO     |   D| C= 5 R2=0.7893 RMSE=11.09 MAPE=50.3% | -(-0.31237632)*d - 39.217346
+2026-04-16 12:56:41 | INFO     |   D| C= 6 R2=0.8614 RMSE=8.99 MAPE=39.6% | sqrt(RI)*(d - 130.47328)
+2026-04-16 12:56:41 | INFO     |   D| C= 7 R2=0.8620 RMSE=8.97 MAPE=42.8% | (RI - 1*(-0.20025688))*(d - 126.37754)
+2026-04-16 12:56:41 | INFO     |   D| C= 8 R2=0.8803 RMSE=8.36 MAPE=40.9% | sqrt(RI)*(d + fc - 165.90462)
+2026-04-16 12:56:41 | INFO     |   D| C= 9 R2=0.8897 RMSE=8.02 MAPE=35.3% | (115.079445 - d)*(-RI + b*(-0.000933136))
+2026-04-16 12:56:41 | INFO     |   D| C=10 R2=0.8899 RMSE=8.01 MAPE=33.1% | -0.0015250529*b*sqrt(rho_t)*(105.51635 - d)
+2026-04-16 12:56:41 | INFO     |   D| C=11 R2=0.9048 RMSE=7.45 MAPE=36.8% | (-RI + b*(-0.00096965063))*(-d - fc + 152.27693)
+2026-04-16 12:56:41 | INFO     |   D| C=12 R2=0.9204 RMSE=6.81 MAPE=29.6% | -0.00082030403*b*sqrt(RI*fc)*(111.04266 - d)
+2026-04-16 12:56:41 | INFO     |   D| C=14 R2=0.9296 RMSE=6.41 MAPE=28.2% | sqrt(RI*fc)*(b - eta_m)*(0.00084864115*d - 0.0934187572
+2026-04-16 12:56:41 | INFO     |   D| C=16 R2=0.9333 RMSE=6.24 MAPE=27.0% | -0.00088286825*sqrt(RI*fc)*(108.84921 - d)*(-CSI**0.676
+2026-04-16 12:56:42 | INFO     |   D| C=18 R2=0.9357 RMSE=6.12 MAPE=32.9% | -0.005016051*sqrt(RI)*(-CSI**0.68022853 + b)*(-d - 2.42
+2026-04-16 12:56:42 | INFO     |   D| C=20 R2=0.9372 RMSE=6.05 MAPE=33.1% | sqrt(RI)*((CSI**0.70154774 - b)*(-0.0052810544*d - 0.01
+2026-04-16 12:56:42 | INFO     |   D| C=21 R2=0.9372 RMSE=6.05 MAPE=33.3% | sqrt(RI)*((-0.005285334*b + 0.005285334*sqrt(CSI**1.403
+2026-04-16 12:56:42 | INFO     |   D| C=22 R2=0.9384 RMSE=6.00 MAPE=32.2% | -0.0052415524*sqrt(RI)*(-CSI**0.69393444 + b)*(-d - 2.0
+2026-04-16 12:56:42 | INFO     |   D| C=23 R2=0.9384 RMSE=6.00 MAPE=32.2% | -0.005241671*sqrt(RI)*(b - sqrt(CSI**1.3879743))*(-d - 
+2026-04-16 12:56:42 | INFO     |   D| C=24 R2=0.9386 RMSE=5.99 MAPE=32.8% | -0.005251214*sqrt(RI)*(-CSI**0.6957688 + b)*(-d - 2.053
+2026-04-16 12:56:42 | INFO     |   D| C=25 R2=0.9387 RMSE=5.98 MAPE=33.0% | sqrt(RI)*(-CSI**0.6963602 + b)*(0.0052542244*d + 0.0107
+2026-04-16 12:56:42 | INFO     | 
+  Direct best: idx=19, R2=0.9387
+2026-04-16 12:56:42 | INFO     |   Direct: R2=0.9387, RMSE=5.98, MAPE=33.0%
+2026-04-16 12:56:42 | INFO     | 
+============================================================
+2026-04-16 12:56:42 | INFO     |   FINAL COMPARISON -- Ratio vs Direct
+2026-04-16 12:56:42 | INFO     | ============================================================
+2026-04-16 12:56:42 | INFO     |   Ratio  : Mmax R2=0.9241 | RMSE=6.66 | MAPE=24.3%
+2026-04-16 12:56:42 | INFO     |   Direct : Mmax R2=0.9387 | RMSE=5.98 | MAPE=33.0%
+2026-04-16 12:56:42 | SUCCESS  |   >>> WINNER: Direct (R2=0.9387)
+2026-04-16 12:56:42 | INFO     | 
+============================================================
+2026-04-16 12:56:42 | INFO     |   Saving Equations
+2026-04-16 12:56:42 | INFO     | ============================================================
+2026-04-16 12:56:42 | INFO     |   Equations saved to /kaggle/working/corrosion-rc-beam-optimizer/final_results/equations
+2026-04-16 12:56:42 | INFO     |   PUBLICATION EQUATION (DIRECT):
+2026-04-16 12:56:42 | INFO     |     sqrt(RI)*(-CSI**0.6963602 + b)*(0.0052542244*d + 0.0107447664745715*fc - 1.04061879321926) - rho_t*(exp(RI) - 4.4420257)
+2026-04-16 12:56:42 | INFO     |     R2=0.9387 | RMSE=5.9817 | MAE=4.0605 | MAPE=33.05%
+2026-04-16 12:56:42 | INFO     |     CV%=26.35% | SD/M=0.2635
+2026-04-16 12:56:42 | INFO     |     L1=True | L2=False
+2026-04-16 12:56:42 | INFO     | 
+============================================================
+2026-04-16 12:56:42 | INFO     |   Generating PySR Figures
+2026-04-16 12:56:42 | INFO     | ============================================================
+2026-04-16 12:56:43 | INFO     |   Fig 8 OK -- PySR DIRECT Scatter (log-log)
+2026-04-16 12:56:43 | INFO     |   Fig 9 OK -- Pareto Curve
+2026-04-16 12:56:44 | INFO     |   Fig 10 OK -- Pareto Mmax Performance
+2026-04-16 12:56:44 | INFO     |   Fig 11 OK -- Ratio vs eta_m
+2026-04-16 12:56:44 | INFO     |   PySR figures generated: 4
+2026-04-16 12:56:44 | INFO     | 
+============================================================
+2026-04-16 12:56:44 | INFO     |   Generating PDF Report
+2026-04-16 12:56:44 | INFO     | ============================================================
+2026-04-16 12:56:48 | INFO     | PDF Report saved -> /kaggle/working/corrosion-rc-beam-optimizer/final_results/Final_Report.pdf
