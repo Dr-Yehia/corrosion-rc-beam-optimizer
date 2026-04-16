@@ -175,11 +175,11 @@ def _sanitize_name(name):
 
 # ======= PySR HYPERPARAMETERS — OPTIMIZED FOR BEST RMSE+MAE+CV% =======
 PYSR_COMMON = dict(
-    niterations=800,
-    maxsize=30,
-    populations=80,
-    population_size=50,
-    ncycles_per_iteration=800,
+    niterations=400,
+    maxsize=25,
+    populations=50,
+    population_size=40,
+    ncycles_per_iteration=550,
     binary_operators=["+", "-", "*", "/", "^"],
     unary_operators=["sqrt", "log", "exp", "abs"],
     nested_constraints={

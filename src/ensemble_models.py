@@ -71,15 +71,14 @@ def _tune_catboost_optuna(X_train, y_train):
 
     def objective(trial):
         params = {
-            "iterations":          trial.suggest_int("iterations", 800, 5000),
-            "depth":               trial.suggest_int("depth", 4, 10),
-            "learning_rate":       trial.suggest_float("learning_rate", 0.005, 0.3, log=True),
-            "l2_leaf_reg":         trial.suggest_float("l2_leaf_reg", 0.01, 30.0, log=True),
-            "subsample":           trial.suggest_float("subsample", 0.5, 1.0),
-            "colsample_bylevel":   trial.suggest_float("colsample_bylevel", 0.4, 1.0),
-            "min_child_samples":   trial.suggest_int("min_child_samples", 1, 50),
+            "iterations":          trial.suggest_int("iterations", 500, 3000),
+            "depth":               trial.suggest_int("depth", 4, 8),
+            "learning_rate":       trial.suggest_float("learning_rate", 0.008, 0.15, log=True),
+            "l2_leaf_reg":         trial.suggest_float("l2_leaf_reg", 0.1, 15.0, log=True),
+            "subsample":           trial.suggest_float("subsample", 0.6, 1.0),
+            "colsample_bylevel":   trial.suggest_float("colsample_bylevel", 0.5, 1.0),
+            "min_child_samples":   trial.suggest_int("min_child_samples", 1, 30),
             "bagging_temperature": trial.suggest_float("bagging_temperature", 0.0, 1.0),
-            "random_strength":     trial.suggest_float("random_strength", 0.0, 10.0),
             "random_seed":         RANDOM_STATE,
             "verbose":             0,
         }
@@ -94,7 +93,7 @@ def _tune_catboost_optuna(X_train, y_train):
     study = optuna.create_study(direction="maximize",
                                 study_name="catboost_tuning",
                                 sampler=optuna.samplers.TPESampler(
-                                    seed=RANDOM_STATE, n_startup_trials=30))
+                                    seed=RANDOM_STATE, n_startup_trials=15))
     study.optimize(objective, n_trials=OPTUNA_N_TRIALS,
                    timeout=OPTUNA_TIMEOUT, show_progress_bar=False)
 
@@ -204,7 +203,7 @@ def run_ensemble_pipeline(X_train, X_test, y_train, y_test, scaler_y=None):
         from lightgbm import LGBMRegressor
         logger.info("Training LightGBM ...")
         lgbm = LGBMRegressor(
-            n_estimators=1500, max_depth=6, learning_rate=0.03,
+            n_estimators=1000, max_depth=6, learning_rate=0.03,
             subsample=0.8, colsample_bytree=0.8,
             reg_alpha=0.1, reg_lambda=1.0,
             min_child_samples=5, num_leaves=31,
@@ -212,7 +211,7 @@ def run_ensemble_pipeline(X_train, X_test, y_train, y_test, scaler_y=None):
         )
         lgbm.fit(X_train, y_tr,
                  eval_set=[(X_test, y_te)],
-                 callbacks=[__import__("lightgbm").early_stopping(50, verbose=False)])
+                 callbacks=[__import__("lightgbm").early_stopping(40, verbose=False)])
         results["LightGBM"] = {
             "model": lgbm,
             "train": _metrics(y_tr, lgbm.predict(X_train), "LightGBM-Train"),
@@ -227,7 +226,7 @@ def run_ensemble_pipeline(X_train, X_test, y_train, y_test, scaler_y=None):
     from sklearn.ensemble import ExtraTreesRegressor
     logger.info("Training ExtraTrees ...")
     etr = ExtraTreesRegressor(
-        n_estimators=500, max_depth=None, min_samples_leaf=2,
+        n_estimators=400, max_depth=None, min_samples_leaf=2,
         random_state=RANDOM_STATE, n_jobs=-1,
     )
     etr.fit(X_train, y_tr)
@@ -338,10 +337,9 @@ def run_ensemble_pipeline(X_train, X_test, y_train, y_test, scaler_y=None):
     if len(estimators) >= 2:
         stacking = StackingRegressor(
             estimators     = estimators,
-            final_estimator= Ridge(alpha=0.5),
+            final_estimator= Ridge(alpha=1.0),
             cv             = 5,
-            n_jobs         = 1,
-            passthrough    = True,
+            n_jobs         = -1,
         )
         stacking.fit(X_train, y_tr)
         results["Stacking"] = {
