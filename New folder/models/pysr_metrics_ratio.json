@@ -1,0 +1,10 @@
+{
+  "approach": "Ratio = Mmax_exp / M_ACI",
+  "mmax_R2": 0.9229,
+  "mmax_RMSE": 6.7052,
+  "mmax_MAE": 4.2245,
+  "mmax_MAPE": 28.88,
+  "equation": "0.79484296 + (eta_m*0.024670444 + 0.100068964)/rho_t",
+  "equation_latex": "0.795 + \\frac{\\eta_{m} 0.0247 + 0.100}{\\rho_{t}}",
+  "n_samples": 804
+}

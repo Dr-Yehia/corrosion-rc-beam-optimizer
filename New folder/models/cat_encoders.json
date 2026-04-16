@@ -1,0 +1,21 @@
+{
+  "Longitudinal Bar Type": [
+    "D",
+    "P"
+  ],
+  "Test Type and Configuration": [
+    "SS-FPB-MONO",
+    "SS_CONT_TPB_MONO",
+    "SS_FPB_MONO",
+    "SS_FPB_MONO_SUST",
+    "SS_FPB_MONO_SUST_PREC",
+    "SS_TPB_MONO",
+    "SS_TPB_MONO_SUST"
+  ],
+  "Corrosion Method": [
+    "C",
+    "EI",
+    "IC",
+    "N"
+  ]
+}

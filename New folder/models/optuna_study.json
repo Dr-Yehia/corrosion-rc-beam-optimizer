@@ -1,0 +1,13 @@
+{
+  "best_value": 0.9769,
+  "best_params": {
+    "iterations": 2178,
+    "depth": 4,
+    "learning_rate": 0.054348955084179126,
+    "l2_leaf_reg": 2.2308624255108285,
+    "subsample": 0.6376392813462809,
+    "colsample_bylevel": 0.8891334278304859,
+    "min_child_samples": 20
+  },
+  "n_trials": 38
+}

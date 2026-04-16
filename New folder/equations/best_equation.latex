@@ -1,0 +1,4 @@
+% Best PySR Equation (DIRECT)
+% Generated: 2026-04-15 22:46:31.149452
+
+M_{\max} = d d \left(b - \left(CSI 0.139 + e^{- d_{b} + \rho_{t}}\right)\right) \left(\left(fc - 9.33\right) 7.87 \cdot 10^{-7} RI + 1.26 \cdot 10^{-6}\right)
