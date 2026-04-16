@@ -95,37 +95,37 @@ NN_VALIDATION_FRAC = 0.10
 
 # ── Ensemble Models ──────────────────────────────────────────
 # XGBoost
-XGB_N_ESTIMATORS   = 1000
+XGB_N_ESTIMATORS   = 2000
 XGB_MAX_DEPTH      = 6
-XGB_LEARNING_RATE  = 0.05
+XGB_LEARNING_RATE  = 0.03
 XGB_SUBSAMPLE      = 0.8
 XGB_COLSAMPLE      = 0.8
-XGB_REG_ALPHA      = 0.1
+XGB_REG_ALPHA      = 0.05
 XGB_REG_LAMBDA     = 1.0
-XGB_EARLY_STOP     = 50
+XGB_EARLY_STOP     = 80
 
 # Random Forest
-RF_N_ESTIMATORS    = 500
+RF_N_ESTIMATORS    = 800
 RF_MAX_DEPTH       = None
-RF_MIN_SAMPLES     = 2
+RF_MIN_SAMPLES     = 1
 
 # Gradient Boosting
-GBR_N_ESTIMATORS   = 500
+GBR_N_ESTIMATORS   = 1000
 GBR_MAX_DEPTH      = 5
-GBR_LEARNING_RATE  = 0.05
+GBR_LEARNING_RATE  = 0.03
 GBR_SUBSAMPLE      = 0.8
 
 # CatBoost — same algorithm as Zhang et al. (2025)
-CAT_ITERATIONS     = 2000
+CAT_ITERATIONS     = 3000
 CAT_DEPTH          = 8
-CAT_LEARNING_RATE  = 0.05
+CAT_LEARNING_RATE  = 0.03
 CAT_L2_REG         = 3.0
-CAT_EARLY_STOP     = 100
+CAT_EARLY_STOP     = 150
 
 # ── Optuna ───────────────────────────────────────────────────
-OPTUNA_N_TRIALS    = 100
+OPTUNA_N_TRIALS    = 250
 OPTUNA_CV_FOLDS    = 5
-OPTUNA_TIMEOUT     = 600
+OPTUNA_TIMEOUT     = 900
 
 # ── GA — NSGA-III ────────────────────────────────────────────
 # These values match the README exactly.

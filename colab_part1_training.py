@@ -38,7 +38,7 @@ import subprocess, sys, os
 def install(pkg):
     subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", pkg])
 
-for p in ["loguru", "catboost", "xgboost", "optuna", "shap",
+for p in ["loguru", "catboost", "xgboost", "lightgbm", "optuna", "shap",
            "scikit-learn", "matplotlib", "seaborn", "fpdf2"]:
     try:
         __import__(p.replace("-", "_"))

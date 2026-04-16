@@ -1,0 +1,10 @@
+{
+  "top5_features": [
+    "Depth (mm)",
+    "Width (mm)",
+    "Diameter Tensile Bars, db,t (mm)",
+    "Stirrup Diameter, ds (mm)",
+    "Tension Reinforcement Ratio, pten (%)"
+  ],
+  "generated_at": "2026-04-16 15:02:01.326212"
+}

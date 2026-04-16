@@ -191,7 +191,7 @@ PYSR_COMMON = dict(
     constraints={"^": (-1, 1), "sqrt": 9, "log": 9, "exp": 5, "abs": 9},
     model_selection="accuracy",
     elementwise_loss=(
-        "loss(x, y) = (x - y)^2 + 0.3 * ((x - y) / (abs(y) + 0.5))^2"
+        "loss(x, y, w) = w * ((x - y)^2 + 0.3 * ((x - y) / (abs(y) + 0.5))^2)"
     ),
     verbosity=1,
     random_state=RANDOM_STATE,

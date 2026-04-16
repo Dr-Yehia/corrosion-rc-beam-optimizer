@@ -1,0 +1,55 @@
+{
+  "target": "Mmax,exp (kNm)",
+  "log_transform": true,
+  "best_model": "CatBoost",
+  "models": {
+    "XGBoost": {
+      "train_R2": 0.9965,
+      "test_R2": 0.9737,
+      "test_RMSE": 4.1043,
+      "test_MAE": 2.1199,
+      "test_MAPE": 12.38,
+      "L1_broken": true,
+      "L2_broken": true
+    },
+    "RandomForest": {
+      "train_R2": 0.9861,
+      "test_R2": 0.9673,
+      "test_RMSE": 4.573,
+      "test_MAE": 2.4264,
+      "test_MAPE": 13.47,
+      "L1_broken": true,
+      "L2_broken": false
+    },
+    "GBR": {
+      "train_R2": 0.9988,
+      "test_R2": 0.9677,
+      "test_RMSE": 4.5421,
+      "test_MAE": 2.3502,
+      "test_MAPE": 12.49,
+      "L1_broken": true,
+      "L2_broken": false
+    },
+    "CatBoost": {
+      "train_R2": 0.9936,
+      "test_R2": 0.9764,
+      "test_RMSE": 3.8845,
+      "test_MAE": 2.0242,
+      "test_MAPE": 12.14,
+      "L1_broken": true,
+      "L2_broken": true
+    },
+    "Stacking": {
+      "train_R2": 0.9957,
+      "test_R2": 0.9754,
+      "test_RMSE": 3.9644,
+      "test_MAE": 2.0431,
+      "test_MAPE": 11.71,
+      "L1_broken": true,
+      "L2_broken": true
+    }
+  },
+  "L1_broken": true,
+  "L2_broken": true,
+  "saved_at": "2026-04-16 15:01:09.026577"
+}

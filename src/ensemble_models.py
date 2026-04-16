@@ -71,29 +71,34 @@ def _tune_catboost_optuna(X_train, y_train):
 
     def objective(trial):
         params = {
-            "iterations":        trial.suggest_int("iterations", 500, 3000),
-            "depth":             trial.suggest_int("depth", 4, 10),
-            "learning_rate":     trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
-            "l2_leaf_reg":       trial.suggest_float("l2_leaf_reg", 0.1, 10.0, log=True),
-            "subsample":         trial.suggest_float("subsample", 0.6, 1.0),
-            "colsample_bylevel": trial.suggest_float("colsample_bylevel", 0.5, 1.0),
-            "min_child_samples": trial.suggest_int("min_child_samples", 1, 30),
-            "random_seed":       RANDOM_STATE,
-            "verbose":           0,
+            "iterations":          trial.suggest_int("iterations", 800, 5000),
+            "depth":               trial.suggest_int("depth", 4, 10),
+            "learning_rate":       trial.suggest_float("learning_rate", 0.005, 0.3, log=True),
+            "l2_leaf_reg":         trial.suggest_float("l2_leaf_reg", 0.01, 30.0, log=True),
+            "subsample":           trial.suggest_float("subsample", 0.5, 1.0),
+            "colsample_bylevel":   trial.suggest_float("colsample_bylevel", 0.4, 1.0),
+            "min_child_samples":   trial.suggest_int("min_child_samples", 1, 50),
+            "bagging_temperature": trial.suggest_float("bagging_temperature", 0.0, 1.0),
+            "random_strength":     trial.suggest_float("random_strength", 0.0, 10.0),
+            "random_seed":         RANDOM_STATE,
+            "verbose":             0,
         }
         model  = CatBoostRegressor(**params)
         kf     = KFold(n_splits=OPTUNA_CV_FOLDS, shuffle=True,
                        random_state=RANDOM_STATE)
         scores = cross_val_score(model, X_train, y_train,
-                                 cv=kf, scoring="r2", n_jobs=-1)
+                                 cv=kf, scoring="neg_root_mean_squared_error",
+                                 n_jobs=-1)
         return scores.mean()
 
     study = optuna.create_study(direction="maximize",
-                                study_name="catboost_tuning")
+                                study_name="catboost_tuning",
+                                sampler=optuna.samplers.TPESampler(
+                                    seed=RANDOM_STATE, n_startup_trials=30))
     study.optimize(objective, n_trials=OPTUNA_N_TRIALS,
                    timeout=OPTUNA_TIMEOUT, show_progress_bar=False)
 
-    logger.info(f"Optuna best trial: R\u00b2={study.best_value:.4f}")
+    logger.info(f"Optuna best trial: neg_RMSE={study.best_value:.6f}")
     logger.info(f"Optuna best params: {study.best_params}")
 
     study_path = MODELS_DIR / "optuna_study.json"
@@ -194,6 +199,46 @@ def run_ensemble_pipeline(X_train, X_test, y_train, y_test, scaler_y=None):
     joblib.dump(gbr, MODELS_DIR / "model_gbr.pkl")
     logger.info("Gradient Boosting saved.")
 
+    # ── 3b. LightGBM ──────────────────────────────────────
+    try:
+        from lightgbm import LGBMRegressor
+        logger.info("Training LightGBM ...")
+        lgbm = LGBMRegressor(
+            n_estimators=1500, max_depth=6, learning_rate=0.03,
+            subsample=0.8, colsample_bytree=0.8,
+            reg_alpha=0.1, reg_lambda=1.0,
+            min_child_samples=5, num_leaves=31,
+            random_state=RANDOM_STATE, n_jobs=-1, verbose=-1,
+        )
+        lgbm.fit(X_train, y_tr,
+                 eval_set=[(X_test, y_te)],
+                 callbacks=[__import__("lightgbm").early_stopping(50, verbose=False)])
+        results["LightGBM"] = {
+            "model": lgbm,
+            "train": _metrics(y_tr, lgbm.predict(X_train), "LightGBM-Train"),
+            "test":  _metrics(y_te, lgbm.predict(X_test),  "LightGBM-Test"),
+        }
+        joblib.dump(lgbm, MODELS_DIR / "model_lightgbm.pkl")
+        logger.info("LightGBM saved.")
+    except ImportError:
+        logger.warning("LightGBM not installed — skipping.")
+
+    # ── 3c. ExtraTrees ─────────────────────────────────────
+    from sklearn.ensemble import ExtraTreesRegressor
+    logger.info("Training ExtraTrees ...")
+    etr = ExtraTreesRegressor(
+        n_estimators=500, max_depth=None, min_samples_leaf=2,
+        random_state=RANDOM_STATE, n_jobs=-1,
+    )
+    etr.fit(X_train, y_tr)
+    results["ExtraTrees"] = {
+        "model": etr,
+        "train": _metrics(y_tr, etr.predict(X_train), "ExtraTrees-Train"),
+        "test":  _metrics(y_te, etr.predict(X_test),  "ExtraTrees-Test"),
+    }
+    joblib.dump(etr, MODELS_DIR / "model_extratrees.pkl")
+    logger.info("ExtraTrees saved.")
+
     # ── 4. CatBoost + Optuna ───────────────────────────────
     # FIX (v5): cat_params is initialised to {} BEFORE the try block.
     # If CatBoost is not installed, the Stacking section below can still
@@ -209,13 +254,15 @@ def run_ensemble_pipeline(X_train, X_test, y_train, y_test, scaler_y=None):
 
         if best_params:
             cat_params = {
-                "iterations":        best_params.get("iterations",        CAT_ITERATIONS),
-                "depth":             best_params.get("depth",             CAT_DEPTH),
-                "learning_rate":     best_params.get("learning_rate",     CAT_LEARNING_RATE),
-                "l2_leaf_reg":       best_params.get("l2_leaf_reg",       CAT_L2_REG),
-                "subsample":         best_params.get("subsample",         0.8),
-                "colsample_bylevel": best_params.get("colsample_bylevel", 0.8),
-                "min_child_samples": best_params.get("min_child_samples", 5),
+                "iterations":          best_params.get("iterations",          CAT_ITERATIONS),
+                "depth":               best_params.get("depth",              CAT_DEPTH),
+                "learning_rate":       best_params.get("learning_rate",      CAT_LEARNING_RATE),
+                "l2_leaf_reg":         best_params.get("l2_leaf_reg",        CAT_L2_REG),
+                "subsample":           best_params.get("subsample",          0.8),
+                "colsample_bylevel":   best_params.get("colsample_bylevel", 0.8),
+                "min_child_samples":   best_params.get("min_child_samples", 5),
+                "bagging_temperature": best_params.get("bagging_temperature", 0.0),
+                "random_strength":     best_params.get("random_strength", 1.0),
             }
         else:
             cat_params = {
@@ -246,7 +293,7 @@ def run_ensemble_pipeline(X_train, X_test, y_train, y_test, scaler_y=None):
         logger.warning("CatBoost not installed — skipping. "
                        "Install: pip install catboost")
 
-    # ── 5. Stacking Ensemble ───────────────────────────────
+    # ── 5. Stacking Ensemble (expanded) ──────────────────────
     logger.info("Training Stacking Ensemble ...")
     estimators = []
     if "XGBoost" in results:
@@ -269,10 +316,13 @@ def run_ensemble_pipeline(X_train, X_test, y_train, y_test, scaler_y=None):
             pass
     estimators.append(("rf",  results["RandomForest"]["model"]))
     estimators.append(("gbr", results["GBR"]["model"]))
+    if "LightGBM" in results:
+        estimators.append(("lgbm", results["LightGBM"]["model"]))
+    if "ExtraTrees" in results:
+        estimators.append(("etr", results["ExtraTrees"]["model"]))
     if "CatBoost" in results:
         try:
             from catboost import CatBoostRegressor
-            # cat_params is always defined (initialised to {} above)
             cat_stack = CatBoostRegressor(
                 iterations    = cat_params.get("iterations",    CAT_ITERATIONS),
                 depth         = cat_params.get("depth",         CAT_DEPTH),
@@ -288,9 +338,10 @@ def run_ensemble_pipeline(X_train, X_test, y_train, y_test, scaler_y=None):
     if len(estimators) >= 2:
         stacking = StackingRegressor(
             estimators     = estimators,
-            final_estimator= Ridge(alpha=1.0),
+            final_estimator= Ridge(alpha=0.5),
             cv             = 5,
             n_jobs         = 1,
+            passthrough    = True,
         )
         stacking.fit(X_train, y_tr)
         results["Stacking"] = {
