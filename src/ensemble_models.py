@@ -317,8 +317,6 @@ def run_ensemble_pipeline(X_train, X_test, y_train, y_test, scaler_y=None):
     estimators.append(("gbr", results["GBR"]["model"]))
     if "LightGBM" in results:
         estimators.append(("lgbm", results["LightGBM"]["model"]))
-    if "ExtraTrees" in results:
-        estimators.append(("etr", results["ExtraTrees"]["model"]))
     if "CatBoost" in results:
         try:
             from catboost import CatBoostRegressor

@@ -77,9 +77,23 @@ cfg_txt = re.sub(r'TEST_SIZE\s*=\s*0\.20', 'TEST_SIZE = 0.30', cfg_txt)
 # Fast & Powerful Mode: 150 trials (To beat the 100 trial mark)
 cfg_txt = re.sub(r'OPTUNA_N_TRIALS\s*=\s*\d+', 'OPTUNA_N_TRIALS = 150', cfg_txt)
 
+# Keep Optuna timeout at 600s
+cfg_txt = re.sub(r'OPTUNA_TIMEOUT\s*=\s*\d+', 'OPTUNA_TIMEOUT = 600', cfg_txt)
+
 with open(config_path, "w") as f:
     f.write(cfg_txt)
-print("CONFIG PATCHED: TEST_SIZE=0.30, OPTUNA=150 (Optimal Mode)")
+print("CONFIG PATCHED: TEST_SIZE=0.30, OPTUNA=150, TIMEOUT=600 (Optimal Mode)")
+
+# ============= PATCH ENSEMBLE MODELS FOR Stacking =============
+ens_path = f"{REPO_PATH}/src/ensemble_models.py"
+import os
+if os.path.exists(ens_path):
+    with open(ens_path, "r") as f:
+        ens_txt = f.read()
+    ens_txt = re.sub(r'if "ExtraTrees" in results:\s*estimators\.append\(\("etr", results\["ExtraTrees"\]\["model"\]\)\)', '', ens_txt)
+    with open(ens_path, "w") as f:
+        f.write(ens_txt)
+    print("ENSEMBLE PATCHED: ExtraTrees removed from Stacking in favor of LightGBM.")
 
 os.chdir(f"{REPO_PATH}/src")
 sys.path.insert(0, f"{REPO_PATH}/src")

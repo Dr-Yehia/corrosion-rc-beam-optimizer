@@ -125,7 +125,7 @@ CAT_EARLY_STOP     = 100
 # ── Optuna ───────────────────────────────────────────────────
 OPTUNA_N_TRIALS    = 120
 OPTUNA_CV_FOLDS    = 5
-OPTUNA_TIMEOUT     = 480
+OPTUNA_TIMEOUT     = 600
 
 # ── GA — NSGA-III ────────────────────────────────────────────
 # These values match the README exactly.

@@ -68,10 +68,11 @@ with open(config_path, "r") as f:
 
 cfg_txt = re.sub(r'TEST_SIZE\s*=\s*0\.20', 'TEST_SIZE = 0.30', cfg_txt)
 cfg_txt = re.sub(r'OPTUNA_N_TRIALS\s*=\s*\d+', 'OPTUNA_N_TRIALS = 150', cfg_txt)
+cfg_txt = re.sub(r'OPTUNA_TIMEOUT\s*=\s*\d+', 'OPTUNA_TIMEOUT = 600', cfg_txt)
 
 with open(config_path, "w") as f:
     f.write(cfg_txt)
-print("CONFIG PATCHED IN PART 2: OPTIMAL SPEED/QUALITY MODE")
+print("CONFIG PATCHED IN PART 2: OPTIMAL SPEED/QUALITY MODE (TIMEOUT=600)")
 
 os.chdir(f"{REPO_PATH}/src")
 sys.path.insert(0, f"{REPO_PATH}/src")
