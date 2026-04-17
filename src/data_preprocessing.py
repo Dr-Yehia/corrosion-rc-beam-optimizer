@@ -193,8 +193,8 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
             df['M_corr_reduced'] = df['Mnom_proxy'] * (1 - df[ETA_COL] / 100)
             
             # 3. Ductility-corrosion index
-            if 'Stirrup Spacing, s (mm)' in df.columns:
-                df['ductility_corr'] = df[ETA_COL] / (df['Stirrup Spacing, s (mm)'] + 1)
+            if 'Stirrup Spacing, s (mm) ' in df.columns:
+                df['ductility_corr'] = df[ETA_COL] / (df['Stirrup Spacing, s (mm) '] + 1)
             
             logger.info('PHYSICS features: Mnom_proxy + M_corr_reduced + ductility_corr added.')
     else:
