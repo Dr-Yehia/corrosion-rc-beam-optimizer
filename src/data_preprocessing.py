@@ -183,6 +183,20 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
             As_proxy = df[n_bars_col] * np.pi * (df[db_col] / 2.0) ** 2
             df['reinf_index'] = As_proxy * df[fy] / (df[fc] * df[b] * df[d])
         logger.info('Feature engineering: 5 derived features added.')
+
+        # === PHYSICS-DRIVEN FEATURES ===
+        if all(c in df.columns for c in [b, d, fc, fy]):
+            # 1. Nominal moment capacity proxy (ACI core: b×d²×fc)
+            df['Mnom_proxy']  = df[b] * df[d]**2 * df[fc] / 1e6
+            
+            # 2. Corrosion-reduced capacity (تأثير التآكل على العزم)
+            df['M_corr_reduced'] = df['Mnom_proxy'] * (1 - df[ETA_COL] / 100)
+            
+            # 3. Ductility-corrosion index
+            if 'Stirrup Spacing, s (mm)' in df.columns:
+                df['ductility_corr'] = df[ETA_COL] / (df['Stirrup Spacing, s (mm)'] + 1)
+            
+            logger.info('PHYSICS features: Mnom_proxy + M_corr_reduced + ductility_corr added.')
     else:
         miss = [c for c in [ETA_COL, fy, fc, d, b] if c not in df.columns]
         logger.warning(f'Feature engineering skipped — missing: {miss}')
@@ -245,7 +259,8 @@ def split_data(df: pd.DataFrame):
     base_features = [c for c in FEATURE_COLS if c in df.columns]
     cat_available = [c for c in CAT_COLS     if c in df.columns]
     engineered    = ['eta_log', 'corr_severity_idx',
-                     'd_b_ratio', 'eta_d_interaction', 'reinf_index']
+                     'd_b_ratio', 'eta_d_interaction', 'reinf_index',
+                     'Mnom_proxy', 'M_corr_reduced', 'ductility_corr']
     feature_cols  = (base_features + cat_available +
                      [c for c in engineered if c in df.columns])
 
