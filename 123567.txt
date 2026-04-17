@@ -1,0 +1,1321 @@
+Time
+#
+Log Message
+11.4s	0	0.00s - Debugger warning: It seems that frozen modules are being used, which may
+11.4s	1	0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+11.4s	2	0.00s - to python to disable frozen modules.
+11.4s	3	0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+12.1s	4	0.00s - Debugger warning: It seems that frozen modules are being used, which may
+12.1s	5	0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+12.1s	6	0.00s - to python to disable frozen modules.
+12.1s	7	0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+42.2s	8	Cloning into '/kaggle/working/corrosion-rc-beam-optimizer'...
+42.4s	9	Cloning into '/kaggle/working/corrosion-rc-beam-optimizer'...
+42.4s	10	
+42.4s	11	Cloning into '/kaggle/working/corrosion-rc-beam-optimizer'...
+55.5s	12	Updating files:  26% (174/646)
+Updating files:  27% (175/646)
+Updating files:  28% (181/646)
+Updating files:  26% (174/646)
+Updating files:  27% (175/646)
+Updating files:  28% (181/646)
+55.7s	13	Updating files:  26% (174/646)
+Updating files:  27% (175/646)
+Updating files:  28% (181/646)
+Updating files:  29% (188/646)
+Updating files:  30% (194/646)
+Updating files:  31% (201/646)
+Updating files:  32% (207/646)
+Updating files:  33% (214/646)
+Updating files:  34% (220/646)
+Updating files:  35% (227/646)
+Updating files:  36% (233/646)
+Updating files:  37% (240/646)
+Updating files:  38% (246/646)
+Updating files:  39% (252/646)
+Updating files:  40% (259/646)
+Updating files:  41% (265/646)
+Updating files:  29% (188/646)
+Updating files:  30% (194/646)
+Updating files:  31% (201/646)
+Updating files:  32% (207/646)
+Updating files:  33% (214/646)
+Updating files:  34% (220/646)
+Updating files:  35% (227/646)
+Updating files:  36% (233/646)
+Updating files:  37% (240/646)
+Updating files:  38% (246/646)
+Updating files:  39% (252/646)
+Updating files:  40% (259/646)
+Updating files:  41% (265/646)
+56.1s	14	Updating files:  29% (188/646)
+Updating files:  30% (194/646)
+Updating files:  31% (201/646)
+Updating files:  32% (207/646)
+Updating files:  33% (214/646)
+Updating files:  34% (220/646)
+Updating files:  35% (227/646)
+Updating files:  36% (233/646)
+Updating files:  37% (240/646)
+Updating files:  38% (246/646)
+Updating files:  39% (252/646)
+Updating files:  40% (259/646)
+Updating files:  41% (265/646)
+Updating files:  42% (272/646)
+Updating files:  43% (278/646)
+Updating files:  44% (285/646)
+Updating files:  45% (291/646)
+Updating files:  46% (298/646)
+Updating files:  47% (304/646)
+Updating files:  48% (311/646)
+Updating files:  49% (317/646)
+Updating files:  50% (323/646)
+Updating files:  51% (330/646)
+Updating files:  52% (336/646)
+Updating files:  53% (343/646)
+Updating files:  42% (272/646)
+Updating files:  43% (278/646)
+Updating files:  44% (285/646)
+Updating files:  45% (291/646)
+Updating files:  46% (298/646)
+Updating files:  47% (304/646)
+Updating files:  48% (311/646)
+Updating files:  49% (317/646)
+Updating files:  50% (323/646)
+Updating files:  51% (330/646)
+Updating files:  52% (336/646)
+Updating files:  53% (343/646)
+56.3s	15	Updating files:  42% (272/646)
+Updating files:  43% (278/646)
+Updating files:  44% (285/646)
+Updating files:  45% (291/646)
+Updating files:  46% (298/646)
+Updating files:  47% (304/646)
+Updating files:  48% (311/646)
+Updating files:  49% (317/646)
+Updating files:  50% (323/646)
+Updating files:  51% (330/646)
+Updating files:  52% (336/646)
+Updating files:  53% (343/646)
+Updating files:  54% (349/646)
+Updating files:  55% (356/646)
+Updating files:  56% (362/646)
+Updating files:  57% (369/646)
+Updating files:  58% (375/646)
+Updating files:  54% (349/646)
+Updating files:  55% (356/646)
+Updating files:  56% (362/646)
+Updating files:  57% (369/646)
+Updating files:  58% (375/646)
+56.5s	16	Updating files:  54% (349/646)
+Updating files:  55% (356/646)
+Updating files:  56% (362/646)
+Updating files:  57% (369/646)
+Updating files:  58% (375/646)
+Updating files:  58% (381/646)
+Updating files:  59% (382/646)
+Updating files:  60% (388/646)
+Updating files:  61% (395/646)
+Updating files:  62% (401/646)
+Updating files:  63% (407/646)
+Updating files:  64% (414/646)
+Updating files:  65% (420/646)
+Updating files:  66% (427/646)
+Updating files:  67% (433/646)
+Updating files:  58% (381/646)
+Updating files:  59% (382/646)
+Updating files:  60% (388/646)
+Updating files:  61% (395/646)
+Updating files:  62% (401/646)
+Updating files:  63% (407/646)
+Updating files:  64% (414/646)
+Updating files:  65% (420/646)
+Updating files:  66% (427/646)
+Updating files:  67% (433/646)
+56.8s	17	Updating files:  58% (381/646)
+Updating files:  59% (382/646)
+Updating files:  60% (388/646)
+Updating files:  61% (395/646)
+Updating files:  62% (401/646)
+Updating files:  63% (407/646)
+Updating files:  64% (414/646)
+Updating files:  65% (420/646)
+Updating files:  66% (427/646)
+Updating files:  67% (433/646)
+Updating files:  68% (440/646)
+Updating files:  69% (446/646)
+Updating files:  70% (453/646)
+Updating files:  71% (459/646)
+Updating files:  72% (466/646)
+Updating files:  73% (472/646)
+Updating files:  74% (479/646)
+Updating files:  68% (440/646)
+Updating files:  69% (446/646)
+Updating files:  70% (453/646)
+Updating files:  71% (459/646)
+Updating files:  72% (466/646)
+Updating files:  73% (472/646)
+Updating files:  74% (479/646)
+57.0s	18	Updating files:  68% (440/646)
+Updating files:  69% (446/646)
+Updating files:  70% (453/646)
+Updating files:  71% (459/646)
+Updating files:  72% (466/646)
+Updating files:  73% (472/646)
+Updating files:  74% (479/646)
+Updating files:  75% (485/646)
+Updating files:  76% (491/646)
+Updating files:  77% (498/646)
+Updating files:  78% (504/646)
+Updating files:  79% (511/646)
+Updating files:  80% (517/646)
+Updating files:  81% (524/646)
+Updating files:  82% (530/646)
+Updating files:  75% (485/646)
+Updating files:  76% (491/646)
+Updating files:  77% (498/646)
+Updating files:  78% (504/646)
+Updating files:  79% (511/646)
+Updating files:  80% (517/646)
+Updating files:  81% (524/646)
+Updating files:  82% (530/646)
+57.3s	19	Updating files:  75% (485/646)
+Updating files:  76% (491/646)
+Updating files:  77% (498/646)
+Updating files:  78% (504/646)
+Updating files:  79% (511/646)
+Updating files:  80% (517/646)
+Updating files:  81% (524/646)
+Updating files:  82% (530/646)
+Updating files:  83% (537/646)
+Updating files:  84% (543/646)
+Updating files:  85% (550/646)
+Updating files:  86% (556/646)
+Updating files:  86% (557/646)
+Updating files:  83% (537/646)
+Updating files:  84% (543/646)
+Updating files:  85% (550/646)
+Updating files:  86% (556/646)
+Updating files:  86% (557/646)
+57.5s	20	Updating files:  83% (537/646)
+Updating files:  84% (543/646)
+Updating files:  85% (550/646)
+Updating files:  86% (556/646)
+Updating files:  86% (557/646)
+Updating files:  87% (563/646)
+Updating files:  88% (569/646)
+Updating files:  89% (575/646)
+Updating files:  90% (582/646)
+Updating files:  91% (588/646)
+Updating files:  92% (595/646)
+Updating files:  93% (601/646)
+Updating files:  94% (608/646)
+Updating files:  95% (614/646)
+Updating files:  96% (621/646)
+Updating files:  97% (627/646)
+Updating files:  98% (634/646)
+Updating files:  99% (640/646)
+Updating files: 100% (646/646)
+Updating files: 100% (646/646), done.
+57.5s	21	Updating files:  87% (563/646)
+Updating files:  88% (569/646)
+Updating files:  89% (575/646)
+Updating files:  90% (582/646)
+Updating files:  91% (588/646)
+Updating files:  92% (595/646)
+Updating files:  93% (601/646)
+Updating files:  94% (608/646)
+Updating files:  95% (614/646)
+Updating files:  96% (621/646)
+Updating files:  97% (627/646)
+Updating files:  98% (634/646)
+Updating files:  99% (640/646)
+Updating files: 100% (646/646)
+Updating files: 100% (646/646), done.
+57.5s	22	
+57.5s	23	Updating files:  87% (563/646)
+Updating files:  88% (569/646)
+Updating files:  89% (575/646)
+Updating files:  90% (582/646)
+Updating files:  91% (588/646)
+Updating files:  92% (595/646)
+Updating files:  93% (601/646)
+Updating files:  94% (608/646)
+Updating files:  95% (614/646)
+Updating files:  96% (621/646)
+Updating files:  97% (627/646)
+Updating files:  98% (634/646)
+Updating files:  99% (640/646)
+Updating files: 100% (646/646)
+Updating files: 100% (646/646), done.
+57.6s	24	[32m21:26:16[0m | [1mINFO    [0m | =================================================================
+57.6s	25	
+57.6s	26	[32m21:26:16[0m | [1mINFO    [0m | =================================================================
+57.6s	27	[32m21:26:16[0m | [1mINFO    [0m |   Corrosion RC Beam Optimizer -- Part 1: ML Training (v2)
+57.6s	28	
+57.6s	29	[32m21:26:16[0m | [1mINFO    [0m |   Corrosion RC Beam Optimizer -- Part 1: ML Training (v2)
+57.6s	30	[32m21:26:16[0m | [1mINFO    [0m |   Split: 70/30 (TEST_SIZE = 0.3)
+57.6s	31	
+57.6s	32	[32m21:26:16[0m | [1mINFO    [0m |   Split: 70/30 (TEST_SIZE = 0.3)
+57.6s	33	[32m21:26:16[0m | [1mINFO    [0m |   Log-Transform: True
+57.6s	34	
+57.6s	35	[32m21:26:16[0m | [1mINFO    [0m |   Log-Transform: True
+57.6s	36	[32m21:26:16[0m | [1mINFO    [0m |   Started: 2026-04-16 21:26:16
+57.6s	37	
+57.6s	38	[32m21:26:16[0m | [1mINFO    [0m |   Started: 2026-04-16 21:26:16
+57.6s	39	[32m21:26:16[0m | [1mINFO    [0m | =================================================================
+57.6s	40	
+57.6s	41	[32m21:26:16[0m | [1mINFO    [0m | =================================================================
+57.6s	42	[32m21:26:16[0m | [1mINFO    [0m | ══════════════════════════════════════════════════
+57.6s	43	
+57.6s	44	[32m21:26:16[0m | [1mINFO    [0m | ══════════════════════════════════════════════════
+57.6s	45	[32m21:26:16[0m | [1mINFO    [0m |  Starting Preprocessing Pipeline
+57.6s	46	
+57.6s	47	[32m21:26:16[0m | [1mINFO    [0m |  Starting Preprocessing Pipeline
+57.6s	48	[32m21:26:16[0m | [1mINFO    [0m | ══════════════════════════════════════════════════
+57.6s	49	
+57.6s	50	[32m21:26:16[0m | [1mINFO    [0m | ══════════════════════════════════════════════════
+57.6s	51	[32m21:26:16[0m | [1mINFO    [0m | Loading raw data from: /kaggle/working/corrosion-rc-beam-optimizer/data/Database.csv
+57.6s	52	
+57.6s	53	[32m21:26:16[0m | [1mINFO    [0m | Loading raw data from: /kaggle/working/corrosion-rc-beam-optimizer/data/Database.csv
+57.7s	54	[32m21:26:16[0m | [1mINFO    [0m | Raw data loaded (encoding=utf-8-sig) — shape: (804, 60)
+57.7s	55	
+57.7s	56	[32m21:26:16[0m | [1mINFO    [0m | Raw data loaded (encoding=utf-8-sig) — shape: (804, 60)
+57.7s	57	[32m21:26:16[0m | [1mINFO    [0m | Column names normalised: ['No.', 'Mass Loss (Tensile bars), ηm (%)', 'Mmax,exp (kNm)', 'Mmax,exp (kNm)']
+57.7s	58	
+57.7s	59	[32m21:26:16[0m | [1mINFO    [0m | Column names normalised: ['No.', 'Mass Loss (Tensile bars), ηm (%)', 'Mmax,exp (kNm)', 'Mmax,exp (kNm)']
+57.7s	60	[32m21:26:16[0m | [1mINFO    [0m | After column fix — shape: (804, 59)
+57.7s	61	
+57.7s	62	[32m21:26:16[0m | [1mINFO    [0m | After column fix — shape: (804, 59)
+57.7s	63	[32m21:26:16[0m | [1mINFO    [0m | === Dataset Inspection ===
+57.7s	64	
+57.7s	65	[32m21:26:16[0m | [1mINFO    [0m | === Dataset Inspection ===
+57.7s	66	[32m21:26:16[0m | [1mINFO    [0m |   Rows    : 804
+57.7s	67	
+57.7s	68	[32m21:26:16[0m | [1mINFO    [0m |   Rows    : 804
+57.7s	69	[32m21:26:16[0m | [1mINFO    [0m |   Columns : 59
+57.7s	70	
+57.7s	71	[32m21:26:16[0m | [1mINFO    [0m |   Columns : 59
+57.7s	72	[32m21:26:16[0m | [1mINFO    [0m |   Missing %:
+57.7s	73	Comments                                         7.09
+57.7s	74	fy Longitudinal Bars (Tensile), (MPa)            0.87
+57.7s	75	fsu Long Bars, (MPa)                             4.48
+57.7s	76	Stirrup Bar Type                                22.64
+57.7s	77	fy,s Stirrup Bars                               14.80
+57.7s	78	Max Aggregate Size (mm)                         19.53
+57.7s	79	Cathode Type                                     7.09
+57.7s	80	Corrosion Current Density, Icorr (ÃÂ¼A/cm2)     9.58
+57.7s	81	Duration, (days)                                12.56
+57.7s	82	Wet/Dry Cyclic Ratio (days)                     91.04
+57.7s	83	Mass Loss (Tensile bars), ηm (%)                 1.62
+57.7s	84	Average Sample Length, (mm)                      0.87
+57.7s	85	Py (kN)                                         17.91
+57.7s	86	Pmax (kN)                                        1.00
+57.7s	87	Residual Capacity, R (%)                         1.74
+57.7s	88	ÃÂy (mm)                                      13.43
+57.7s	89	ÃÂult (mm)                                    15.55
+57.7s	90	Elastic Stiffness, k (kN/mm)                    13.43
+57.7s	91	Displacement Ductility, ÃÂ¼ÃÂ                15.55
+57.7s	92	Extra Notes                                      7.46
+57.7s	93	
+57.7s	94	[32m21:26:16[0m | [1mINFO    [0m |   Missing %:
+57.7s	95	Comments                                         7.09
+57.7s	96	fy Longitudinal Bars (Tensile), (MPa)            0.87
+57.7s	97	fsu Long Bars, (MPa)                             4.48
+57.7s	98	Stirrup Bar Type                                22.64
+57.7s	99	fy,s Stirrup Bars                               14.80
+57.7s	100	Max Aggregate Size (mm)                         19.53
+57.7s	101	Cathode Type                                     7.09
+57.7s	102	Corrosion Current Density, Icorr (ÃÂ¼A/cm2)     9.58
+57.7s	103	Duration, (days)                                12.56
+57.7s	104	Wet/Dry Cyclic Ratio (days)                     91.04
+57.7s	105	Mass Loss (Tensile bars), ηm (%)                 1.62
+57.7s	106	Average Sample Length, (mm)                      0.87
+57.7s	107	Py (kN)                                         17.91
+57.7s	108	Pmax (kN)                                        1.00
+57.7s	109	Residual Capacity, R (%)                         1.74
+57.7s	110	ÃÂy (mm)                                      13.43
+57.7s	111	ÃÂult (mm)                                    15.55
+57.7s	112	Elastic Stiffness, k (kN/mm)                    13.43
+57.7s	113	Displacement Ductility, ÃÂ¼ÃÂ                15.55
+57.7s	114	Extra Notes                                      7.46
+57.7s	115	[32m21:26:16[0m | [1mINFO    [0m | Starting data cleaning ...
+57.7s	116	
+57.7s	117	[32m21:26:16[0m | [1mINFO    [0m | Starting data cleaning ...
+57.7s	118	[32m21:26:16[0m | [1mINFO    [0m | Columns selected: 20 (3 categorical + 15 numeric)
+57.7s	119	
+57.7s	120	[32m21:26:16[0m | [1mINFO    [0m | Columns selected: 20 (3 categorical + 15 numeric)
+57.7s	121	[32m21:26:16[0m | [1mINFO    [0m | Dropped 0 rows with missing target (Mmax,exp (kNm)).
+57.7s	122	
+57.7s	123	[32m21:26:16[0m | [1mINFO    [0m | Dropped 0 rows with missing target (Mmax,exp (kNm)).
+57.7s	124	[32m21:26:16[0m | [1mINFO    [0m |   Imputed 'fy Longitudinal Bars (Tensile), (MPa) ' (7 nulls) with median = 374.860
+57.7s	125	
+57.7s	126	[32m21:26:16[0m | [1mINFO    [0m |   Imputed 'fy Longitudinal Bars (Tensile), (MPa) ' (7 nulls) with median = 374.860
+57.7s	127	[32m21:26:16[0m | [1mINFO    [0m |   Imputed 'fy,s Stirrup Bars' (119 nulls) with median = 250.000
+57.7s	128	
+57.7s	129	[32m21:26:16[0m | [1mINFO    [0m |   Imputed 'fy,s Stirrup Bars' (119 nulls) with median = 250.000
+57.7s	130	[32m21:26:16[0m | [1mINFO    [0m |   Imputed 'Mass Loss (Tensile bars), ηm (%)' (13 nulls) with median = 6.980
+57.7s	131	
+57.7s	132	[32m21:26:16[0m | [1mINFO    [0m |   Imputed 'Mass Loss (Tensile bars), ηm (%)' (13 nulls) with median = 6.980
+57.7s	133	[32m21:26:16[0m | [1mINFO    [0m | Physical filter (ηm 0-64%): removed 0 rows.
+57.7s	134	
+57.7s	135	[32m21:26:16[0m | [1mINFO    [0m | Physical filter (ηm 0-64%): removed 0 rows.
+57.7s	136	[32m21:26:16[0m | [1mINFO    [0m | Physical filter (Mmax > 0): removed 0 rows.
+57.7s	137	
+57.7s	138	[32m21:26:16[0m | [1mINFO    [0m | Physical filter (Mmax > 0): removed 0 rows.
+57.7s	139	[32m21:26:16[0m | [1mINFO    [0m | Clean data shape: (804, 20)
+57.7s	140	
+57.7s	141	[32m21:26:16[0m | [1mINFO    [0m | Clean data shape: (804, 20)
+57.7s	142	[32m21:26:16[0m | [1mINFO    [0m | Applied log1p transform to ηm → 'eta_log'
+57.7s	143	
+57.7s	144	[32m21:26:16[0m | [1mINFO    [0m | Applied log1p transform to ηm → 'eta_log'
+57.7s	145	[32m21:26:16[0m | [1mINFO    [0m | Feature engineering: 5 derived features added.
+57.7s	146	
+57.7s	147	[32m21:26:16[0m | [1mINFO    [0m | Feature engineering: 5 derived features added.
+57.7s	148	[32m21:26:16[0m | [1mINFO    [0m | Encoded 'Longitudinal Bar Type': {0: 'D', 1: 'P'}
+57.7s	149	
+57.7s	150	[32m21:26:16[0m | [1mINFO    [0m | Encoded 'Longitudinal Bar Type': {0: 'D', 1: 'P'}
+57.7s	151	[32m21:26:16[0m | [1mINFO    [0m | Encoded 'Test Type and Configuration': {0: 'SS-FPB-MONO', 1: 'SS_CONT_TPB_MONO', 2: 'SS_FPB_MONO', 3: 'SS_FPB_MONO_SUST', 4: 'SS_FPB_MONO_SUST_PREC', 5: 'SS_TPB_MONO', 6: 'SS_TPB_MONO_SUST'}
+57.7s	152	
+57.7s	153	[32m21:26:16[0m | [1mINFO    [0m | Encoded 'Test Type and Configuration': {0: 'SS-FPB-MONO', 1: 'SS_CONT_TPB_MONO', 2: 'SS_FPB_MONO', 3: 'SS_FPB_MONO_SUST', 4: 'SS_FPB_MONO_SUST_PREC', 5: 'SS_TPB_MONO', 6: 'SS_TPB_MONO_SUST'}
+57.7s	154	[32m21:26:16[0m | [1mINFO    [0m | Encoded 'Corrosion Method': {0: 'C', 1: 'EI', 2: 'IC', 3: 'N'}
+57.7s	155	
+57.7s	156	[32m21:26:16[0m | [1mINFO    [0m | Encoded 'Corrosion Method': {0: 'C', 1: 'EI', 2: 'IC', 3: 'N'}
+57.7s	157	[32m21:26:16[0m | [1mINFO    [0m | Encoder mapping saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/cat_encoders.json
+57.7s	158	
+57.7s	159	[32m21:26:16[0m | [1mINFO    [0m | Encoder mapping saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/cat_encoders.json
+57.7s	160	[32m21:26:16[0m | [1mINFO    [0m | Clean data saved → /kaggle/working/corrosion-rc-beam-optimizer/data/clean_data.csv  (804 rows)
+57.7s	161	
+57.7s	162	[32m21:26:16[0m | [1mINFO    [0m | Clean data saved → /kaggle/working/corrosion-rc-beam-optimizer/data/clean_data.csv  (804 rows)
+57.8s	163	[32m21:26:16[0m | [1mINFO    [0m | Features total: 23 (15 numeric + 3 categorical + 5 engineered)
+57.8s	164	
+57.8s	165	[32m21:26:16[0m | [1mINFO    [0m | Features total: 23 (15 numeric + 3 categorical + 5 engineered)
+57.8s	166	[32m21:26:16[0m | [1mINFO    [0m | Train: 562 | Test: 242
+57.8s	167	
+57.8s	168	[32m21:26:16[0m | [1mINFO    [0m | Train: 562 | Test: 242
+57.8s	169	[32m21:26:16[0m | [1mINFO    [0m | y_train — mean: 22.45, std: 23.66
+57.8s	170	
+57.8s	171	[32m21:26:16[0m | [1mINFO    [0m | y_train — mean: 22.45, std: 23.66
+57.8s	172	[32m21:26:16[0m | [1mINFO    [0m | y_test  — mean: 23.28,  std: 25.34
+57.8s	173	
+57.8s	174	[32m21:26:16[0m | [1mINFO    [0m | y_test  — mean: 23.28,  std: 25.34
+57.8s	175	[32m21:26:16[0m | [1mINFO    [0m | Scalers saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/scaler_X.pkl, /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/scaler_y.pkl
+57.8s	176	
+57.8s	177	[32m21:26:16[0m | [1mINFO    [0m | Scalers saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/scaler_X.pkl, /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/scaler_y.pkl
+57.8s	178	[32m21:26:16[0m | [1mINFO    [0m | ══════════════════════════════════════════════════
+57.8s	179	
+57.8s	180	[32m21:26:16[0m | [1mINFO    [0m | ══════════════════════════════════════════════════
+57.8s	181	[32m21:26:16[0m | [1mINFO    [0m |  Preprocessing complete ✓
+57.8s	182	
+57.8s	183	[32m21:26:16[0m | [1mINFO    [0m |  Preprocessing complete ✓
+57.8s	184	[32m21:26:16[0m | [1mINFO    [0m | ══════════════════════════════════════════════════
+57.8s	185	
+57.8s	186	[32m21:26:16[0m | [1mINFO    [0m | ══════════════════════════════════════════════════
+57.8s	187	[32m21:26:16[0m | [1mINFO    [0m | ══════════════════════════════════════
+57.8s	188	
+57.8s	189	[32m21:26:16[0m | [1mINFO    [0m | ══════════════════════════════════════
+57.8s	190	[32m21:26:16[0m | [1mINFO    [0m |  ACI 318-19 Benchmark Results
+57.8s	191	
+57.8s	192	[32m21:26:16[0m | [1mINFO    [0m |  ACI 318-19 Benchmark Results
+57.8s	193	[32m21:26:16[0m | [1mINFO    [0m | ══════════════════════════════════════
+57.8s	194	
+57.8s	195	[32m21:26:16[0m | [1mINFO    [0m | ══════════════════════════════════════
+57.8s	196	[32m21:26:16[0m | [1mINFO    [0m |   Specimens     : 804
+57.8s	197	
+57.8s	198	[32m21:26:16[0m | [1mINFO    [0m |   Specimens     : 804
+57.8s	199	[32m21:26:16[0m | [1mINFO    [0m |   R²            : 0.8839
+57.8s	200	
+57.8s	201	[32m21:26:16[0m | [1mINFO    [0m |   R²            : 0.8839
+57.8s	202	[32m21:26:16[0m | [1mINFO    [0m |   RMSE          : 8.2289 kN·m
+57.8s	203	
+57.8s	204	[32m21:26:16[0m | [1mINFO    [0m |   RMSE          : 8.2289 kN·m
+57.8s	205	[32m21:26:16[0m | [1mINFO    [0m |   MAE           : 5.0617 kN·m
+57.8s	206	
+57.8s	207	[32m21:26:16[0m | [1mINFO    [0m |   MAE           : 5.0617 kN·m
+57.8s	208	[32m21:26:16[0m | [1mINFO    [0m |   MAPE          : 29.9 %
+57.8s	209	
+57.8s	210	[32m21:26:16[0m | [1mINFO    [0m |   MAPE          : 29.9 %
+57.8s	211	[32m21:26:16[0m | [1mINFO    [0m |   Ratio mean    : 1.1845  (target = 1.0)
+57.8s	212	
+57.8s	213	[32m21:26:16[0m | [1mINFO    [0m |   Ratio mean    : 1.1845  (target = 1.0)
+57.8s	214	[32m21:26:16[0m | [1mINFO    [0m |   Ratio std     : 0.5874
+57.8s	215	
+57.8s	216	[32m21:26:16[0m | [1mINFO    [0m |   Ratio std     : 0.5874
+57.8s	217	[32m21:26:16[0m | [1mINFO    [0m |   Ratio range   : 0.2735 – 5.2832
+57.8s	218	
+57.8s	219	[32m21:26:16[0m | [1mINFO    [0m |   Ratio range   : 0.2735 – 5.2832
+57.8s	220	[32m21:26:16[0m | [1mINFO    [0m |   Underestimates: 48.5 % of specimens
+57.8s	221	
+57.8s	222	[32m21:26:16[0m | [1mINFO    [0m |   Underestimates: 48.5 % of specimens
+57.8s	223	[32m21:26:16[0m | [1mINFO    [0m | ══════════════════════════════════════
+57.8s	224	
+57.8s	225	[32m21:26:16[0m | [1mINFO    [0m | ══════════════════════════════════════
+57.8s	226	[32m21:26:17[0m | [1mINFO    [0m | ACI results saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/aci_benchmark_predictions.csv
+57.8s	227	
+57.8s	228	[32m21:26:17[0m | [1mINFO    [0m | ACI results saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/aci_benchmark_predictions.csv
+57.8s	229	[32m21:26:17[0m | [1mINFO    [0m | ACI metrics saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/aci_benchmark_metrics.json
+57.8s	230	
+57.8s	231	[32m21:26:17[0m | [1mINFO    [0m | ACI metrics saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/aci_benchmark_metrics.json
+57.8s	232	[32m21:26:17[0m | [1mINFO    [0m | ACI baseline -- R2=0.8839  RMSE=8.2289
+57.8s	233	
+57.8s	234	[32m21:26:17[0m | [1mINFO    [0m | ACI baseline -- R2=0.8839  RMSE=8.2289
+57.8s	235	[32m21:26:17[0m | [1mINFO    [0m | Data: 804 samples | Train: 562 | Test: 242
+57.8s	236	
+57.8s	237	[32m21:26:17[0m | [1mINFO    [0m | Data: 804 samples | Train: 562 | Test: 242
+57.8s	238	[32m21:26:17[0m | [1mINFO    [0m | LOG TRANSFORM ACTIVE: models train on log1p(Mmax)
+57.8s	239	
+57.8s	240	[32m21:26:17[0m | [1mINFO    [0m | LOG TRANSFORM ACTIVE: models train on log1p(Mmax)
+57.8s	241	[32m21:26:17[0m | [1mINFO    [0m |   y_train log range: [0.191, 5.091]
+57.8s	242	
+57.8s	243	[32m21:26:17[0m | [1mINFO    [0m |   y_train log range: [0.191, 5.091]
+57.8s	244	[32m21:26:17[0m | [1mINFO    [0m | 
+57.8s	245	============================================================
+57.8s	246	
+57.8s	247	[32m21:26:17[0m | [1mINFO    [0m | 
+57.8s	248	============================================================
+57.8s	249	[32m21:26:17[0m | [1mINFO    [0m |   Phase 1A -- MLP Baseline
+57.8s	250	
+57.8s	251	[32m21:26:17[0m | [1mINFO    [0m |   Phase 1A -- MLP Baseline
+57.8s	252	[32m21:26:17[0m | [1mINFO    [0m | ============================================================
+57.8s	253	
+57.8s	254	[32m21:26:17[0m | [1mINFO    [0m | ============================================================
+57.8s	255	[32m21:26:17[0m | [1mINFO    [0m | ══════════════════════════════════════
+57.8s	256	
+57.8s	257	[32m21:26:17[0m | [1mINFO    [0m | ══════════════════════════════════════
+57.8s	258	[32m21:26:17[0m | [1mINFO    [0m |  Phase 1A — MLP Baseline
+57.8s	259	
+57.8s	260	[32m21:26:17[0m | [1mINFO    [0m |  Phase 1A — MLP Baseline
+57.8s	261	[32m21:26:17[0m | [1mINFO    [0m | ══════════════════════════════════════
+57.8s	262	
+57.8s	263	[32m21:26:17[0m | [1mINFO    [0m | ══════════════════════════════════════
+57.8s	264	[32m21:26:17[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+57.8s	265	
+57.8s	266	[32m21:26:17[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+57.8s	267	[32m21:26:17[0m | [1mINFO    [0m | Training MLP ...
+57.8s	268	
+57.8s	269	[32m21:26:17[0m | [1mINFO    [0m | Training MLP ...
+58.6s	270	[32m21:26:17[0m | [1mINFO    [0m | MLP training complete — iterations: 68
+58.6s	271	
+58.6s	272	[32m21:26:17[0m | [1mINFO    [0m | MLP training complete — iterations: 68
+58.6s	273	[32m21:26:17[0m | [1mINFO    [0m | Final training loss: 0.003568
+58.6s	274	
+58.6s	275	[32m21:26:17[0m | [1mINFO    [0m | Final training loss: 0.003568
+58.7s	276	[32m21:26:17[0m | [1mINFO    [0m | [Train] R²=0.9901  RMSE=0.0941  MAE=0.0659  MAPE=3.16%  L1:✓  L2:✓
+58.7s	277	
+58.7s	278	[32m21:26:17[0m | [1mINFO    [0m | [Train] R²=0.9901  RMSE=0.0941  MAE=0.0659  MAPE=3.16%  L1:✓  L2:✓
+58.7s	279	[32m21:26:17[0m | [1mINFO    [0m | [Test] R²=0.9634  RMSE=0.1897  MAE=0.1263  MAPE=6.06%  L1:✓  L2:✗
+58.7s	280	
+58.7s	281	[32m21:26:17[0m | [1mINFO    [0m | [Test] R²=0.9634  RMSE=0.1897  MAE=0.1263  MAPE=6.06%  L1:✓  L2:✗
+58.7s	282	[32m21:26:17[0m | [1mINFO    [0m | Running 10-Fold CV (MLP) ...
+58.7s	283	
+58.7s	284	[32m21:26:17[0m | [1mINFO    [0m | Running 10-Fold CV (MLP) ...
+58.7s	285	[32m21:26:17[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+58.7s	286	
+58.7s	287	[32m21:26:17[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+61.0s	288	[32m21:26:20[0m | [1mINFO    [0m |   Fold  1 — R²=0.9717  RMSE=0.1550
+61.0s	289	
+61.0s	290	[32m21:26:20[0m | [1mINFO    [0m |   Fold  1 — R²=0.9717  RMSE=0.1550
+61.0s	291	[32m21:26:20[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+61.0s	292	
+61.0s	293	[32m21:26:20[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+62.5s	294	[32m21:26:21[0m | [1mINFO    [0m |   Fold  2 — R²=0.9829  RMSE=0.1254
+62.5s	295	
+62.5s	296	[32m21:26:21[0m | [1mINFO    [0m |   Fold  2 — R²=0.9829  RMSE=0.1254
+62.5s	297	[32m21:26:21[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+62.5s	298	
+62.5s	299	[32m21:26:21[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+63.9s	300	[32m21:26:23[0m | [1mINFO    [0m |   Fold  3 — R²=0.9674  RMSE=0.1741
+63.9s	301	
+63.9s	302	[32m21:26:23[0m | [1mINFO    [0m |   Fold  3 — R²=0.9674  RMSE=0.1741
+63.9s	303	[32m21:26:23[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+63.9s	304	
+63.9s	305	[32m21:26:23[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+65.5s	306	[32m21:26:24[0m | [1mINFO    [0m |   Fold  4 — R²=0.9737  RMSE=0.1557
+65.5s	307	
+65.5s	308	[32m21:26:24[0m | [1mINFO    [0m |   Fold  4 — R²=0.9737  RMSE=0.1557
+65.5s	309	[32m21:26:24[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+65.5s	310	
+65.5s	311	[32m21:26:24[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+66.8s	312	[32m21:26:25[0m | [1mINFO    [0m |   Fold  5 — R²=0.9647  RMSE=0.1725
+66.8s	313	
+66.8s	314	[32m21:26:25[0m | [1mINFO    [0m |   Fold  5 — R²=0.9647  RMSE=0.1725
+66.8s	315	[32m21:26:25[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+66.8s	316	
+66.8s	317	[32m21:26:25[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+67.7s	318	[32m21:26:26[0m | [1mINFO    [0m |   Fold  6 — R²=0.9640  RMSE=0.1773
+67.7s	319	
+67.7s	320	[32m21:26:26[0m | [1mINFO    [0m |   Fold  6 — R²=0.9640  RMSE=0.1773
+67.7s	321	[32m21:26:26[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+67.7s	322	
+67.7s	323	[32m21:26:26[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+69.8s	324	[32m21:26:29[0m | [1mINFO    [0m |   Fold  7 — R²=0.9883  RMSE=0.1171
+69.8s	325	
+69.8s	326	[32m21:26:29[0m | [1mINFO    [0m |   Fold  7 — R²=0.9883  RMSE=0.1171
+69.8s	327	[32m21:26:29[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+69.8s	328	
+69.8s	329	[32m21:26:29[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+71.1s	330	[32m21:26:30[0m | [1mINFO    [0m |   Fold  8 — R²=0.9741  RMSE=0.1559
+71.1s	331	
+71.1s	332	[32m21:26:30[0m | [1mINFO    [0m |   Fold  8 — R²=0.9741  RMSE=0.1559
+71.1s	333	[32m21:26:30[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+71.1s	334	
+71.1s	335	[32m21:26:30[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+72.4s	336	[32m21:26:31[0m | [1mINFO    [0m |   Fold  9 — R²=0.9767  RMSE=0.1473
+72.4s	337	
+72.4s	338	[32m21:26:31[0m | [1mINFO    [0m |   Fold  9 — R²=0.9767  RMSE=0.1473
+72.4s	339	[32m21:26:31[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+72.4s	340	
+72.4s	341	[32m21:26:31[0m | [1mINFO    [0m | MLP built — layers: [128, 64, 32], lr: 0.001
+73.8s	342	[32m21:26:32[0m | [1mINFO    [0m |   Fold 10 — R²=0.9585  RMSE=0.1761
+73.8s	343	
+73.8s	344	[32m21:26:32[0m | [1mINFO    [0m |   Fold 10 — R²=0.9585  RMSE=0.1761
+73.8s	345	[32m21:26:32[0m | [1mINFO    [0m | CV complete — R² = 0.9722 ± 0.0086
+73.8s	346	
+73.8s	347	[32m21:26:32[0m | [1mINFO    [0m | CV complete — R² = 0.9722 ± 0.0086
+73.8s	348	[32m21:26:32[0m | [1mINFO    [0m | Model saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/best_mlp.pkl
+73.8s	349	
+73.8s	350	[32m21:26:32[0m | [1mINFO    [0m | Model saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/best_mlp.pkl
+73.8s	351	[32m21:26:32[0m | [1mINFO    [0m | Metrics saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/mlp_metrics.json
+73.8s	352	
+73.8s	353	[32m21:26:32[0m | [1mINFO    [0m | Metrics saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/mlp_metrics.json
+73.8s	354	[32m21:26:32[0m | [1mINFO    [0m | ✓ L1 broken. Ensemble expected to break L2.
+73.8s	355	
+73.8s	356	[32m21:26:32[0m | [1mINFO    [0m | ✓ L1 broken. Ensemble expected to break L2.
+73.8s	357	[32m21:26:32[0m | [1mINFO    [0m | ══════════════════════════════════════
+73.8s	358	
+73.8s	359	[32m21:26:32[0m | [1mINFO    [0m | ══════════════════════════════════════
+73.8s	360	[32m21:26:32[0m | [1mINFO    [0m |  Phase 1A Complete
+73.8s	361	
+73.8s	362	[32m21:26:32[0m | [1mINFO    [0m |  Phase 1A Complete
+73.8s	363	[32m21:26:32[0m | [1mINFO    [0m | ══════════════════════════════════════
+73.8s	364	
+73.8s	365	[32m21:26:32[0m | [1mINFO    [0m | ══════════════════════════════════════
+73.8s	366	[32m21:26:32[0m | [1mINFO    [0m | MLP (original scale): R2=0.9535  RMSE=5.4542  MAE=2.9058
+73.8s	367	
+73.8s	368	[32m21:26:32[0m | [1mINFO    [0m | MLP (original scale): R2=0.9535  RMSE=5.4542  MAE=2.9058
+73.8s	369	[32m21:26:33[0m | [1mINFO    [0m | 
+73.8s	370	============================================================
+73.8s	371	
+73.8s	372	[32m21:26:33[0m | [1mINFO    [0m | 
+73.8s	373	============================================================
+73.8s	374	[32m21:26:33[0m | [1mINFO    [0m |   Phase 1B -- Ensemble Model Training
+73.8s	375	
+73.8s	376	[32m21:26:33[0m | [1mINFO    [0m |   Phase 1B -- Ensemble Model Training
+73.8s	377	[32m21:26:33[0m | [1mINFO    [0m | ============================================================
+73.8s	378	
+73.8s	379	[32m21:26:33[0m | [1mINFO    [0m | ============================================================
+73.8s	380	[32m21:26:33[0m | [1mINFO    [0m |   NOTE: Internal metrics below are in LOG-SPACE.
+73.8s	381	
+73.8s	382	[32m21:26:33[0m | [1mINFO    [0m |   NOTE: Internal metrics below are in LOG-SPACE.
+73.8s	383	[32m21:26:33[0m | [1mINFO    [0m |         Original-scale metrics are computed after.
+73.8s	384	
+73.8s	385	[32m21:26:33[0m | [1mINFO    [0m |         Original-scale metrics are computed after.
+73.8s	386	[32m21:26:33[0m | [1mINFO    [0m | ══════════════════════════════════════════════════
+73.8s	387	
+73.8s	388	[32m21:26:33[0m | [1mINFO    [0m | ══════════════════════════════════════════════════
+73.8s	389	[32m21:26:33[0m | [1mINFO    [0m |  Phase 1B — Ensemble Model Training
+73.8s	390	
+73.8s	391	[32m21:26:33[0m | [1mINFO    [0m |  Phase 1B — Ensemble Model Training
+73.8s	392	[32m21:26:33[0m | [1mINFO    [0m |  Target: Mmax,exp (kN·m)
+73.8s	393	
+73.8s	394	[32m21:26:33[0m | [1mINFO    [0m |  Target: Mmax,exp (kN·m)
+73.8s	395	[32m21:26:33[0m | [1mINFO    [0m |  Models: XGBoost + RF + GBR + CatBoost(Optuna) + Stacking
+73.8s	396	
+73.8s	397	[32m21:26:33[0m | [1mINFO    [0m |  Models: XGBoost + RF + GBR + CatBoost(Optuna) + Stacking
+73.8s	398	[32m21:26:33[0m | [1mINFO    [0m | ══════════════════════════════════════════════════
+73.8s	399	
+73.8s	400	[32m21:26:33[0m | [1mINFO    [0m | ══════════════════════════════════════════════════
+73.8s	401	[32m21:26:33[0m | [1mINFO    [0m | Training XGBoost ...
+73.8s	402	
+73.8s	403	[32m21:26:33[0m | [1mINFO    [0m | Training XGBoost ...
+74.9s	404	[32m21:26:34[0m | [1mINFO    [0m | [XGBoost-Train] R²=0.9975  RMSE=0.0475  MAE=0.0303  MAPE=1.50%  L1:✓  L2:✓
+74.9s	405	
+74.9s	406	[32m21:26:34[0m | [1mINFO    [0m | [XGBoost-Train] R²=0.9975  RMSE=0.0475  MAE=0.0303  MAPE=1.50%  L1:✓  L2:✓
+74.9s	407	[32m21:26:34[0m | [1mINFO    [0m | [XGBoost-Test] R²=0.9732  RMSE=0.1625  MAE=0.0976  MAPE=5.02%  L1:✓  L2:✓
+74.9s	408	
+74.9s	409	[32m21:26:34[0m | [1mINFO    [0m | [XGBoost-Test] R²=0.9732  RMSE=0.1625  MAE=0.0976  MAPE=5.02%  L1:✓  L2:✓
+74.9s	410	[32m21:26:34[0m | [1mINFO    [0m | XGBoost saved.
+74.9s	411	
+74.9s	412	[32m21:26:34[0m | [1mINFO    [0m | XGBoost saved.
+74.9s	413	[32m21:26:34[0m | [1mINFO    [0m | Training Random Forest ...
+74.9s	414	
+74.9s	415	[32m21:26:34[0m | [1mINFO    [0m | Training Random Forest ...
+76.9s	416	[32m21:26:36[0m | [1mINFO    [0m | [RF-Train] R²=0.9954  RMSE=0.0645  MAE=0.0422  MAPE=2.17%  L1:✓  L2:✓
+76.9s	417	
+76.9s	418	[32m21:26:36[0m | [1mINFO    [0m | [RF-Train] R²=0.9954  RMSE=0.0645  MAE=0.0422  MAPE=2.17%  L1:✓  L2:✓
+77.1s	419	[32m21:26:36[0m | [1mINFO    [0m | [RF-Test] R²=0.9712  RMSE=0.1684  MAE=0.1030  MAPE=5.24%  L1:✓  L2:✗
+77.1s	420	
+77.1s	421	[32m21:26:36[0m | [1mINFO    [0m | [RF-Test] R²=0.9712  RMSE=0.1684  MAE=0.1030  MAPE=5.24%  L1:✓  L2:✗
+77.5s	422	[32m21:26:36[0m | [1mINFO    [0m | Random Forest saved.
+77.5s	423	
+77.5s	424	[32m21:26:36[0m | [1mINFO    [0m | Random Forest saved.
+77.5s	425	[32m21:26:36[0m | [1mINFO    [0m | Training Gradient Boosting ...
+77.5s	426	
+77.5s	427	[32m21:26:36[0m | [1mINFO    [0m | Training Gradient Boosting ...
+80.7s	428	[32m21:26:39[0m | [1mINFO    [0m | [GBR-Train] R²=0.9983  RMSE=0.0389  MAE=0.0184  MAPE=0.90%  L1:✓  L2:✓
+80.7s	429	
+80.7s	430	[32m21:26:39[0m | [1mINFO    [0m | [GBR-Train] R²=0.9983  RMSE=0.0389  MAE=0.0184  MAPE=0.90%  L1:✓  L2:✓
+80.7s	431	[32m21:26:39[0m | [1mINFO    [0m | [GBR-Test] R²=0.9725  RMSE=0.1644  MAE=0.1018  MAPE=4.96%  L1:✓  L2:✓
+80.7s	432	
+80.7s	433	[32m21:26:39[0m | [1mINFO    [0m | [GBR-Test] R²=0.9725  RMSE=0.1644  MAE=0.1018  MAPE=4.96%  L1:✓  L2:✓
+80.8s	434	[32m21:26:39[0m | [1mINFO    [0m | Gradient Boosting saved.
+80.8s	435	
+80.8s	436	[32m21:26:39[0m | [1mINFO    [0m | Gradient Boosting saved.
+80.8s	437	[32m21:26:39[0m | [1mINFO    [0m | Training LightGBM ...
+80.8s	438	
+80.8s	439	[32m21:26:39[0m | [1mINFO    [0m | Training LightGBM ...
+81.0s	440	[32m21:26:40[0m | [1mINFO    [0m | [LightGBM-Train] R²=0.9946  RMSE=0.0694  MAE=0.0455  MAPE=2.48%  L1:✓  L2:✓
+81.0s	441	
+81.0s	442	[32m21:26:40[0m | [1mINFO    [0m | [LightGBM-Train] R²=0.9946  RMSE=0.0694  MAE=0.0455  MAPE=2.48%  L1:✓  L2:✓
+81.0s	443	[32m21:26:40[0m | [1mINFO    [0m | [LightGBM-Test] R²=0.9726  RMSE=0.1642  MAE=0.1031  MAPE=5.41%  L1:✓  L2:✓
+81.0s	444	
+81.0s	445	[32m21:26:40[0m | [1mINFO    [0m | [LightGBM-Test] R²=0.9726  RMSE=0.1642  MAE=0.1031  MAPE=5.41%  L1:✓  L2:✓
+81.1s	446	[32m21:26:40[0m | [1mINFO    [0m | LightGBM saved.
+81.1s	447	
+81.1s	448	[32m21:26:40[0m | [1mINFO    [0m | LightGBM saved.
+81.1s	449	[32m21:26:40[0m | [1mINFO    [0m | Training ExtraTrees ...
+81.1s	450	
+81.1s	451	[32m21:26:40[0m | [1mINFO    [0m | Training ExtraTrees ...
+81.8s	452	[32m21:26:41[0m | [1mINFO    [0m | [ExtraTrees-Train] R²=0.9947  RMSE=0.0690  MAE=0.0426  MAPE=2.33%  L1:✓  L2:✓
+81.8s	453	
+81.8s	454	[32m21:26:41[0m | [1mINFO    [0m | [ExtraTrees-Train] R²=0.9947  RMSE=0.0690  MAE=0.0426  MAPE=2.33%  L1:✓  L2:✓
+82.0s	455	[32m21:26:41[0m | [1mINFO    [0m | [ExtraTrees-Test] R²=0.9755  RMSE=0.1552  MAE=0.0937  MAPE=4.87%  L1:✓  L2:✓
+82.0s	456	
+82.0s	457	[32m21:26:41[0m | [1mINFO    [0m | [ExtraTrees-Test] R²=0.9755  RMSE=0.1552  MAE=0.0937  MAPE=4.87%  L1:✓  L2:✓
+82.1s	458	[32m21:26:41[0m | [1mINFO    [0m | ExtraTrees saved.
+82.1s	459	
+82.1s	460	[32m21:26:41[0m | [1mINFO    [0m | ExtraTrees saved.
+82.1s	461	[32m21:26:41[0m | [1mINFO    [0m | ════════════════════════════════════════
+82.1s	462	
+82.1s	463	[32m21:26:41[0m | [1mINFO    [0m | ════════════════════════════════════════
+82.1s	464	[32m21:26:41[0m | [1mINFO    [0m |  CatBoost + Optuna Hyperparameter Tuning
+82.1s	465	
+82.1s	466	[32m21:26:41[0m | [1mINFO    [0m |  CatBoost + Optuna Hyperparameter Tuning
+82.1s	467	[32m21:26:41[0m | [1mINFO    [0m | ════════════════════════════════════════
+82.1s	468	
+82.1s	469	[32m21:26:41[0m | [1mINFO    [0m | ════════════════════════════════════════
+82.1s	470	[32m21:26:41[0m | [1mINFO    [0m | Optuna tuning: 250 trials, 5-fold CV, timeout=900s
+82.1s	471	
+82.1s	472	[32m21:26:41[0m | [1mINFO    [0m | Optuna tuning: 250 trials, 5-fold CV, timeout=900s
+1130.7s	473	[32m21:44:09[0m | [1mINFO    [0m | Optuna best trial: neg_RMSE=-0.141423
+1130.7s	474	
+1130.7s	475	[32m21:44:09[0m | [1mINFO    [0m | Optuna best trial: neg_RMSE=-0.141423
+1130.8s	476	[32m21:44:09[0m | [1mINFO    [0m | Optuna best params: {'iterations': 1996, 'depth': 4, 'learning_rate': 0.06065513686005506, 'l2_leaf_reg': 0.5595976937366774, 'subsample': 0.5257393756249946, 'colsample_bylevel': 0.5671878785419668, 'min_child_samples': 46, 'bagging_temperature': 0.23956189066697242, 'random_strength': 1.448948720912231}
+1130.8s	477	
+1130.8s	478	[32m21:44:09[0m | [1mINFO    [0m | Optuna best params: {'iterations': 1996, 'depth': 4, 'learning_rate': 0.06065513686005506, 'l2_leaf_reg': 0.5595976937366774, 'subsample': 0.5257393756249946, 'colsample_bylevel': 0.5671878785419668, 'min_child_samples': 46, 'bagging_temperature': 0.23956189066697242, 'random_strength': 1.448948720912231}
+1130.8s	479	[32m21:44:09[0m | [1mINFO    [0m | Training CatBoost with params: {'iterations': 1996, 'depth': 4, 'learning_rate': 0.06065513686005506, 'l2_leaf_reg': 0.5595976937366774, 'subsample': 0.5257393756249946, 'colsample_bylevel': 0.5671878785419668, 'min_child_samples': 46, 'bagging_temperature': 0.23956189066697242, 'random_strength': 1.448948720912231}
+1130.8s	480	
+1130.8s	481	[32m21:44:09[0m | [1mINFO    [0m | Training CatBoost with params: {'iterations': 1996, 'depth': 4, 'learning_rate': 0.06065513686005506, 'l2_leaf_reg': 0.5595976937366774, 'subsample': 0.5257393756249946, 'colsample_bylevel': 0.5671878785419668, 'min_child_samples': 46, 'bagging_temperature': 0.23956189066697242, 'random_strength': 1.448948720912231}
+1131.3s	482	[32m21:44:10[0m | [1mINFO    [0m | [CatBoost-Train] R²=0.9956  RMSE=0.0625  MAE=0.0442  MAPE=2.05%  L1:✓  L2:✓
+1131.3s	483	
+1131.3s	484	[32m21:44:10[0m | [1mINFO    [0m | [CatBoost-Train] R²=0.9956  RMSE=0.0625  MAE=0.0442  MAPE=2.05%  L1:✓  L2:✓
+1131.3s	485	[32m21:44:10[0m | [1mINFO    [0m | [CatBoost-Test] R²=0.9745  RMSE=0.1583  MAE=0.0957  MAPE=4.77%  L1:✓  L2:✓
+1131.3s	486	
+1131.3s	487	[32m21:44:10[0m | [1mINFO    [0m | [CatBoost-Test] R²=0.9745  RMSE=0.1583  MAE=0.0957  MAPE=4.77%  L1:✓  L2:✓
+1131.3s	488	[32m21:44:10[0m | [1mINFO    [0m | CatBoost saved.
+1131.3s	489	
+1131.3s	490	[32m21:44:10[0m | [1mINFO    [0m | CatBoost saved.
+1131.3s	491	[32m21:44:10[0m | [1mINFO    [0m | Training Stacking Ensemble ...
+1131.3s	492	
+1131.3s	493	[32m21:44:10[0m | [1mINFO    [0m | Training Stacking Ensemble ...
+1181.0s	494	[32m21:45:00[0m | [1mINFO    [0m | [Stacking-Train] R²=0.9957  RMSE=0.0621  MAE=0.0437  MAPE=1.99%  L1:✓  L2:✓
+1181.0s	495	
+1181.0s	496	[32m21:45:00[0m | [1mINFO    [0m | [Stacking-Train] R²=0.9957  RMSE=0.0621  MAE=0.0437  MAPE=1.99%  L1:✓  L2:✓
+1181.4s	497	[32m21:45:00[0m | [1mINFO    [0m | [Stacking-Test] R²=0.9777  RMSE=0.1480  MAE=0.0958  MAPE=4.63%  L1:✓  L2:✓
+1181.4s	498	
+1181.4s	499	[32m21:45:00[0m | [1mINFO    [0m | [Stacking-Test] R²=0.9777  RMSE=0.1480  MAE=0.0958  MAPE=4.63%  L1:✓  L2:✓
+1182.2s	500	[32m21:45:01[0m | [1mINFO    [0m | Stacking Ensemble saved.
+1182.2s	501	
+1182.2s	502	[32m21:45:01[0m | [1mINFO    [0m | Stacking Ensemble saved.
+1182.2s	503	[32m21:45:01[0m | [1mINFO    [0m | 🏆 Best model: Stacking  Test R²=0.9777
+1182.2s	504	
+1182.2s	505	[32m21:45:01[0m | [1mINFO    [0m | 🏆 Best model: Stacking  Test R²=0.9777
+1880.5s	506	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+1880.5s	507	  warnings.warn(
+1880.8s	508	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+1880.8s	509	  warnings.warn(
+1880.8s	510	
+1880.8s	511	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+1880.8s	512	  warnings.warn(
+2076.2s	513	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2076.2s	514	  warnings.warn(
+2076.5s	515	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2076.5s	516	  warnings.warn(
+2076.5s	517	
+2076.5s	518	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2076.5s	519	  warnings.warn(
+2284.7s	520	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2284.7s	521	  warnings.warn(
+2285.0s	522	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2285.0s	523	  warnings.warn(
+2285.0s	524	
+2285.0s	525	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2285.0s	526	  warnings.warn(
+2348.3s	527	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2348.3s	528	  warnings.warn(
+2348.6s	529	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2348.6s	530	  warnings.warn(
+2348.6s	531	
+2348.6s	532	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2348.6s	533	  warnings.warn(
+2407.7s	534	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2407.7s	535	  warnings.warn(
+2408.0s	536	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2408.0s	537	  warnings.warn(
+2408.0s	538	
+2408.0s	539	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2408.0s	540	  warnings.warn(
+2439.2s	541	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2439.2s	542	  warnings.warn(
+2439.5s	543	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2439.5s	544	  warnings.warn(
+2439.5s	545	
+2439.5s	546	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2439.5s	547	  warnings.warn(
+2685.4s	548	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2685.4s	549	  warnings.warn(
+2685.8s	550	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2685.8s	551	  warnings.warn(
+2685.8s	552	
+2685.8s	553	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2685.8s	554	  warnings.warn(
+2799.3s	555	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2799.3s	556	  warnings.warn(
+2799.6s	557	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2799.6s	558	  warnings.warn(
+2799.6s	559	
+2799.6s	560	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2799.6s	561	  warnings.warn(
+2837.8s	562	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2837.8s	563	  warnings.warn(
+2838.1s	564	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2838.1s	565	  warnings.warn(
+2838.1s	566	
+2838.1s	567	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+2838.1s	568	  warnings.warn(
+3037.5s	569	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3037.5s	570	  warnings.warn(
+3037.8s	571	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3037.8s	572	  warnings.warn(
+3037.8s	573	
+3037.8s	574	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3037.8s	575	  warnings.warn(
+3118.4s	576	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3118.4s	577	  warnings.warn(
+3118.7s	578	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3118.7s	579	  warnings.warn(
+3118.7s	580	
+3118.7s	581	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3118.7s	582	  warnings.warn(
+3217.0s	583	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3217.0s	584	  warnings.warn(
+3217.3s	585	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3217.3s	586	  warnings.warn(
+3217.3s	587	
+3217.3s	588	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3217.3s	589	  warnings.warn(
+3312.7s	590	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3312.7s	591	  warnings.warn(
+3313.0s	592	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3313.0s	593	  warnings.warn(
+3313.0s	594	
+3313.0s	595	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3313.0s	596	  warnings.warn(
+3613.1s	597	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3613.1s	598	  warnings.warn(
+3613.4s	599	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3613.4s	600	  warnings.warn(
+3613.4s	601	
+3613.4s	602	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3613.4s	603	  warnings.warn(
+3615.7s	604	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3615.7s	605	  warnings.warn(
+3616.0s	606	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3616.0s	607	  warnings.warn(
+3616.0s	608	
+3616.0s	609	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3616.0s	610	  warnings.warn(
+3662.8s	611	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3662.8s	612	  warnings.warn(
+3663.1s	613	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3663.1s	614	  warnings.warn(
+3663.1s	615	
+3663.1s	616	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3663.1s	617	  warnings.warn(
+3686.8s	618	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3686.8s	619	  warnings.warn(
+3687.0s	620	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3687.0s	621	  warnings.warn(
+3687.0s	622	
+3687.0s	623	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3687.0s	624	  warnings.warn(
+3707.8s	625	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3707.8s	626	  warnings.warn(
+3708.1s	627	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3708.1s	628	  warnings.warn(
+3708.1s	629	
+3708.1s	630	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+3708.1s	631	  warnings.warn(
+16.9s	632	   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 61.6/61.6 kB 2.5 MB/s eta 0:00:00
+17.1s	633	   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 61.6/61.6 kB 2.5 MB/s eta 0:00:00
+39.8s	634	     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 81.0/81.0 kB 2.6 MB/s eta 0:00:00
+39.9s	635	   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 327.1/327.1 kB 9.9 MB/s eta 0:00:00
+40.0s	636	     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 81.0/81.0 kB 2.6 MB/s eta 0:00:00
+40.0s	637	   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 327.1/327.1 kB 9.9 MB/s eta 0:00:00
+57.8s	638	CONFIG PATCHED: TEST_SIZE = 0.30 (70/30 split)
+57.8s	639	Setup complete.
+4047.7s	640	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4047.7s	641	  warnings.warn(
+4048.0s	642	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4048.0s	643	  warnings.warn(
+4048.0s	644	
+4048.0s	645	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4048.0s	646	  warnings.warn(
+4094.9s	647	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4094.9s	648	  warnings.warn(
+4095.2s	649	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4095.2s	650	  warnings.warn(
+4095.2s	651	
+4095.2s	652	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4095.2s	653	  warnings.warn(
+4137.2s	654	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4137.2s	655	  warnings.warn(
+4137.4s	656	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4137.4s	657	  warnings.warn(
+4137.4s	658	
+4137.4s	659	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4137.4s	660	  warnings.warn(
+4145.1s	661	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4145.1s	662	  warnings.warn(
+4145.3s	663	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4145.3s	664	  warnings.warn(
+4145.3s	665	
+4145.3s	666	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4145.3s	667	  warnings.warn(
+4182.3s	668	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4182.3s	669	  warnings.warn(
+4182.6s	670	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4182.6s	671	  warnings.warn(
+4182.6s	672	
+4182.6s	673	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4182.6s	674	  warnings.warn(
+4190.4s	675	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4190.4s	676	  warnings.warn(
+4190.6s	677	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4190.6s	678	  warnings.warn(
+4190.6s	679	
+4190.6s	680	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4190.6s	681	  warnings.warn(
+4621.5s	682	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4621.5s	683	  warnings.warn(
+4621.8s	684	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4621.8s	685	  warnings.warn(
+4621.8s	686	
+4621.8s	687	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4621.8s	688	  warnings.warn(
+4670.2s	689	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4670.2s	690	  warnings.warn(
+4670.5s	691	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4670.5s	692	  warnings.warn(
+4670.5s	693	
+4670.5s	694	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4670.5s	695	  warnings.warn(
+4819.7s	696	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4819.7s	697	  warnings.warn(
+4820.0s	698	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4820.0s	699	  warnings.warn(
+4820.0s	700	
+4820.0s	701	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4820.0s	702	  warnings.warn(
+4851.4s	703	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4851.4s	704	  warnings.warn(
+4851.8s	705	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4851.8s	706	  warnings.warn(
+4851.8s	707	
+4851.8s	708	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+4851.8s	709	  warnings.warn(
+5011.9s	710	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5011.9s	711	  warnings.warn(
+5012.2s	712	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5012.2s	713	  warnings.warn(
+5012.2s	714	
+5012.2s	715	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5012.2s	716	  warnings.warn(
+5131.6s	717	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5131.6s	718	  warnings.warn(
+5131.9s	719	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5131.9s	720	  warnings.warn(
+5131.9s	721	
+5131.9s	722	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5131.9s	723	  warnings.warn(
+5213.1s	724	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5213.1s	725	  warnings.warn(
+5213.4s	726	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5213.4s	727	  warnings.warn(
+5213.4s	728	
+5213.4s	729	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5213.4s	730	  warnings.warn(
+5267.0s	731	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5267.0s	732	  warnings.warn(
+5267.4s	733	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5267.4s	734	  warnings.warn(
+5267.4s	735	
+5267.4s	736	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5267.4s	737	  warnings.warn(
+5456.1s	738	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5456.1s	739	  warnings.warn(
+5456.4s	740	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5456.4s	741	  warnings.warn(
+5456.4s	742	
+5456.4s	743	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5456.4s	744	  warnings.warn(
+5701.6s	745	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5701.6s	746	  warnings.warn(
+5702.0s	747	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5702.0s	748	  warnings.warn(
+5702.0s	749	
+5702.0s	750	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5702.0s	751	  warnings.warn(
+5712.4s	752	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5712.4s	753	  warnings.warn(
+5712.6s	754	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5712.6s	755	  warnings.warn(
+5712.6s	756	
+5712.6s	757	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5712.6s	758	  warnings.warn(
+5865.9s	759	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5865.9s	760	  warnings.warn(
+5866.2s	761	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5866.2s	762	  warnings.warn(
+5866.2s	763	
+5866.2s	764	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5866.2s	765	  warnings.warn(
+5970.5s	766	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5970.5s	767	  warnings.warn(
+5970.8s	768	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5970.8s	769	  warnings.warn(
+5970.8s	770	
+5970.8s	771	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+5970.8s	772	  warnings.warn(
+6327.6s	773	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6327.6s	774	  warnings.warn(
+6327.9s	775	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6327.9s	776	  warnings.warn(
+6327.9s	777	
+6327.9s	778	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6327.9s	779	  warnings.warn(
+6373.4s	780	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6373.4s	781	  warnings.warn(
+6373.7s	782	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6373.7s	783	  warnings.warn(
+6373.7s	784	
+6373.7s	785	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6373.7s	786	  warnings.warn(
+6487.1s	787	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6487.1s	788	  warnings.warn(
+6487.4s	789	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6487.4s	790	  warnings.warn(
+6487.4s	791	
+6487.4s	792	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6487.4s	793	  warnings.warn(
+6513.4s	794	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6513.4s	795	  warnings.warn(
+6513.6s	796	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6513.6s	797	  warnings.warn(
+6513.6s	798	
+6513.6s	799	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6513.6s	800	  warnings.warn(
+6532.2s	801	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6532.2s	802	  warnings.warn(
+6532.5s	803	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6532.5s	804	  warnings.warn(
+6532.5s	805	
+6532.5s	806	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6532.5s	807	  warnings.warn(
+6552.9s	808	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6552.9s	809	  warnings.warn(
+6553.1s	810	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6553.1s	811	  warnings.warn(
+6553.1s	812	
+6553.1s	813	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6553.1s	814	  warnings.warn(
+6739.6s	815	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6739.6s	816	  warnings.warn(
+6739.9s	817	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6739.9s	818	  warnings.warn(
+6739.9s	819	
+6739.9s	820	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6739.9s	821	  warnings.warn(
+6787.8s	822	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6787.8s	823	  warnings.warn(
+6788.1s	824	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6788.1s	825	  warnings.warn(
+6788.1s	826	
+6788.1s	827	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6788.1s	828	  warnings.warn(
+6793.1s	829	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6793.1s	830	  warnings.warn(
+6793.3s	831	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6793.3s	832	  warnings.warn(
+6793.3s	833	
+6793.3s	834	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6793.3s	835	  warnings.warn(
+6849.9s	836	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6849.9s	837	  warnings.warn(
+6850.2s	838	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6850.2s	839	  warnings.warn(
+6850.2s	840	
+6850.2s	841	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6850.2s	842	  warnings.warn(
+6875.7s	843	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6875.7s	844	  warnings.warn(
+6875.9s	845	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6875.9s	846	  warnings.warn(
+6875.9s	847	
+6875.9s	848	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6875.9s	849	  warnings.warn(
+6898.4s	850	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6898.4s	851	  warnings.warn(
+6898.6s	852	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6898.6s	853	  warnings.warn(
+6898.6s	854	
+6898.6s	855	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6898.6s	856	  warnings.warn(
+6900.2s	857	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6900.2s	858	  warnings.warn(
+6900.4s	859	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6900.4s	860	  warnings.warn(
+6900.4s	861	
+6900.4s	862	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6900.4s	863	  warnings.warn(
+6902.6s	864	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6902.6s	865	  warnings.warn(
+6902.8s	866	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6902.8s	867	  warnings.warn(
+6902.8s	868	
+6902.8s	869	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6902.8s	870	  warnings.warn(
+6905.8s	871	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6905.8s	872	  warnings.warn(
+6906.0s	873	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6906.0s	874	  warnings.warn(
+6906.0s	875	
+6906.0s	876	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6906.0s	877	  warnings.warn(
+6909.3s	878	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6909.3s	879	  warnings.warn(
+6909.5s	880	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6909.5s	881	  warnings.warn(
+6909.5s	882	
+6909.5s	883	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6909.5s	884	  warnings.warn(
+6910.7s	885	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6910.7s	886	  warnings.warn(
+6910.9s	887	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6910.9s	888	  warnings.warn(
+6910.9s	889	
+6910.9s	890	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6910.9s	891	  warnings.warn(
+6912.1s	892	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6912.1s	893	  warnings.warn(
+6912.3s	894	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6912.3s	895	  warnings.warn(
+6912.3s	896	
+6912.3s	897	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6912.3s	898	  warnings.warn(
+6913.6s	899	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6913.6s	900	  warnings.warn(
+6913.8s	901	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6913.8s	902	  warnings.warn(
+6913.8s	903	
+6913.8s	904	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6913.8s	905	  warnings.warn(
+6914.9s	906	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6914.9s	907	  warnings.warn(
+6915.1s	908	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6915.1s	909	  warnings.warn(
+6915.1s	910	
+6915.1s	911	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6915.1s	912	  warnings.warn(
+6916.2s	913	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6916.2s	914	  warnings.warn(
+6916.4s	915	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6916.4s	916	  warnings.warn(
+6916.4s	917	
+6916.4s	918	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6916.4s	919	  warnings.warn(
+6932.0s	920	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6932.0s	921	  warnings.warn(
+6932.3s	922	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6932.3s	923	  warnings.warn(
+6932.3s	924	
+6932.3s	925	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6932.3s	926	  warnings.warn(
+6935.3s	927	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6935.3s	928	  warnings.warn(
+6935.4s	929	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6935.4s	930	  warnings.warn(
+6935.4s	931	[32m23:20:54[0m | [1mINFO    [0m | CV R² (Stacking) = 0.9771 ± 0.0077
+6935.4s	932	
+6935.4s	933	/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMRegressor was fitted with feature names
+6935.4s	934	  warnings.warn(
+6935.4s	935	[32m23:20:54[0m | [1mINFO    [0m | CV R² (Stacking) = 0.9771 ± 0.0077
+6935.4s	936	[32m23:20:54[0m | [1mINFO    [0m | CV per fold: [np.float64(0.9775), np.float64(0.9783), np.float64(0.9883), np.float64(0.9816), np.float64(0.9716), np.float64(0.9721), np.float64(0.9796), np.float64(0.9717), np.float64(0.9882), np.float64(0.9621)]
+6935.4s	937	
+6935.4s	938	[32m23:20:54[0m | [1mINFO    [0m | CV per fold: [np.float64(0.9775), np.float64(0.9783), np.float64(0.9883), np.float64(0.9816), np.float64(0.9716), np.float64(0.9721), np.float64(0.9796), np.float64(0.9717), np.float64(0.9882), np.float64(0.9621)]
+6936.5s	939	[32m23:20:55[0m | [1mINFO    [0m | Best model saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/best_model.pkl
+6936.5s	940	
+6936.5s	941	[32m23:20:55[0m | [1mINFO    [0m | Best model saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/best_model.pkl
+6936.5s	942	[32m23:20:55[0m | [1mINFO    [0m | ⭐⭐⭐ BOTH BENCHMARKS BROKEN! ⭐⭐⭐
+6936.5s	943	
+6936.5s	944	[32m23:20:55[0m | [1mINFO    [0m | ⭐⭐⭐ BOTH BENCHMARKS BROKEN! ⭐⭐⭐
+6936.5s	945	[32m23:20:55[0m | [1mINFO    [0m | Ensemble metrics saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/ensemble_metrics.json
+6936.5s	946	
+6936.5s	947	[32m23:20:55[0m | [1mINFO    [0m | Ensemble metrics saved → /kaggle/working/corrosion-rc-beam-optimizer/final_results/models/ensemble_metrics.json
+6936.5s	948	[32m23:20:55[0m | [1mINFO    [0m | ══════════════════════════════════════════════════
+6936.5s	949	
+6936.5s	950	[32m23:20:55[0m | [1mINFO    [0m | ══════════════════════════════════════════════════
+6936.5s	951	[32m23:20:55[0m | [1mINFO    [0m |  Phase 1B Complete
+6936.5s	952	
+6936.5s	953	[32m23:20:55[0m | [1mINFO    [0m |  Phase 1B Complete
+6936.5s	954	[32m23:20:55[0m | [1mINFO    [0m | ══════════════════════════════════════════════════
+6936.5s	955	
+6936.5s	956	[32m23:20:55[0m | [1mINFO    [0m | ══════════════════════════════════════════════════
+6936.5s	957	[32m23:20:55[0m | [1mINFO    [0m | 
+6936.5s	958	============================================================
+6936.5s	959	
+6936.5s	960	[32m23:20:55[0m | [1mINFO    [0m | 
+6936.5s	961	============================================================
+6936.5s	962	[32m23:20:55[0m | [1mINFO    [0m |   Re-evaluating ALL models in ORIGINAL kN·m scale
+6936.5s	963	
+6936.5s	964	[32m23:20:55[0m | [1mINFO    [0m |   Re-evaluating ALL models in ORIGINAL kN·m scale
+6936.5s	965	[32m23:20:55[0m | [1mINFO    [0m | ============================================================
+6936.5s	966	
+6936.5s	967	[32m23:20:55[0m | [1mINFO    [0m | ============================================================
+6936.5s	968	[32m23:20:55[0m | [1mINFO    [0m |   [XGBoost] R2=0.9735  RMSE=4.12  MAE=2.11  L1:✓  L2:✓
+6936.5s	969	
+6936.5s	970	[32m23:20:55[0m | [1mINFO    [0m |   [XGBoost] R2=0.9735  RMSE=4.12  MAE=2.11  L1:✓  L2:✓
+6937.0s	971	[32m23:20:56[0m | [1mINFO    [0m |   [RandomForest] R2=0.9673  RMSE=4.57  MAE=2.41  L1:✓  L2:✗
+6937.0s	972	
+6937.0s	973	[32m23:20:56[0m | [1mINFO    [0m |   [RandomForest] R2=0.9673  RMSE=4.57  MAE=2.41  L1:✓  L2:✗
+6937.0s	974	[32m23:20:56[0m | [1mINFO    [0m |   [GBR] R2=0.9656  RMSE=4.69  MAE=2.41  L1:✓  L2:✗
+6937.0s	975	
+6937.0s	976	[32m23:20:56[0m | [1mINFO    [0m |   [GBR] R2=0.9656  RMSE=4.69  MAE=2.41  L1:✓  L2:✗
+6937.0s	977	[32m23:20:56[0m | [1mINFO    [0m |   [LightGBM] R2=0.9695  RMSE=4.41  MAE=2.36  L1:✓  L2:✗
+6937.0s	978	
+6937.0s	979	[32m23:20:56[0m | [1mINFO    [0m |   [LightGBM] R2=0.9695  RMSE=4.41  MAE=2.36  L1:✓  L2:✗
+6937.4s	980	[32m23:20:56[0m | [1mINFO    [0m |   [ExtraTrees] R2=0.9760  RMSE=3.92  MAE=2.05  L1:✓  L2:✓
+6937.4s	981	
+6937.4s	982	[32m23:20:56[0m | [1mINFO    [0m |   [ExtraTrees] R2=0.9760  RMSE=3.92  MAE=2.05  L1:✓  L2:✓
+6937.4s	983	[32m23:20:56[0m | [1mINFO    [0m |   [CatBoost] R2=0.9711  RMSE=4.30  MAE=2.17  L1:✓  L2:✗
+6937.4s	984	
+6937.4s	985	[32m23:20:56[0m | [1mINFO    [0m |   [CatBoost] R2=0.9711  RMSE=4.30  MAE=2.17  L1:✓  L2:✗
+6938.2s	986	[32m23:20:57[0m | [1mINFO    [0m |   [Stacking] R2=0.9663  RMSE=4.64  MAE=2.39  L1:✓  L2:✗
+6938.2s	987	
+6938.2s	988	[32m23:20:57[0m | [1mINFO    [0m |   [Stacking] R2=0.9663  RMSE=4.64  MAE=2.39  L1:✓  L2:✗
+6938.2s	989	[32m23:20:57[0m | [1mINFO    [0m | 
+6938.2s	990	  TRUE BEST (original scale): ExtraTrees  R2=0.976
+6938.2s	991	
+6938.2s	992	[32m23:20:57[0m | [1mINFO    [0m | 
+6938.2s	993	  TRUE BEST (original scale): ExtraTrees  R2=0.976
+6938.2s	994	[32m23:20:57[0m | [32m[1mSUCCESS [0m |   L1 + L2 BOTH BROKEN!
+6938.2s	995	
+6938.2s	996	[32m23:20:57[0m | [32m[1mSUCCESS [0m |   L1 + L2 BOTH BROKEN!
+6938.2s	997	[32m23:20:57[0m | [1mINFO    [0m | 
+6938.2s	998	============================================================
+6938.2s	999	
+6938.2s	1000	[32m23:20:57[0m | [1mINFO    [0m | 
+6938.2s	1001	============================================================
+6938.2s	1002	[32m23:20:57[0m | [1mINFO    [0m |   10-Fold Cross-Validation -- ALL samples
+6938.2s	1003	
+6938.2s	1004	[32m23:20:57[0m | [1mINFO    [0m |   10-Fold Cross-Validation -- ALL samples
+6938.2s	1005	[32m23:20:57[0m | [1mINFO    [0m | ============================================================
+6938.2s	1006	
+6938.2s	1007	[32m23:20:57[0m | [1mINFO    [0m | ============================================================
+6938.3s	1008	[32m23:20:57[0m | [1mINFO    [0m | Running cross_val_predict (ExtraTrees) on 804 samples ...
+6938.3s	1009	
+6938.3s	1010	[32m23:20:57[0m | [1mINFO    [0m | Running cross_val_predict (ExtraTrees) on 804 samples ...
+6944.1s	1011	[32m23:21:03[0m | [1mINFO    [0m | 10-Fold CV predictions complete for ALL samples.
+6944.1s	1012	
+6944.1s	1013	[32m23:21:03[0m | [1mINFO    [0m | 10-Fold CV predictions complete for ALL samples.
+6944.1s	1014	[32m23:21:03[0m | [1mINFO    [0m | Per-fold R2 (original scale): [0.9651, 0.9775, 0.9554, 0.9777, 0.9684, 0.9871, 0.9837, 0.974, 0.9811, 0.9702]
+6944.1s	1015	
+6944.1s	1016	[32m23:21:03[0m | [1mINFO    [0m | Per-fold R2 (original scale): [0.9651, 0.9775, 0.9554, 0.9777, 0.9684, 0.9871, 0.9837, 0.974, 0.9811, 0.9702]
+6944.1s	1017	[32m23:21:03[0m | [1mINFO    [0m |   Mean R2  = 0.9740 ± 0.0090
+6944.1s	1018	
+6944.1s	1019	[32m23:21:03[0m | [1mINFO    [0m |   Mean R2  = 0.9740 ± 0.0090
+6944.1s	1020	[32m23:21:03[0m | [1mINFO    [0m |   Min fold = 0.9554  Max fold = 0.9871
+6944.1s	1021	
+6944.1s	1022	[32m23:21:03[0m | [1mINFO    [0m |   Min fold = 0.9554  Max fold = 0.9871
+6944.1s	1023	[32m23:21:03[0m | [1mINFO    [0m | 
+6944.1s	1024	  10-Fold CV Results (ALL 804 samples, original kN·m):
+6944.1s	1025	
+6944.1s	1026	[32m23:21:03[0m | [1mINFO    [0m | 
+6944.1s	1027	  10-Fold CV Results (ALL 804 samples, original kN·m):
+6944.1s	1028	[32m23:21:03[0m | [1mINFO    [0m |     R2    = 0.9744
+6944.1s	1029	
+6944.1s	1030	[32m23:21:03[0m | [1mINFO    [0m |     R2    = 0.9744
+6944.1s	1031	[32m23:21:03[0m | [1mINFO    [0m |     RMSE  = 3.8674 kN.m
+6944.1s	1032	
+6944.1s	1033	[32m23:21:03[0m | [1mINFO    [0m |     RMSE  = 3.8674 kN.m
+6944.1s	1034	[32m23:21:03[0m | [1mINFO    [0m |     MAE   = 1.8653 kN.m
+6944.1s	1035	
+6944.1s	1036	[32m23:21:03[0m | [1mINFO    [0m |     MAE   = 1.8653 kN.m
+6944.1s	1037	[32m23:21:03[0m | [1mINFO    [0m |     CV%   = 17.04%
+6944.1s	1038	
+6944.1s	1039	[32m23:21:03[0m | [1mINFO    [0m |     CV%   = 17.04%
+6944.1s	1040	[32m23:21:03[0m | [1mINFO    [0m |     SD/M  = 0.1701
+6944.1s	1041	
+6944.1s	1042	[32m23:21:03[0m | [1mINFO    [0m |     SD/M  = 0.1701
+6944.1s	1043	[32m23:21:03[0m | [1mINFO    [0m |     Mean(Pred/Exp) = 1.0177
+6944.1s	1044	
+6944.1s	1045	[32m23:21:03[0m | [1mINFO    [0m |     Mean(Pred/Exp) = 1.0177
+6944.1s	1046	[32m23:21:03[0m | [1mINFO    [0m |     Std(Pred/Exp)  = 0.2158
+6944.1s	1047	
+6944.1s	1048	[32m23:21:03[0m | [1mINFO    [0m |     Std(Pred/Exp)  = 0.2158
+6944.3s	1049	[32m23:21:03[0m | [1mINFO    [0m | 
+6944.3s	1050	  Test Set (30%) Metrics (original kN·m):
+6944.3s	1051	
+6944.3s	1052	[32m23:21:03[0m | [1mINFO    [0m | 
+6944.3s	1053	  Test Set (30%) Metrics (original kN·m):
+6944.3s	1054	[32m23:21:03[0m | [1mINFO    [0m |     R2    = 0.9760
+6944.3s	1055	
+6944.3s	1056	[32m23:21:03[0m | [1mINFO    [0m |     R2    = 0.9760
+6944.3s	1057	[32m23:21:03[0m | [1mINFO    [0m |     RMSE  = 3.9206 kN.m
+6944.3s	1058	
+6944.3s	1059	[32m23:21:03[0m | [1mINFO    [0m |     RMSE  = 3.9206 kN.m
+6944.3s	1060	[32m23:21:03[0m | [1mINFO    [0m |     MAE   = 2.0495 kN.m
+6944.3s	1061	
+6944.3s	1062	[32m23:21:03[0m | [1mINFO    [0m |     MAE   = 2.0495 kN.m
+6944.3s	1063	[32m23:21:03[0m | [1mINFO    [0m |     CV%   = 16.84%
+6944.3s	1064	
+6944.3s	1065	[32m23:21:03[0m | [1mINFO    [0m |     CV%   = 16.84%
+6944.3s	1066	[32m23:21:03[0m | [1mINFO    [0m |     SD/M  = 0.1675
+6944.3s	1067	
+6944.3s	1068	[32m23:21:03[0m | [1mINFO    [0m |     SD/M  = 0.1675
+6944.3s	1069	[32m23:21:03[0m | [1mINFO    [0m | 
+6944.3s	1070	============================================================
+6944.3s	1071	
+6944.3s	1072	[32m23:21:03[0m | [1mINFO    [0m | 
+6944.3s	1073	============================================================
+6944.3s	1074	[32m23:21:03[0m | [1mINFO    [0m |   Phase 4 -- SHAP Analysis
+6944.3s	1075	
+6944.3s	1076	[32m23:21:03[0m | [1mINFO    [0m |   Phase 4 -- SHAP Analysis
+6944.3s	1077	[32m23:21:03[0m | [1mINFO    [0m | ============================================================
+6944.3s	1078	
+6944.3s	1079	[32m23:21:03[0m | [1mINFO    [0m | ============================================================
+6944.3s	1080	[32m23:21:03[0m | [1mINFO    [0m | ============================================================
+6944.3s	1081	
+6944.3s	1082	[32m23:21:03[0m | [1mINFO    [0m | ============================================================
+6944.3s	1083	[32m23:21:03[0m | [1mINFO    [0m |  SHAP Analysis — Feature Importance
+6944.3s	1084	
+6944.3s	1085	[32m23:21:03[0m | [1mINFO    [0m |  SHAP Analysis — Feature Importance
+6944.3s	1086	[32m23:21:03[0m | [1mINFO    [0m | ============================================================
+6944.3s	1087	
+6944.3s	1088	[32m23:21:03[0m | [1mINFO    [0m | ============================================================
+6944.6s	1089	[32m23:21:03[0m | [1mINFO    [0m | SHAP KernelExplainer built with 50 background clusters.
+6944.6s	1090	
+6944.6s	1091	[32m23:21:03[0m | [1mINFO    [0m | SHAP KernelExplainer built with 50 background clusters.
+6944.6s	1092	[32m23:21:03[0m | [1mINFO    [0m | Computing SHAP values for 200 samples ...
+6944.6s	1093	
+6944.6s	1094	[32m23:21:03[0m | [1mINFO    [0m | Computing SHAP values for 200 samples ...

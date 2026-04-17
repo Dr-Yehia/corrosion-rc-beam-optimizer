@@ -65,14 +65,21 @@ if not os.path.isdir(REPO_PATH):
 else:
     subprocess.run(["git", "-C", REPO_PATH, "pull"], check=False)
 
-# ============= PATCH 70/30 SPLIT =============
+# ============= PATCH CONFIG FOR R2 & RMSE =============
 config_path = f"{REPO_PATH}/src/config.py"
+import re
 with open(config_path, "r") as f:
     cfg_txt = f.read()
-cfg_txt = cfg_txt.replace("TEST_SIZE    = 0.20", "TEST_SIZE    = 0.30")
+
+# Make sure TEST_SIZE is 0.30
+cfg_txt = re.sub(r'TEST_SIZE\s*=\s*0\.20', 'TEST_SIZE = 0.30', cfg_txt)
+
+# Fast & Powerful Mode: 150 trials (To beat the 100 trial mark)
+cfg_txt = re.sub(r'OPTUNA_N_TRIALS\s*=\s*\d+', 'OPTUNA_N_TRIALS = 150', cfg_txt)
+
 with open(config_path, "w") as f:
     f.write(cfg_txt)
-print("CONFIG PATCHED: TEST_SIZE = 0.30 (70/30 split)")
+print("CONFIG PATCHED: TEST_SIZE=0.30, OPTUNA=150 (Optimal Mode)")
 
 os.chdir(f"{REPO_PATH}/src")
 sys.path.insert(0, f"{REPO_PATH}/src")

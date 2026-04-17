@@ -62,13 +62,16 @@ if not os.path.isdir(REPO_PATH):
 
 # Patch 70/30 if not already patched
 config_path = f"{REPO_PATH}/src/config.py"
+import re
 with open(config_path, "r") as f:
     cfg_txt = f.read()
-if "TEST_SIZE    = 0.20" in cfg_txt:
-    cfg_txt = cfg_txt.replace("TEST_SIZE    = 0.20", "TEST_SIZE    = 0.30")
-    with open(config_path, "w") as f:
-        f.write(cfg_txt)
-    print("CONFIG PATCHED: TEST_SIZE = 0.30")
+
+cfg_txt = re.sub(r'TEST_SIZE\s*=\s*0\.20', 'TEST_SIZE = 0.30', cfg_txt)
+cfg_txt = re.sub(r'OPTUNA_N_TRIALS\s*=\s*\d+', 'OPTUNA_N_TRIALS = 150', cfg_txt)
+
+with open(config_path, "w") as f:
+    f.write(cfg_txt)
+print("CONFIG PATCHED IN PART 2: OPTIMAL SPEED/QUALITY MODE")
 
 os.chdir(f"{REPO_PATH}/src")
 sys.path.insert(0, f"{REPO_PATH}/src")
@@ -175,11 +178,11 @@ def _sanitize_name(name):
 
 # ======= PySR HYPERPARAMETERS — OPTIMIZED FOR BEST RMSE+MAE+CV% =======
 PYSR_COMMON = dict(
-    niterations=400,
-    maxsize=25,
-    populations=50,
-    population_size=40,
-    ncycles_per_iteration=550,
+    niterations=300,
+    maxsize=30,
+    populations=60,
+    population_size=50,
+    ncycles_per_iteration=500,
     binary_operators=["+", "-", "*", "/", "^"],
     unary_operators=["sqrt", "log", "exp", "abs"],
     nested_constraints={
@@ -201,7 +204,7 @@ PYSR_COMMON = dict(
     adaptive_parsimony_scaling=100.0,
     fraction_replaced_hof=0.1,
     weight_mutate_constant=0.05,
-    extra_sympy_mappings={"abs": "Abs"},
+    extra_sympy_mappings={"abs": __import__("sympy").Abs},
 )
 
 logger.info(f"PySR config: niterations={PYSR_COMMON['niterations']}, "
