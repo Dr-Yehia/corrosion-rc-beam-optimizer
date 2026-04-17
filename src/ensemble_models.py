@@ -333,10 +333,18 @@ def run_ensemble_pipeline(X_train, X_test, y_train, y_test, scaler_y=None):
             estimators.append(("cat", results["CatBoost"]["model"]))
 
     if len(estimators) >= 2:
+        from lightgbm import LGBMRegressor
         stacking = StackingRegressor(
             estimators     = estimators,
-            final_estimator= Ridge(alpha=1.0),
-            cv             = 5,
+            final_estimator= LGBMRegressor(
+                n_estimators   = 300,
+                learning_rate  = 0.05,
+                num_leaves     = 15,
+                subsample      = 0.8,
+                random_state   = RANDOM_STATE,
+                verbose        = -1,
+            ),
+            cv             = 10,
             n_jobs         = -1,
         )
         stacking.fit(X_train, y_tr)
