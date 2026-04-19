@@ -101,7 +101,7 @@ logger.info(f"  Dataset: {X.shape[0]} rows × {X.shape[1]} features before outli
 
 # ═════════════════════════ STEP 2: OUTLIER REMOVAL (IQR) ══════════════════
 logger.info("STEP 2: Outlier removal (IQR method)…")
-Q1, Q3 = y.quantile([0.25, 0.75]) if isinstance(y, pd.Series) else (np.percentile(y, 25), np.percentile(y, 75))
+Q1, Q3 = np.percentile(y, [25, 75])
 IQR = Q3 - Q1
 mask = (y >= Q1 - 1.5*IQR) & (y <= Q3 + 1.5*IQR)
 X_clean, y_clean = X[mask].reset_index(drop=True), y[mask]
