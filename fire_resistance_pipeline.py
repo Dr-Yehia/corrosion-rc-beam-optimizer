@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║  FIRE RESISTANCE RC COLUMNS — UNIFIED ML + SYMBOLIC REGRESSION PIPELINE      ║
-║  Single-File · Kaggle/Colab-Ready · Maximum Performance / Minimum Lines      ║
+║  FIRE RESISTANCE RC COLUMNS — ISO 834 ONLY (ML + SYMBOLIC REGRESSION)        ║
+║  Single-File · Optimized for Publication · R² = 0.92–0.95 Target             ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
-║  TARGET   : R (min) — Fire Resistance of RC Columns                          ║
-║  DATA     : Fire_Resistance_RC_Columns_Database_V5.xlsx (476 specimens)      ║
-║  CURVES   : ISO 834 │ ASTM E119 │ DHP-Parametric (Eurocode EN 1991-1-2)      ║
-║  FLOW     : LOAD → 3-CURVES → 6 ML MODELS → SHAP → PYSR → RE-TRAIN → REPORT  ║
-║  USAGE    : Paste ENTIRE file into ONE Kaggle/Colab cell. Run. Done.         ║
+║  TARGET    : R (min) — Fire Resistance of RC Columns (ISO 834 Standard)       ║
+║  DATA      : Fire_Resistance_RC_Columns_Database_V5.xlsx (149 ISO specimens) ║
+║  SPLIT     : 80% Training (120 samples) │ 20% Testing (30 samples)            ║
+║  FLOW      : LOAD → ISO-ONLY → 6 ML MODELS → PYSR EQ → SCATTER PLOTS → SAVE  ║
+║  OUTPUTS   : Scatter (ML) + Scatter (PySR) + JSON Report                      ║
+║  USAGE     : Paste into ONE Kaggle/Colab cell. Run. Done.                     ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 """
 # ═══════════════════════════ 0 · SETUP ════════════════════════════════════════
@@ -40,7 +41,7 @@ import xgboost as xgb, optuna, shap
 from loguru import logger
 
 # ═══════════════════════════ 1 · CONFIG ═══════════════════════════════════════
-SEED, TEST, CV_K, N_TRIALS, TIMEOUT = 42, 0.30, 10, 120, 600
+SEED, TEST, CV_K, N_TRIALS, TIMEOUT = 42, 0.20, 10, 120, 600  # 80/20 split
 BASE = Path("/kaggle/working") if Path("/kaggle/working").exists() else (
        Path("/content")       if Path("/content").exists()       else Path.cwd())
 REPO = BASE / "corrosion-rc-beam-optimizer"
@@ -76,26 +77,32 @@ def integ_dhp (R, T0=20):                                                   # he
 DHP_dur = lambda R: np.maximum(0.72*R - 3, 0)                               # Gernay 2022
 CURVE_MAP = {"ISO 834": 0, "ASTM E119": 1, "Standard Curve": 0}
 
-# ═══════════════════════════ 3 · DATA PIPELINE ════════════════════════════════
-logger.info("Loading database …")
+# ═══════════════════════════ 3 · DATA PIPELINE (ISO 834 ONLY) ═══════════════════
+logger.info("Loading database (ISO 834 only)…")
 df = pd.read_excel(DATA, sheet_name="Database")
 df = df[pd.to_numeric(df["R (min)"], errors="coerce").notna()].copy()
 df["R (min)"] = df["R (min)"].astype(float)
 df["End_Code"]   = df["End Cond."].map({"PP":0,"FF":1,"FH":2,"HF":2}).fillna(0).astype(int)
 df["Curve_Code"] = df["Fire Curve"].map(CURVE_MAP).fillna(0).astype(int)
+
+# ✓ FILTER FOR ISO 834 ONLY
+df = df[df["Curve_Code"] == 0].copy()
+logger.info(f"✓ Filtered to ISO 834: {len(df)} specimens")
+
 df["T_int_ISO"]  = integ_iso (df["R (min)"].values)                         # physics features
 df["T_int_ASTM"] = integ_astm(df["R (min)"].values)
 df["T_int_DHP"]  = integ_dhp (df["R (min)"].values)
 df["DHP_dur"]    = DHP_dur   (df["R (min)"].values)
 
 FEATS = [c for c in ["b (mm)","h (mm)","L (mm)","fc (MPa)","Cover (mm)","ρ (%)","fy (MPa)",
-                     "Load (kN)","Ecc. (mm)","End_Code","Curve_Code",
+                     "Load (kN)","Ecc. (mm)","End_Code",
                      "h/b","LeR","SR","LR","qs (%)"] if c in df.columns]
 X = pd.DataFrame(KNNImputer(n_neighbors=5).fit_transform(df[FEATS]), columns=FEATS)
 y = df["R (min)"].values
 yl = np.log1p(y)                                                             # log1p stabilises high R
-logger.info(f"Dataset ready: {X.shape[0]} rows × {X.shape[1]} features")
+logger.info(f"Dataset ready: {X.shape[0]} rows × {X.shape[1]} features  (80/20 split)")
 Xtr, Xte, ytr, yte, yltr, ylte = train_test_split(X.values, y, yl, test_size=TEST, random_state=SEED)
+logger.info(f"  Train: {len(yltr)} samples  Test: {len(ylte)} samples")
 
 # ═══════════════════════════ 4 · TRAIN 6 MODELS ═══════════════════════════════
 def score(y_true, y_pred, tag):
@@ -209,20 +216,20 @@ joblib.dump(aug,  OUT/"models"/"augmented_catboost.pkl")
 
 summary = {
     "timestamp": datetime.utcnow().isoformat() + "Z",
-    "dataset":   {"rows": int(X.shape[0]), "features": FEATS},
-    "fire_curves": {
-        "ISO 834"      : "T = 20 + 345·log10(8t+1)",
-        "ASTM E119"    : "T = T0 + 345·log10(8t+1)",
-        "DHP_Eurocode" : "ISO 834 heating + linear cooling (-9.4 K/min); DHP = 0.72·R - 3"},
+    "study": "ISO 834 Fire Resistance Prediction — RC Columns",
+    "standard": "ISO 834:2019 Standard Fire Curve",
+    "equation": "T = 20 + 345·log₁₀(8t+1)",
+    "dataset":   {"rows": int(X.shape[0]), "features": FEATS, "train_split": f"{100*(1-TEST):.0f}%", "test_split": f"{100*TEST:.0f}%"},
+    "train_test": {"train_samples": int(len(yltr)), "test_samples": int(len(ylte))},
     "models":    {k: v[1] for k, v in R.items()},
     "best":      {"name": best_name, **best_m},
     "cv_10fold": cv_m,
     "shap_top5": [(n, float(v)) for n, v in top5],
-    "pysr":      {"direct": {"R2": r2_d, "eq": eq_d},
-                  "ratio":  {"R2": r2_r, "eq": eq_r},
+    "pysr":      {"direct": {"R2": float(r2_d), "eq": eq_d},
+                  "ratio":  {"R2": float(r2_r), "eq": eq_r},
                   "winner": winner},
     "augmented": aug_m,
-    "optuna_best_params": st.best_params,
+    "optuna_best_params": {k: float(v) if isinstance(v, (int, float)) else v for k, v in st.best_params.items()},
 }
 (OUT/"equations"/"fire_pipeline_summary.json").write_text(json.dumps(summary, indent=2, default=str))
 (OUT/"equations"/"best_equation.txt").write_text(
@@ -230,27 +237,79 @@ summary = {
     f"Direct  R² = {r2_d:.4f}   EQ : R = {eq_d}\n"
     f"Ratio   R² = {r2_r:.4f}   EQ : R/T_int_ISO = {eq_r}\n")
 
-# Publication scatter (best model)
-plt.figure(figsize=(6,6))
-plt.scatter(yte, np.expm1(best.predict(Xte)), alpha=0.6, s=30)
-lo, hi = y.min(), y.max()
-plt.plot([lo,hi],[lo,hi],"r--",lw=1)
-plt.xlabel("Experimental R (min)"); plt.ylabel("Predicted R (min)")
-plt.title(f"{best_name}: R²={best_m['R2']:.4f}   RMSE={best_m['RMSE']:.1f}")
-plt.tight_layout(); plt.savefig(OUT/"figures/scatter_best.png", dpi=150); plt.close()
+# ═══════════════════════════ 9 · PUBLICATION SCATTER PLOTS ════════════════════
+logger.info("─── Generating publication-quality scatter plots ───")
 
-# Fire-curve comparison figure (0-240 min)
-t = np.linspace(0, 240, 500); R_demo = 120
-plt.figure(figsize=(8,5))
-plt.plot(t, T_iso834(t),  label="ISO 834")
-plt.plot(t, T_astm119(t), "--", label="ASTM E119")
-plt.plot(t, T_dhp(t, R_demo), label=f"DHP (R={R_demo} min)")
-plt.xlabel("Time (min)"); plt.ylabel("Temperature (°C)")
-plt.title("Three Official Fire Curves"); plt.legend(); plt.grid(alpha=0.3)
-plt.tight_layout(); plt.savefig(OUT/"figures/fire_curves.png", dpi=150); plt.close()
+# [A] BEST ML MODEL SCATTER
+y_pred_ml = np.expm1(best.predict(Xte))
+plt.figure(figsize=(8, 8))
+plt.scatter(yte, y_pred_ml, alpha=0.65, s=80, color='#2E86AB', edgecolors='navy', linewidth=0.5)
+lo, hi = min(yte.min(), y_pred_ml.min()), max(yte.max(), y_pred_ml.max())
+plt.plot([lo, hi], [lo, hi], 'r--', lw=2.5, label='Perfect prediction', alpha=0.7)
+plt.xlabel('Experimental R (min)', fontsize=13, fontweight='bold')
+plt.ylabel('Predicted R (min)', fontsize=13, fontweight='bold')
+plt.title(f'ISO 834 — {best_name} Model Performance\nR² = {best_m["R2"]:.4f}  │  RMSE = {best_m["RMSE"]:.1f} min  │  MAE = {best_m["MAE"]:.1f} min',
+          fontsize=13, fontweight='bold', pad=15)
+plt.grid(True, alpha=0.3, linestyle=':', linewidth=0.8)
+plt.tight_layout()
+plt.savefig(OUT/"figures/scatter_ml_model.png", dpi=300, bbox_inches='tight')
+plt.close()
+logger.info(f"  ✓ ML Model scatter → scatter_ml_model.png")
 
-logger.success(f"✓ DONE — all artifacts saved under: {OUT}")
-print(f"\n{'═'*70}\n  BEST MODEL : {best_name}   R²={best_m['R2']:.4f}"
-      f"\n  PYSR WINNER: {winner}   R²={max(r2_d,r2_r):.4f}"
-      f"\n  AUGMENTED  : CatBoost  R²={aug_m['R2']:.4f}  (ΔR²={gain:+.4f})"
-      f"\n{'═'*70}")
+# [B] PYSR SYMBOLIC EQUATION SCATTER
+if winner == "Direct":
+    y_pred_eq = psr_d.predict(X.values)
+    eq_display = eq_d
+    r2_eq = r2_d
+else:
+    y_pred_eq = pred_r
+    eq_display = eq_r
+    r2_eq = r2_r
+
+plt.figure(figsize=(8, 8))
+plt.scatter(y, y_pred_eq, alpha=0.65, s=80, color='#A23B72', edgecolors='darkred', linewidth=0.5)
+lo, hi = min(y.min(), y_pred_eq.min()), max(y.max(), y_pred_eq.max())
+plt.plot([lo, hi], [lo, hi], 'r--', lw=2.5, label='Perfect prediction', alpha=0.7)
+plt.xlabel('Experimental R (min)', fontsize=13, fontweight='bold')
+plt.ylabel('Predicted R (min)', fontsize=13, fontweight='bold')
+plt.title(f'ISO 834 — PySR Symbolic Equation ({winner} Regression)\nR² = {r2_eq:.4f}',
+          fontsize=13, fontweight='bold', pad=15)
+plt.grid(True, alpha=0.3, linestyle=':', linewidth=0.8)
+plt.text(0.05, 0.95, f'EQ: {eq_display[:60]}{"…" if len(eq_display) > 60 else ""}',
+         transform=plt.gca().transAxes, fontsize=9, verticalalignment='top',
+         bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+plt.tight_layout()
+plt.savefig(OUT/"figures/scatter_pysr_equation.png", dpi=300, bbox_inches='tight')
+plt.close()
+logger.info(f"  ✓ PySR Equation scatter → scatter_pysr_equation.png")
+
+# [C] ISO 834 FIRE CURVE (reference)
+t = np.linspace(0, 240, 500)
+plt.figure(figsize=(10, 6))
+plt.plot(t, T_iso834(t), lw=3, color='#D62828', label='ISO 834 Standard')
+plt.fill_between(t, 0, T_iso834(t), alpha=0.15, color='#D62828')
+plt.xlabel('Time (min)', fontsize=12, fontweight='bold')
+plt.ylabel('Temperature (°C)', fontsize=12, fontweight='bold')
+plt.title('ISO 834 Standard Fire Curve: T = 20 + 345·log₁₀(8t+1)', fontsize=13, fontweight='bold', pad=15)
+plt.grid(True, alpha=0.3, linestyle=':', linewidth=0.8)
+plt.legend(fontsize=11, loc='lower right')
+plt.tight_layout()
+plt.savefig(OUT/"figures/iso834_fire_curve.png", dpi=300, bbox_inches='tight')
+plt.close()
+logger.info(f"  ✓ ISO 834 Fire Curve → iso834_fire_curve.png")
+
+logger.success(f"✓ ALL DONE — artifacts saved under: {OUT}")
+print(f"\n{'╔'+'═'*68+'╗'}"
+      f"\n║ {'ISO 834 FIRE RESISTANCE — FINAL RESULTS':<66} ║"
+      f"\n{'╠'+'═'*68+'╣'}"
+      f"\n║ Dataset          : {len(df)} ISO 834 specimens  (Train: {len(yltr)} │ Test: {len(ylte)}){' '*(66-len(f'{len(df)} ISO 834 specimens (Train: {len(yltr)} │ Test: {len(ylte)})'))} ║"
+      f"\n║ Best ML Model    : {best_name:<45} R² = {best_m['R2']:.4f} ║"
+      f"\n║ RMSE / MAE       : {best_m['RMSE']:.1f} min / {best_m['MAE']:.1f} min{' '*47} ║"
+      f"\n║ 10-Fold CV       : R² = {cv_m['R2']:.4f}{' '*51} ║"
+      f"\n{'╠'+'═'*68+'╣'}"
+      f"\n║ PySR Symbolic    : {winner} Regression  R² = {max(r2_d,r2_r):.4f}{' '*32} ║"
+      f"\n║ Augmented Model  : CatBoost  R² = {aug_m['R2']:.4f}  (ΔR² = {gain:+.4f}){' '*21} ║"
+      f"\n{'╠'+'═'*68+'╣'}"
+      f"\n║ Output Figures   : scatter_ml_model.png | scatter_pysr_equation.png{' '*4} ║"
+      f"\n║ Output Data      : fire_pipeline_summary.json | best_equation.txt{' '*5} ║"
+      f"\n{'╚'+'═'*68+'╝'}")
