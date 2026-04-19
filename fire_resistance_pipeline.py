@@ -336,27 +336,29 @@ pd.DataFrame(summary_data).to_csv(summary_csv, index=False)
 logger.success(f"✓ Summary CSV: {summary_csv}")
 
 logger.success(f"✓ ALL DONE — artifacts saved under: {OUT}")
-print(f"\n{'╔'+'═'*72+'╗'}"
-      f"\n║ {'ISO 834 FIRE RESISTANCE PREDICTION — FINAL RESULTS':<70} ║"
-      f"\n{'╠'+'═'*72+'╣'}"
-      f"\n║ ✓ DATASET: {len(df)} ISO 834 specimens (PURE ISO 834 ONLY){' '*(71-len(f'{len(df)} ISO 834 specimens (PURE ISO 834 ONLY)'))} ║"
-      f"\n║   └─ Train: {len(yltr)} samples (80%)  │  Test: {len(ylte)} samples (20%){' '*(71-len(f'Train: {len(yltr)} samples (80%)  │  Test: {len(ylte)} samples (20%)'))} ║"
-      f"\n{'╠'+'═'*72+'╣'}"
-      f"\n║ ★ BEST ML MODEL: {best_name:<35} R² = {best_m['R2']:.4f}{' '*(71-len(f'BEST ML MODEL: {best_name} R² = {best_m['R2']:.4f}'))} ║"
-      f"\n║   └─ RMSE = {best_m['RMSE']:.1f} min  │  MAE = {best_m['MAE']:.1f} min  │  CV R² = {cv_m['R2']:.4f}{' '*(71-len(f'RMSE = {best_m['RMSE']:.1f} min  │  MAE = {best_m['MAE']:.1f} min  │  CV R² = {cv_m['R2']:.4f}'))} ║"
-      f"\n{'╠'+'═'*72+'╣'}"
-      f"\n║ ★ PYSR SYMBOLIC REGRESSION: {winner:<20} R² = {max(r2_d,r2_r):.4f}{' '*(71-len(f'PYSR SYMBOLIC REGRESSION: {winner} R² = {max(r2_d,r2_r):.4f}'))} ║"
-      f"\n║ ★ AUGMENTED MODEL: CatBoost  R² = {aug_m['R2']:.4f}  (ΔR² = {gain:+.4f}){' '*(71-len(f'AUGMENTED MODEL: CatBoost  R² = {aug_m['R2']:.4f}  (ΔR² = {gain:+.4f})'))} ║"
-      f"\n{'╠'+'═'*72+'╣'}"
-      f"\n║ 📊 OUTPUT FILES:{' '*(72-len('OUTPUT FILES:')-2)} ║"
-      f"\n║   ✓ scatter_ml_model.png          (ML model predictions){' '*(72-len('scatter_ml_model.png          (ML model predictions)')-2)} ║"
-      f"\n║   ✓ scatter_pysr_equation.png     (PySR equation predictions){' '*(72-len('scatter_pysr_equation.png     (PySR equation predictions)')-2)} ║"
-      f"\n║   ✓ iso834_fire_curve.png         (Reference fire curve){' '*(72-len('iso834_fire_curve.png         (Reference fire curve)')-2)} ║"
-      f"\n║   ✓ shap_summary.png              (Feature importance){' '*(72-len('shap_summary.png              (Feature importance)')-2)} ║"
-      f"\n║   ✓ fire_pipeline_summary.json    (Complete report){' '*(72-len('fire_pipeline_summary.json    (Complete report)')-2)} ║"
-      f"\n║   ✓ best_equation.txt             (Symbolic equations){' '*(72-len('best_equation.txt             (Symbolic equations)')-2)} ║"
-      f"\n║   ✓ results_summary.csv           (Quick summary){' '*(72-len('results_summary.csv           (Quick summary)')-2)} ║"
-      f"\n║   ✓ ISO_834_Fire_Results.zip      (Download all files){' '*(72-len('ISO_834_Fire_Results.zip      (Download all files)')-2)} ║"
-      f"\n{'╠'+'═'*72+'╣'}"
-      f"\n║ 📂 Location: {OUT}{' '*(72-len(f'Location: {OUT}')-2)} ║"
-      f"\n{'╚'+'═'*72+'╝'}")
+print(f"""
+╔════════════════════════════════════════════════════════════════════════════╗
+║ ISO 834 FIRE RESISTANCE PREDICTION — FINAL RESULTS                         ║
+╠════════════════════════════════════════════════════════════════════════════╣
+║ ✓ DATASET: {len(df)} ISO 834 specimens (PURE ISO 834 ONLY)                ║
+║   └─ Train: {len(yltr)} samples (80%) │ Test: {len(ylte)} samples (20%)     ║
+╠════════════════════════════════════════════════════════════════════════════╣
+║ ★ BEST ML MODEL: {best_name:<40} R² = {best_m['R2']:.4f}       ║
+║   └─ RMSE = {best_m['RMSE']:.1f} min │ MAE = {best_m['MAE']:.1f} min │ CV R² = {cv_m['R2']:.4f}  ║
+╠════════════════════════════════════════════════════════════════════════════╣
+║ ★ PYSR SYMBOLIC REGRESSION: {winner:<23} R² = {max(r2_d,r2_r):.4f}  ║
+║ ★ AUGMENTED MODEL: CatBoost  R² = {aug_m['R2']:.4f}  (ΔR² = {gain:+.4f})   ║
+╠════════════════════════════════════════════════════════════════════════════╣
+║ 📊 OUTPUT FILES:                                                           ║
+║   ✓ scatter_ml_model.png          (ML model predictions)                   ║
+║   ✓ scatter_pysr_equation.png     (PySR equation predictions)              ║
+║   ✓ iso834_fire_curve.png         (Reference fire curve)                   ║
+║   ✓ shap_summary.png              (Feature importance)                     ║
+║   ✓ fire_pipeline_summary.json    (Complete report)                        ║
+║   ✓ best_equation.txt             (Symbolic equations)                     ║
+║   ✓ results_summary.csv           (Quick summary)                          ║
+║   ✓ ISO_834_Fire_Results.zip      (Download all files)                     ║
+╠════════════════════════════════════════════════════════════════════════════╣
+║ 📂 Location: {OUT}                       ║
+╚════════════════════════════════════════════════════════════════════════════╝
+""")
