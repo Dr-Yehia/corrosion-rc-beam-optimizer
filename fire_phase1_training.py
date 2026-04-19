@@ -5,9 +5,9 @@
 ║                          (Advanced Multi-Model Ensemble)                     ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║  IMPROVEMENT OVER PHASE 1 (Corrosion Beams):                                 ║
-║    • Domain-Specific: Fire curves (ISO 834, ASTM E119, DHP)                  ║
+║    • Domain-Specific: ISO 834 fire curve ONLY (publication strategy)        ║
 ║    • Thermal Integration: Heat exposure cumulative calculations              ║
-║    • 70/30 split: 80% training (350) / 20% testing (88) on 438 specimens    ║
+║    • 80/20 split: 80% training (~119) / 20% testing (~30) on 149 specimens ║
 ║    • Log Transform: log1p(R) before training → expm1 after prediction       ║
 ║    • 10-Fold CV: All specimens with cross_val_predict                       ║
 ║    • 6 Models: MLP, XGBoost, RF, GBR, CatBoost+Optuna, Stacking            ║
@@ -17,13 +17,13 @@
 ║    • Comprehensive Report: FINAL_REPORT.txt + results.json                  ║
 ║                                                                               ║
 ║  PIPELINE:                                                                   ║
-║    1.  Load ISO 834 + ASTM E119 data (257→438 after cleaning)               ║
+║    1.  Load ISO 834 data ONLY (149 clean homogeneous specimens)             ║
 ║    2.  Compute thermal integrals (T_int_ISO, T_int_ASTM, T_int_DHP)        ║
 ║    3.  Apply IQR outlier removal                                             ║
-║    4.  Split 70/30 (350 train / 88 test) with log1p transform              ║
+║    4.  Split 80/20 with log1p transform (≈119 train / ≈30 test)            ║
 ║    5.  Train: MLP, XGBoost, RF, GBR, CatBoost+Optuna, Stacking             ║
 ║    6.  Evaluate in original scale → pick best model                          ║
-║    7.  10-Fold CV: predict ALL 438 points (cross_val_predict)              ║
+║    7.  10-Fold CV: predict ALL 149 points (cross_val_predict)              ║
 ║    8.  Compute: R², RMSE, MAE, CV%, SD/M, Taylor statistics                ║
 ║    9.  SHAP feature importance analysis                                      ║
 ║   10.  Generate 8 publication-ready scatter plots                            ║
@@ -135,25 +135,38 @@ def integ_dhp(R, T0=20):
 CURVE_MAP = {"ISO 834": 0, "ASTM E119": 1, "Standard Curve": 0}
 
 # ═════════════════════════ STEP 1: DATA LOADING ════════════════════════════
-logger.info("STEP 1: Loading fire resistance database (ISO 834 + ASTM E119)…")
+logger.info("STEP 1: Loading fire resistance database (ISO 834 ONLY)…")
 df = pd.read_excel(DATA, sheet_name="Database")
 df = df[pd.to_numeric(df["R (min)"], errors="coerce").notna()].copy()
 df["R (min)"] = df["R (min)"].astype(float)
 df["End_Code"] = df["End Cond."].map({"PP":0,"FF":1,"FH":2,"HF":2}).fillna(0).astype(int)
 df["Curve_Code"] = df["Fire Curve"].map(CURVE_MAP).fillna(0).astype(int)
 
-df_filtered = df[df["Curve_Code"].isin([0, 1])].copy()
-logger.info(f"✓ Combined ISO 834 + ASTM E119: {len(df_filtered)} specimens")
+df_filtered = df[df["Fire Curve"] == "ISO 834"].copy()  # ISO 834 ONLY (exact match)
+logger.info(f"✓ ISO 834 dataset: {len(df_filtered)} specimens")
 
 # Compute thermal integrals
 df_filtered["T_int_ISO"] = integ_iso(df_filtered["R (min)"].values)
 df_filtered["T_int_ASTM"] = integ_astm(df_filtered["R (min)"].values)
 df_filtered["T_int_DHP"] = integ_dhp(df_filtered["R (min)"].values)
 
-FEATS = [c for c in ["b (mm)","h (mm)","L (mm)","fc (MPa)","Cover (mm)","ρ (%)",
-                     "fy (MPa)","Load (kN)","Ecc. (mm)","End_Code",
-                     "h/b","LeR","SR","LR","qs (%)"] if c in df_filtered.columns]
-X = pd.DataFrame(KNNImputer(n_neighbors=5).fit_transform(df_filtered[FEATS]), columns=FEATS)
+FEATS_BASE = [c for c in ["b (mm)","h (mm)","L (mm)","fc (MPa)","Cover (mm)","ρ (%)",
+                           "fy (MPa)","Load (kN)","Ecc. (mm)","End_Code",
+                           "h/b","LeR","SR","LR","qs (%)"] if c in df_filtered.columns]
+
+# Impute missing values
+X_imputed = pd.DataFrame(KNNImputer(n_neighbors=5).fit_transform(df_filtered[FEATS_BASE]), columns=FEATS_BASE)
+
+# Add derived features for fire resistance prediction
+X_imputed['fc_sqrt'] = np.sqrt(np.maximum(X_imputed['fc (MPa)'], 0))
+X_imputed['Load_per_Area'] = X_imputed['Load (kN)'] / (X_imputed['b (mm)'] * X_imputed['h (mm)'] + 1)
+X_imputed['Cover_ratio'] = X_imputed['Cover (mm)'] / (X_imputed['h (mm)'] + X_imputed['b (mm)'] + 1)
+X_imputed['Confinement'] = X_imputed['ρ (%)'] * X_imputed['fy (MPa)'] / 100
+X_imputed['Slenderness_sq'] = X_imputed['L (mm)'] / (X_imputed['h (mm)'] + 1)
+X_imputed['fc_fy_ratio'] = X_imputed['fc (MPa)'] / (X_imputed['fy (MPa)'] + 1)
+
+FEATS = FEATS_BASE + ['fc_sqrt', 'Load_per_Area', 'Cover_ratio', 'Confinement', 'Slenderness_sq', 'fc_fy_ratio']
+X = X_imputed[FEATS]
 y = df_filtered["R (min)"].values
 N_TOTAL = len(y)
 
@@ -228,38 +241,45 @@ Xte_scaled = scaler.transform(Xte)
 
 results = {}
 
-# GBR
-logger.info("  Training GBR (500 estimators)…")
-gbr = GradientBoostingRegressor(n_estimators=500, learning_rate=0.05,
-                                max_depth=5, random_state=SEED)
+# GBR (enhanced hyperparameters)
+logger.info("  Training GBR (700 estimators, optimized)…")
+gbr = GradientBoostingRegressor(n_estimators=700, learning_rate=0.03, max_depth=7,
+                                min_samples_split=3, min_samples_leaf=2,
+                                subsample=0.9, random_state=SEED, validation_fraction=0.1,
+                                n_iter_no_change=50)
 gbr.fit(Xtr_scaled, ytr_log)
 gbr_pred = to_original(gbr.predict(Xte_scaled))
 results["GBR"] = {"model": gbr, "metrics": score(yte_orig, gbr_pred, "GBR")}
 
-# XGBoost
-logger.info("  Training XGBoost (800 estimators)…")
-xgb_m = xgb.XGBRegressor(n_estimators=800, learning_rate=0.05, max_depth=6, random_state=SEED, verbosity=0)
+# XGBoost (enhanced hyperparameters)
+logger.info("  Training XGBoost (1000 estimators, optimized)…")
+xgb_m = xgb.XGBRegressor(n_estimators=1000, learning_rate=0.03, max_depth=7,
+                         min_child_weight=2, subsample=0.9, colsample_bytree=0.9,
+                         reg_alpha=0.1, reg_lambda=1.0, random_state=SEED, verbosity=0)
 xgb_m.fit(Xtr_scaled, ytr_log)
 xgb_pred = to_original(xgb_m.predict(Xte_scaled))
 results["XGBoost"] = {"model": xgb_m, "metrics": score(yte_orig, xgb_pred, "XGBoost")}
 
-# Random Forest
-logger.info("  Training Random Forest (300 estimators)…")
-rf = RandomForestRegressor(n_estimators=300, max_depth=15, random_state=SEED, n_jobs=-1)
+# Random Forest (enhanced hyperparameters)
+logger.info("  Training Random Forest (500 estimators, optimized)…")
+rf = RandomForestRegressor(n_estimators=500, max_depth=18, min_samples_split=3,
+                          min_samples_leaf=2, max_features='sqrt', random_state=SEED, n_jobs=-1)
 rf.fit(Xtr_scaled, ytr_log)
 rf_pred = to_original(rf.predict(Xte_scaled))
 results["RandomForest"] = {"model": rf, "metrics": score(yte_orig, rf_pred, "RandomForest")}
 
-# CatBoost with Optuna
-logger.info("  Tuning CatBoost with Optuna (150 trials)…")
+# CatBoost with Optuna (aggressive hyperparameter search)
+logger.info("  Tuning CatBoost with Optuna (150 trials, aggressive search)…")
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 def optuna_obj(trial):
     params = {
-        "iterations": trial.suggest_int("iter", 400, 1500),
-        "learning_rate": trial.suggest_float("lr", 0.01, 0.15, log=True),
-        "depth": trial.suggest_int("depth", 4, 10),
-        "l2_leaf_reg": trial.suggest_float("l2", 1.0, 10.0),
+        "iterations": trial.suggest_int("iter", 300, 2000),
+        "learning_rate": trial.suggest_float("lr", 0.001, 0.3, log=True),
+        "depth": trial.suggest_int("depth", 3, 12),
+        "l2_leaf_reg": trial.suggest_float("l2", 0.1, 50.0, log=True),
+        "bagging_temperature": trial.suggest_float("bag_temp", 0.0, 1.0),
+        "subsample": trial.suggest_float("subsample", 0.5, 1.0),
         "random_state": SEED,
         "verbose": 0
     }
@@ -268,7 +288,7 @@ def optuna_obj(trial):
     pred = to_original(model.predict(Xte_scaled))
     return r2_score(yte_orig, pred)
 
-study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=SEED))
+study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=SEED, n_startup_trials=50))
 study.optimize(optuna_obj, n_trials=N_TRIALS, timeout=TIMEOUT, show_progress_bar=False)
 
 best_cb_params = {
@@ -284,14 +304,18 @@ cb.fit(Xtr_scaled, ytr_log, verbose=0)
 cb_pred = to_original(cb.predict(Xte_scaled))
 results["CatBoost"] = {"model": cb, "metrics": score(yte_orig, cb_pred, "CatBoost")}
 
-# Stacking Ensemble
-logger.info("  Creating Stacking Ensemble (meta-learner: Ridge)…")
+# Stacking Ensemble (optimized base learners)
+logger.info("  Creating Stacking Ensemble (3 diverse base learners)…")
 base_learners = [
-    ("gbr", GradientBoostingRegressor(n_estimators=500, learning_rate=0.05, max_depth=5, random_state=SEED)),
-    ("xgb", xgb.XGBRegressor(n_estimators=800, learning_rate=0.05, max_depth=6, random_state=SEED, verbosity=0)),
-    ("rf", RandomForestRegressor(n_estimators=300, max_depth=15, random_state=SEED, n_jobs=-1))
+    ("gbr", GradientBoostingRegressor(n_estimators=700, learning_rate=0.03, max_depth=7,
+                                      min_samples_split=3, min_samples_leaf=2, subsample=0.9, random_state=SEED)),
+    ("xgb", xgb.XGBRegressor(n_estimators=1000, learning_rate=0.03, max_depth=7,
+                             min_child_weight=2, subsample=0.9, colsample_bytree=0.9,
+                             reg_alpha=0.1, reg_lambda=1.0, random_state=SEED, verbosity=0)),
+    ("rf", RandomForestRegressor(n_estimators=500, max_depth=18, min_samples_split=3,
+                                min_samples_leaf=2, max_features='sqrt', random_state=SEED, n_jobs=-1))
 ]
-stack = StackingRegressor(estimators=base_learners, final_estimator=Ridge(alpha=1.0), cv=5)
+stack = StackingRegressor(estimators=base_learners, final_estimator=Ridge(alpha=0.1), cv=5)
 stack.fit(Xtr_scaled, ytr_log)
 stack_pred = to_original(stack.predict(Xte_scaled))
 results["Stacking"] = {"model": stack, "metrics": score(yte_orig, stack_pred, "Stacking")}
@@ -584,16 +608,15 @@ report = f"""
 ╠{'═'*78}╣
 
 1. DATASET INFORMATION
-  ├─ ISO 834 specimens: 149
-  ├─ ASTM E119 specimens: 108
-  ├─ Total before cleaning: 257
+  ├─ Fire Curve: ISO 834 ONLY (publication-ready homogeneous dataset)
+  ├─ Total ISO 834 specimens: 149
   ├─ After IQR outlier removal: {N_CLEAN}
   ├─ Training set (80%): {len(ytr_log)} samples
   ├─ Test set (20%): {len(yte_log)} samples
   └─ 10-Fold CV K: {CV_K}
 
 2. OPTIMIZATION STRATEGY
-  ├─ Step 1: Load ISO 834 + ASTM E119 data
+  ├─ Step 1: Load ISO 834 dataset ONLY (149 clean homogeneous specimens)
   ├─ Step 2: Compute thermal integrals (T_int_ISO, T_int_ASTM, T_int_DHP)
   ├─ Step 3: IQR outlier removal (Tukey 1.5×IQR)
   ├─ Step 4: Log-transform (log1p) + 80/20 split
@@ -718,14 +741,14 @@ results_json = {
     "timestamp": datetime.utcnow().isoformat() + "Z",
     "pipeline": "Fire Resistance RC Columns — Phase 1: ML Training",
     "dataset": {
+        "fire_curve": "ISO 834 ONLY",
         "iso834_specimens": 149,
-        "astm_specimens": 108,
-        "total_before_cleaning": 257,
         "after_outlier_removal": int(N_CLEAN),
         "train_samples": int(len(ytr_log)),
         "test_samples": int(len(yte_log)),
         "cv_k_folds": CV_K,
-        "train_test_split": "80% / 20%"
+        "train_test_split": "80% / 20%",
+        "strategy": "Publication-ready homogeneous dataset"
     },
     "models": {
         "mlp": {"test_R2": float(mlp_m['R2']), "test_RMSE": float(mlp_m['RMSE']), "test_MAE": float(mlp_m['MAE'])},

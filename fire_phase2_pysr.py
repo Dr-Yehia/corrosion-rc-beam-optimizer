@@ -5,6 +5,7 @@
 ║                    (Advanced Equation Discovery & Pareto Analysis)           ║
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║  IMPROVEMENT OVER PHASE 2 (Corrosion Beams):                                 ║
+║    • Dataset: ISO 834 ONLY (homogeneous publication-ready data)             ║
 ║    • Dual Approach: Ratio (R/T_int_ISO) + Direct (R) symbolic regression    ║
 ║    • Advanced PySR: nested_constraints, weighted loss, 300 iterations       ║
 ║    • Pareto Analysis: complexity vs accuracy trade-offs                     ║
@@ -102,9 +103,8 @@ try:
     df = pd.read_excel(data_file, sheet_name="Database")
     df = df[pd.to_numeric(df["R (min)"], errors="coerce").notna()].copy()
     df["R (min)"] = df["R (min)"].astype(float)
-    df["Curve_Code"] = df["Fire Curve"].map({"ISO 834": 0, "ASTM E119": 1, "Standard Curve": 0}).fillna(0).astype(int)
 
-    df_filtered = df[df["Curve_Code"].isin([0, 1])].copy()
+    df_filtered = df[df["Fire Curve"] == "ISO 834"].copy()  # ISO 834 ONLY
     y = df_filtered["R (min)"].values
 
     Q1, Q3 = np.percentile(y, [25, 75])
