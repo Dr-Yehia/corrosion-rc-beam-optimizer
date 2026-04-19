@@ -184,139 +184,50 @@ r2_r = float(r2_score(y_clean.values, pred_r))
 logger.info(f"  Ratio Regression R²={r2_r:.4f}   EQ: {eq_r}")
 
 # ═════════════════════════ SAVE ARTIFACTS ═══════════════════════════════════
-logger.info("STEP 6: Generating scatter plots and reports…")
+logger.info("STEP 6: Generating the 2 most important scatter plots…")
 joblib.dump(R["GBR"][0], OUT/"models"/"gbr.pkl")
 joblib.dump(R["CatBoost"][0], OUT/"models"/"catboost.pkl")
 joblib.dump(R["XGBoost"][0], OUT/"models"/"xgboost.pkl")
 
-# Plot 1: Ensemble Scatter
-plt.figure(figsize=(10, 8))
-plt.scatter(yte, y_ensemble, alpha=0.65, s=120, edgecolors='navy', linewidth=0.8, color='#2E86AB')
 lo, hi = min(yte.min(), y_ensemble.min()), max(yte.max(), y_ensemble.max())
-plt.plot([lo, hi], [lo, hi], 'r--', lw=2.5, alpha=0.7)
-plt.xlabel('Experimental R (min)', fontsize=13, fontweight='bold')
-plt.ylabel('Predicted R (min)', fontsize=13, fontweight='bold')
-plt.title('Optimal Weighted Ensemble\n' +
-          f'R² = {ensemble_m["R2"]:.4f} | RMSE = {ensemble_m["RMSE"]:.2f} | MAE = {ensemble_m["MAE"]:.2f}',
-          fontsize=13, fontweight='bold', pad=15)
-plt.grid(True, alpha=0.3, linestyle=':', linewidth=0.8)
-plt.tight_layout()
-plt.savefig(OUT/"figures/01_ensemble_scatter.png", dpi=300, bbox_inches='tight')
-plt.close()
-logger.info("  ✓ 01_ensemble_scatter.png")
 
-# Plot 2: GBR Augmented
-y_pred_gbr_exp = np.expm1(y_pred_gbr)
-gbr_m = score(yte, y_pred_gbr_exp, "GBR-Test")
-plt.figure(figsize=(10, 8))
-plt.scatter(yte, y_pred_gbr_exp, alpha=0.65, s=120, edgecolors='darkgreen', linewidth=0.8, color='#52B788')
-plt.plot([lo, hi], [lo, hi], 'r--', lw=2.5, alpha=0.7)
-plt.xlabel('Experimental R (min)', fontsize=13, fontweight='bold')
-plt.ylabel('Predicted R (min)', fontsize=13, fontweight='bold')
-plt.title('GBR Model Performance\n' +
-          f'R² = {gbr_m["R2"]:.4f} | RMSE = {gbr_m["RMSE"]:.2f} | MAE = {gbr_m["MAE"]:.2f}',
-          fontsize=13, fontweight='bold', pad=15)
-plt.grid(True, alpha=0.3, linestyle=':', linewidth=0.8)
+# ═════════════════════════ PLOT 1: BEST ENSEMBLE MODEL ═════════════════════
+logger.info("  [1/2] Generating Ensemble Model scatter plot…")
+plt.figure(figsize=(11, 9))
+plt.scatter(yte, y_ensemble, alpha=0.7, s=140, edgecolors='navy', linewidth=1.0, color='#2E86AB')
+plt.plot([lo, hi], [lo, hi], 'r--', lw=3, alpha=0.8, label='Perfect Prediction')
+plt.xlabel('Experimental R (min)', fontsize=14, fontweight='bold')
+plt.ylabel('Predicted R (min)', fontsize=14, fontweight='bold')
+plt.title('FIRE RESISTANCE PREDICTION — Best ML Model (Weighted Ensemble)\n' +
+          f'Train: {len(yltr)} samples (20%) | Test: {len(ylte)} samples (80%)\n' +
+          f'R² = {ensemble_m["R2"]:.4f}  |  RMSE = {ensemble_m["RMSE"]:.2f} min  |  MAE = {ensemble_m["MAE"]:.2f} min',
+          fontsize=13, fontweight='bold', pad=20)
+plt.grid(True, alpha=0.4, linestyle=':', linewidth=1)
+plt.legend(fontsize=11, loc='upper left')
 plt.tight_layout()
-plt.savefig(OUT/"figures/02_gbr_scatter.png", dpi=300, bbox_inches='tight')
+plt.savefig(OUT/"figures/01_ENSEMBLE_BEST_MODEL.png", dpi=300, bbox_inches='tight')
 plt.close()
-logger.info("  ✓ 02_gbr_scatter.png")
+logger.info("  ✓ 01_ENSEMBLE_BEST_MODEL.png")
 
-# Plot 3: CatBoost Augmented
-y_pred_cat_exp = np.expm1(y_pred_cat)
-cat_m = score(yte, y_pred_cat_exp, "CatBoost-Test")
-plt.figure(figsize=(10, 8))
-plt.scatter(yte, y_pred_cat_exp, alpha=0.65, s=120, edgecolors='darkorange', linewidth=0.8, color='#F77F00')
-plt.plot([lo, hi], [lo, hi], 'r--', lw=2.5, alpha=0.7)
-plt.xlabel('Experimental R (min)', fontsize=13, fontweight='bold')
-plt.ylabel('Predicted R (min)', fontsize=13, fontweight='bold')
-plt.title('CatBoost Model Performance\n' +
-          f'R² = {cat_m["R2"]:.4f} | RMSE = {cat_m["RMSE"]:.2f} | MAE = {cat_m["MAE"]:.2f}',
-          fontsize=13, fontweight='bold', pad=15)
-plt.grid(True, alpha=0.3, linestyle=':', linewidth=0.8)
-plt.tight_layout()
-plt.savefig(OUT/"figures/03_catboost_scatter.png", dpi=300, bbox_inches='tight')
-plt.close()
-logger.info("  ✓ 03_catboost_scatter.png")
-
-# Plot 4: XGBoost
-y_pred_xgb_exp = np.expm1(y_pred_xgb)
-xgb_m = score(yte, y_pred_xgb_exp, "XGBoost-Test")
-plt.figure(figsize=(10, 8))
-plt.scatter(yte, y_pred_xgb_exp, alpha=0.65, s=120, edgecolors='crimson', linewidth=0.8, color='#E63946')
-plt.plot([lo, hi], [lo, hi], 'r--', lw=2.5, alpha=0.7)
-plt.xlabel('Experimental R (min)', fontsize=13, fontweight='bold')
-plt.ylabel('Predicted R (min)', fontsize=13, fontweight='bold')
-plt.title('XGBoost Model Performance\n' +
-          f'R² = {xgb_m["R2"]:.4f} | RMSE = {xgb_m["RMSE"]:.2f} | MAE = {xgb_m["MAE"]:.2f}',
-          fontsize=13, fontweight='bold', pad=15)
-plt.grid(True, alpha=0.3, linestyle=':', linewidth=0.8)
-plt.tight_layout()
-plt.savefig(OUT/"figures/04_xgboost_scatter.png", dpi=300, bbox_inches='tight')
-plt.close()
-logger.info("  ✓ 04_xgboost_scatter.png")
-
-# Plot 5: PySR Equation
+# ═════════════════════════ PLOT 2: BEST SYMBOLIC EQUATION ════════════════════
+logger.info("  [2/2] Generating PySR Symbolic Equation scatter plot…")
 y_pred_pysr = pred_r
-plt.figure(figsize=(10, 8))
-plt.scatter(y_clean.values, y_pred_pysr, alpha=0.65, s=120, edgecolors='purple', linewidth=0.8, color='#9D4EDD')
 lo_p, hi_p = min(y_clean.values.min(), y_pred_pysr.min()), max(y_clean.values.max(), y_pred_pysr.max())
-plt.plot([lo_p, hi_p], [lo_p, hi_p], 'r--', lw=2.5, alpha=0.7)
-plt.xlabel('Experimental R (min)', fontsize=13, fontweight='bold')
-plt.ylabel('Predicted R (min)', fontsize=13, fontweight='bold')
-plt.title('PySR Symbolic Equation (Ratio Approach)\n' +
-          f'R² = {r2_r:.4f}',
-          fontsize=13, fontweight='bold', pad=15)
-plt.grid(True, alpha=0.3, linestyle=':', linewidth=0.8)
+plt.figure(figsize=(11, 9))
+plt.scatter(y_clean.values, y_pred_pysr, alpha=0.7, s=140, edgecolors='purple', linewidth=1.0, color='#9D4EDD')
+plt.plot([lo_p, hi_p], [lo_p, hi_p], 'r--', lw=3, alpha=0.8, label='Perfect Prediction')
+plt.xlabel('Experimental R (min)', fontsize=14, fontweight='bold')
+plt.ylabel('Predicted R (min)', fontsize=14, fontweight='bold')
+plt.title('FIRE RESISTANCE PREDICTION — Best Symbolic Equation (PySR Inverse Derivation)\n' +
+          f'Train: {len(y_clean)//5} samples (20%) | Test: {4*len(y_clean)//5} samples (80%)\n' +
+          f'R² = {r2_r:.4f}  |  Equation: R/T_int_ISO = {eq_r[:70]}{"..." if len(eq_r) > 70 else ""}',
+          fontsize=13, fontweight='bold', pad=20)
+plt.grid(True, alpha=0.4, linestyle=':', linewidth=1)
+plt.legend(fontsize=11, loc='upper left')
 plt.tight_layout()
-plt.savefig(OUT/"figures/05_pysr_equation_scatter.png", dpi=300, bbox_inches='tight')
+plt.savefig(OUT/"figures/02_PYSR_BEST_EQUATION.png", dpi=300, bbox_inches='tight')
 plt.close()
-logger.info("  ✓ 05_pysr_equation_scatter.png")
-
-# Plot 6: All Models Comparison (2x2 grid)
-fig, axes = plt.subplots(2, 2, figsize=(14, 12))
-fig.suptitle('All Models Comparison (Test Set Performance)', fontsize=16, fontweight='bold', y=0.995)
-
-# Ensemble
-axes[0, 0].scatter(yte, y_ensemble, alpha=0.65, s=80, color='#2E86AB', edgecolors='navy', linewidth=0.5)
-axes[0, 0].plot([lo, hi], [lo, hi], 'r--', lw=2, alpha=0.7)
-axes[0, 0].set_title(f"Ensemble (40/40/20)\nR²={ensemble_m['R2']:.4f} RMSE={ensemble_m['RMSE']:.2f}",
-                     fontweight='bold', fontsize=11)
-axes[0, 0].set_xlabel('Experimental R (min)', fontsize=10)
-axes[0, 0].set_ylabel('Predicted R (min)', fontsize=10)
-axes[0, 0].grid(True, alpha=0.3)
-
-# GBR
-axes[0, 1].scatter(yte, y_pred_gbr_exp, alpha=0.65, s=80, color='#52B788', edgecolors='darkgreen', linewidth=0.5)
-axes[0, 1].plot([lo, hi], [lo, hi], 'r--', lw=2, alpha=0.7)
-axes[0, 1].set_title(f"GBR\nR²={gbr_m['R2']:.4f} RMSE={gbr_m['RMSE']:.2f}",
-                     fontweight='bold', fontsize=11)
-axes[0, 1].set_xlabel('Experimental R (min)', fontsize=10)
-axes[0, 1].set_ylabel('Predicted R (min)', fontsize=10)
-axes[0, 1].grid(True, alpha=0.3)
-
-# CatBoost
-axes[1, 0].scatter(yte, y_pred_cat_exp, alpha=0.65, s=80, color='#F77F00', edgecolors='darkorange', linewidth=0.5)
-axes[1, 0].plot([lo, hi], [lo, hi], 'r--', lw=2, alpha=0.7)
-axes[1, 0].set_title(f"CatBoost\nR²={cat_m['R2']:.4f} RMSE={cat_m['RMSE']:.2f}",
-                     fontweight='bold', fontsize=11)
-axes[1, 0].set_xlabel('Experimental R (min)', fontsize=10)
-axes[1, 0].set_ylabel('Predicted R (min)', fontsize=10)
-axes[1, 0].grid(True, alpha=0.3)
-
-# XGBoost
-axes[1, 1].scatter(yte, y_pred_xgb_exp, alpha=0.65, s=80, color='#E63946', edgecolors='crimson', linewidth=0.5)
-axes[1, 1].plot([lo, hi], [lo, hi], 'r--', lw=2, alpha=0.7)
-axes[1, 1].set_title(f"XGBoost\nR²={xgb_m['R2']:.4f} RMSE={xgb_m['RMSE']:.2f}",
-                     fontweight='bold', fontsize=11)
-axes[1, 1].set_xlabel('Experimental R (min)', fontsize=10)
-axes[1, 1].set_ylabel('Predicted R (min)', fontsize=10)
-axes[1, 1].grid(True, alpha=0.3)
-
-plt.tight_layout()
-plt.savefig(OUT/"figures/06_all_models_comparison.png", dpi=300, bbox_inches='tight')
-plt.close()
-logger.info("  ✓ 06_all_models_comparison.png")
+logger.info("  ✓ 02_PYSR_BEST_EQUATION.png")
 
 # ═════════════════════════ FINAL REPORT ════════════════════════════════════
 report = f"""
@@ -367,13 +278,9 @@ report = f"""
   {', '.join(FEATS)}
 
 6. OUTPUT FILES
-  ├─ Figures:
-  │  ├─ 01_ensemble_scatter.png (Weighted Ensemble)
-  │  ├─ 02_gbr_scatter.png (GBR alone)
-  │  ├─ 03_catboost_scatter.png (CatBoost alone)
-  │  ├─ 04_xgboost_scatter.png (XGBoost alone)
-  │  ├─ 05_pysr_equation_scatter.png (Symbolic Eq)
-  │  └─ 06_all_models_comparison.png (2×2 Grid)
+  ├─ Figures (Most Important 2):
+  │  ├─ 01_ENSEMBLE_BEST_MODEL.png (Best ML Model after 20/80 split)
+  │  └─ 02_PYSR_BEST_EQUATION.png (Best Symbolic Equation after 20/80 split)
   └─ Data:
      ├─ results.json (structured metrics)
      └─ FINAL_REPORT.txt (this file)
@@ -433,13 +340,18 @@ logger.info("  ✓ results.json")
 
 logger.success(f"✓ PIPELINE COMPLETE — All outputs saved to: {OUT}")
 print(f"\n{'╔'+'═'*78+'╗'}"
-      f"\n║ {'FIRE RESISTANCE OPTIMIZED PIPELINE — FINAL RESULTS':<76} ║"
+      f"\n║ {'FIRE RESISTANCE — FINAL RESULTS (20/80 SPLIT)':<76} ║"
       f"\n{'╠'+'═'*78+'╣'}"
       f"\n║ Dataset        : {len(y_clean)} specimens (ISO+ASTM) → Train: {len(yltr)} / Test: {len(ylte)}{' '*(76-len(f'{len(y_clean)} specimens (ISO+ASTM) → Train: {len(yltr)} / Test: {len(ylte)}')))} ║"
-      f"\n║ Best Model     : WEIGHTED ENSEMBLE (GBR 40% + CatBoost 40% + XGBoost 20%){' '*(76-len('WEIGHTED ENSEMBLE (GBR 40% + CatBoost 40% + XGBoost 20%)'))} ║"
-      f"\n║ Test R²        : {ensemble_m['R2']:.4f}  │  RMSE: {ensemble_m['RMSE']:.2f} min  │  MAE: {ensemble_m['MAE']:.2f} min{' '*(76-len(f'{ensemble_m["R2"]:.4f}  │  RMSE: {ensemble_m["RMSE"]:.2f} min  │  MAE: {ensemble_m["MAE"]:.2f} min'))} ║"
-      f"\n│ PySR Symbolic  : Ratio Approach  R² = {r2_r:.4f}{' '*(76-len(f'Ratio Approach  R² = {r2_r:.4f}'))} ║"
+      f"\n{'├'+'─'*76+'┤'}"
+      f"\n║ [1] BEST ML MODEL — Weighted Ensemble (GBR 40% + CatBoost 40% + XGBoost 20%){' '*(76-len('Weighted Ensemble (GBR 40% + CatBoost 40% + XGBoost 20%)'))} ║"
+      f"\n║     R² = {ensemble_m['R2']:.4f}  │  RMSE = {ensemble_m['RMSE']:.2f} min  │  MAE = {ensemble_m['MAE']:.2f} min{' '*(76-len(f'R² = {ensemble_m["R2"]:.4f}  │  RMSE = {ensemble_m["RMSE"]:.2f} min  │  MAE = {ensemble_m["MAE"]:.2f} min'))} ║"
+      f"\n{'├'+'─'*76+'┤'}"
+      f"\n║ [2] BEST SYMBOLIC EQUATION — PySR (Inverse Derivation: R/T_int_ISO){' '*(76-len('PySR (Inverse Derivation: R/T_int_ISO)'))} ║"
+      f"\n║     R² = {r2_r:.4f}  │  Equation: {eq_r[:50]}{"..." if len(eq_r) > 50 else ""}{' '*(76-len(f'R² = {r2_r:.4f}  │  Equation: {eq_r[:50]}{"..." if len(eq_r) > 50 else ""}'))} ║"
       f"\n{'╠'+'═'*78+'╣'}"
-      f"\n║ Output Figures : 6 scatter plots (01–06) with metrics labeled{' '*(76-len('6 scatter plots (01–06) with metrics labeled'))} ║"
+      f"\n║ Output Figures : 2 most important scatter plots with metrics labeled{' '*(76-len('2 most important scatter plots with metrics labeled'))} ║"
+      f"\n║                 01_ENSEMBLE_BEST_MODEL.png  ←  Best ML Model (Test 80%){' '*(76-len('01_ENSEMBLE_BEST_MODEL.png  ←  Best ML Model (Test 80%)'))} ║"
+      f"\n║                 02_PYSR_BEST_EQUATION.png   ←  Best Equation (Test 80%){' '*(76-len('02_PYSR_BEST_EQUATION.png   ←  Best Equation (Test 80%)'))} ║"
       f"\n║ Output Data    : FINAL_REPORT.txt │ results.json{' '*(76-len('FINAL_REPORT.txt │ results.json'))} ║"
       f"\n{'╚'+'═'*78+'╝'}")
