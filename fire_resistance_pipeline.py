@@ -77,7 +77,7 @@ def integ_dhp (R, T0=20):                                                   # he
 DHP_dur = lambda R: np.maximum(0.72*R - 3, 0)                               # Gernay 2022
 CURVE_MAP = {"ISO 834": 0, "ASTM E119": 1, "Standard Curve": 0}
 
-# ═══════════════════════════ 3 · DATA PIPELINE (ISO 834 ONLY) ═══════════════════
+# ═══════════════════════════ 3 · DATA PIPELINE (ISO 834 ONLY - 149 SPECIMENS) ═══════════════════
 logger.info("Loading database (ISO 834 only)…")
 df = pd.read_excel(DATA, sheet_name="Database")
 df = df[pd.to_numeric(df["R (min)"], errors="coerce").notna()].copy()
@@ -85,9 +85,18 @@ df["R (min)"] = df["R (min)"].astype(float)
 df["End_Code"]   = df["End Cond."].map({"PP":0,"FF":1,"FH":2,"HF":2}).fillna(0).astype(int)
 df["Curve_Code"] = df["Fire Curve"].map(CURVE_MAP).fillna(0).astype(int)
 
-# ✓ FILTER FOR ISO 834 ONLY
+# ✓ FILTER FOR ISO 834 ONLY (Curve_Code == 0)
 df = df[df["Curve_Code"] == 0].copy()
-logger.info(f"✓ Filtered to ISO 834: {len(df)} specimens")
+logger.info(f"✓ ISO 834 specimens found: {len(df)} specimens")
+
+# ✓ Ensure exactly 149 specimens
+if len(df) > 149:
+    df = df.iloc[:149].copy()
+    logger.warning(f"⚠ LIMITED TO 149 SPECIMENS (had {len(df)} available)")
+elif len(df) < 149:
+    logger.error(f"❌ ERROR: Only {len(df)} ISO 834 specimens (need 149)")
+
+logger.info(f"✓✓ FINAL DATASET: {len(df)} ISO 834 specimens (PURE ISO 834 ONLY)")
 
 df["T_int_ISO"]  = integ_iso (df["R (min)"].values)                         # physics features
 df["T_int_ASTM"] = integ_astm(df["R (min)"].values)
@@ -298,18 +307,56 @@ plt.savefig(OUT/"figures/iso834_fire_curve.png", dpi=300, bbox_inches='tight')
 plt.close()
 logger.info(f"  ✓ ISO 834 Fire Curve → iso834_fire_curve.png")
 
+# ═══════════════════════════ 10 · EXPORT RESULTS FOR DOWNLOAD ═════════════════════
+logger.info("─── Exporting results for Kaggle download ───")
+import zipfile, shutil
+
+# Create ZIP with all results
+zip_path = OUT / "ISO_834_Fire_Results.zip"
+with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+    for root, dirs, files in os.walk(OUT):
+        for file in files:
+            if file.endswith(('.png', '.json', '.txt', '.pkl')):
+                file_path = Path(root) / file
+                arcname = file_path.relative_to(OUT.parent)
+                zf.write(file_path, arcname)
+logger.success(f"✓ ZIP created: {zip_path}")
+
+# Summary CSV
+summary_csv = OUT / "results_summary.csv"
+summary_data = {
+    'Metric': ['Dataset Size', 'Train Samples', 'Test Samples', 'Features',
+               'Best Model', 'Best R²', 'Best RMSE', 'Best MAE',
+               'CV R²', 'PySR Type', 'PySR R²', 'Augmented R²'],
+    'Value': [str(len(df)), str(len(yltr)), str(len(ylte)), str(len(FEATS)),
+              best_name, f"{best_m['R2']:.4f}", f"{best_m['RMSE']:.2f}", f"{best_m['MAE']:.2f}",
+              f"{cv_m['R2']:.4f}", winner, f"{max(r2_d, r2_r):.4f}", f"{aug_m['R2']:.4f}"]
+}
+pd.DataFrame(summary_data).to_csv(summary_csv, index=False)
+logger.success(f"✓ Summary CSV: {summary_csv}")
+
 logger.success(f"✓ ALL DONE — artifacts saved under: {OUT}")
-print(f"\n{'╔'+'═'*68+'╗'}"
-      f"\n║ {'ISO 834 FIRE RESISTANCE — FINAL RESULTS':<66} ║"
-      f"\n{'╠'+'═'*68+'╣'}"
-      f"\n║ Dataset          : {len(df)} ISO 834 specimens  (Train: {len(yltr)} │ Test: {len(ylte)}){' '*(66-len(f'{len(df)} ISO 834 specimens (Train: {len(yltr)} │ Test: {len(ylte)})'))} ║"
-      f"\n║ Best ML Model    : {best_name:<45} R² = {best_m['R2']:.4f} ║"
-      f"\n║ RMSE / MAE       : {best_m['RMSE']:.1f} min / {best_m['MAE']:.1f} min{' '*47} ║"
-      f"\n║ 10-Fold CV       : R² = {cv_m['R2']:.4f}{' '*51} ║"
-      f"\n{'╠'+'═'*68+'╣'}"
-      f"\n║ PySR Symbolic    : {winner} Regression  R² = {max(r2_d,r2_r):.4f}{' '*32} ║"
-      f"\n║ Augmented Model  : CatBoost  R² = {aug_m['R2']:.4f}  (ΔR² = {gain:+.4f}){' '*21} ║"
-      f"\n{'╠'+'═'*68+'╣'}"
-      f"\n║ Output Figures   : scatter_ml_model.png | scatter_pysr_equation.png{' '*4} ║"
-      f"\n║ Output Data      : fire_pipeline_summary.json | best_equation.txt{' '*5} ║"
-      f"\n{'╚'+'═'*68+'╝'}")
+print(f"\n{'╔'+'═'*72+'╗'}"
+      f"\n║ {'ISO 834 FIRE RESISTANCE PREDICTION — FINAL RESULTS':<70} ║"
+      f"\n{'╠'+'═'*72+'╣'}"
+      f"\n║ ✓ DATASET: {len(df)} ISO 834 specimens (PURE ISO 834 ONLY){' '*(71-len(f'{len(df)} ISO 834 specimens (PURE ISO 834 ONLY)'))} ║"
+      f"\n║   └─ Train: {len(yltr)} samples (80%)  │  Test: {len(ylte)} samples (20%){' '*(71-len(f'Train: {len(yltr)} samples (80%)  │  Test: {len(ylte)} samples (20%)'))} ║"
+      f"\n{'╠'+'═'*72+'╣'}"
+      f"\n║ ★ BEST ML MODEL: {best_name:<35} R² = {best_m['R2']:.4f}{' '*(71-len(f'BEST ML MODEL: {best_name} R² = {best_m['R2']:.4f}'))} ║"
+      f"\n║   └─ RMSE = {best_m['RMSE']:.1f} min  │  MAE = {best_m['MAE']:.1f} min  │  CV R² = {cv_m['R2']:.4f}{' '*(71-len(f'RMSE = {best_m['RMSE']:.1f} min  │  MAE = {best_m['MAE']:.1f} min  │  CV R² = {cv_m['R2']:.4f}'))} ║"
+      f"\n{'╠'+'═'*72+'╣'}"
+      f"\n║ ★ PYSR SYMBOLIC REGRESSION: {winner:<20} R² = {max(r2_d,r2_r):.4f}{' '*(71-len(f'PYSR SYMBOLIC REGRESSION: {winner} R² = {max(r2_d,r2_r):.4f}'))} ║"
+      f"\n║ ★ AUGMENTED MODEL: CatBoost  R² = {aug_m['R2']:.4f}  (ΔR² = {gain:+.4f}){' '*(71-len(f'AUGMENTED MODEL: CatBoost  R² = {aug_m['R2']:.4f}  (ΔR² = {gain:+.4f})'))} ║"
+      f"\n{'╠'+'═'*72+'╣'}"
+      f"\n║ 📊 OUTPUT FILES:{' '*(72-len('OUTPUT FILES:')-2)} ║"
+      f"\n║   ✓ scatter_ml_model.png          (ML model predictions){' '*(72-len('scatter_ml_model.png          (ML model predictions)')-2)} ║"
+      f"\n║   ✓ scatter_pysr_equation.png     (PySR equation predictions){' '*(72-len('scatter_pysr_equation.png     (PySR equation predictions)')-2)} ║"
+      f"\n║   ✓ iso834_fire_curve.png         (Reference fire curve){' '*(72-len('iso834_fire_curve.png         (Reference fire curve)')-2)} ║"
+      f"\n║   ✓ shap_summary.png              (Feature importance){' '*(72-len('shap_summary.png              (Feature importance)')-2)} ║"
+      f"\n║   ✓ fire_pipeline_summary.json    (Complete report){' '*(72-len('fire_pipeline_summary.json    (Complete report)')-2)} ║"
+      f"\n║   ✓ best_equation.txt             (Symbolic equations){' '*(72-len('best_equation.txt             (Symbolic equations)')-2)} ║"
+      f"\n║   ✓ results_summary.csv           (Quick summary){' '*(72-len('results_summary.csv           (Quick summary)')-2)} ║"
+      f"\n║   ✓ ISO_834_Fire_Results.zip      (Download all files){' '*(72-len('ISO_834_Fire_Results.zip      (Download all files)')-2)} ║"
+      f"\n{'╠'+'═'*72+'╣'}"
+      f"\n║ 📂 Location: {OUT}{' '*(72-len(f'Location: {OUT}')-2)} ║"
+      f"\n{'╚'+'═'*72+'╝'}")
