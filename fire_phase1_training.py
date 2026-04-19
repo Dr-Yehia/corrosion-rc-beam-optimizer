@@ -490,12 +490,13 @@ logger.info("  ✓ 05_ERROR_DISTRIBUTION.png")
 logger.info("  [6/8] Generating K-fold variance box plot…")
 fold_r2_vals = []
 fold_count = 0
+from sklearn.base import clone
 for train_idx, val_idx in kf.split(X_clean):
     X_f_train, X_f_val = X_clean.iloc[train_idx].values, X_clean.iloc[val_idx].values
     y_f_train, y_f_val = y_clean[train_idx], y_clean[val_idx]
 
-    fold_model = results["Stacking"]["model"].__class__(**results["Stacking"]["model"].get_params())
-    fold_model.fit(X_f_train, np.log1p(y_f_train))
+    fold_model = clone(results["CatBoost"]["model"])  # Use CatBoost for fold evaluation (simpler)
+    fold_model.fit(X_f_train, np.log1p(y_f_train), verbose=0)
     fold_pred = to_original(fold_model.predict(X_f_val))
     fold_r2 = r2_score(y_f_val, fold_pred)
     fold_r2_vals.append(fold_r2)
