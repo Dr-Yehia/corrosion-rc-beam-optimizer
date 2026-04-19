@@ -339,19 +339,23 @@ results = {
 logger.info("  ✓ results.json")
 
 logger.success(f"✓ PIPELINE COMPLETE — All outputs saved to: {OUT}")
+dataset_str = f"{len(y_clean)} specimens (ISO+ASTM) → Train: {len(yltr)} / Test: {len(ylte)}"
+ensemble_str = f"R² = {ensemble_m['R2']:.4f}  │  RMSE = {ensemble_m['RMSE']:.2f} min  │  MAE = {ensemble_m['MAE']:.2f} min"
+eq_preview = eq_r[:50] + ("..." if len(eq_r) > 50 else "")
+eq_str = f"R² = {r2_r:.4f}  │  Equation: {eq_preview}"
 print(f"\n{'╔'+'═'*78+'╗'}"
       f"\n║ {'FIRE RESISTANCE — FINAL RESULTS (20/80 SPLIT)':<76} ║"
       f"\n{'╠'+'═'*78+'╣'}"
-      f"\n║ Dataset        : {len(y_clean)} specimens (ISO+ASTM) → Train: {len(yltr)} / Test: {len(ylte)}{' '*(76-len(f'{len(y_clean)} specimens (ISO+ASTM) → Train: {len(yltr)} / Test: {len(ylte)}')))} ║"
+      f"\n║ Dataset        : {dataset_str:<73} ║"
       f"\n{'├'+'─'*76+'┤'}"
-      f"\n║ [1] BEST ML MODEL — Weighted Ensemble (GBR 40% + CatBoost 40% + XGBoost 20%){' '*(76-len('Weighted Ensemble (GBR 40% + CatBoost 40% + XGBoost 20%)'))} ║"
-      f"\n║     R² = {ensemble_m['R2']:.4f}  │  RMSE = {ensemble_m['RMSE']:.2f} min  │  MAE = {ensemble_m['MAE']:.2f} min{' '*(76-len(f'R² = {ensemble_m["R2"]:.4f}  │  RMSE = {ensemble_m["RMSE"]:.2f} min  │  MAE = {ensemble_m["MAE"]:.2f} min'))} ║"
+      f"\n║ [1] BEST ML MODEL — Weighted Ensemble (GBR 40% + CatBoost 40% + XGBoost 20%) ║"
+      f"\n║     {ensemble_str:<72} ║"
       f"\n{'├'+'─'*76+'┤'}"
-      f"\n║ [2] BEST SYMBOLIC EQUATION — PySR (Inverse Derivation: R/T_int_ISO){' '*(76-len('PySR (Inverse Derivation: R/T_int_ISO)'))} ║"
-      f"\n║     R² = {r2_r:.4f}  │  Equation: {eq_r[:50]}{"..." if len(eq_r) > 50 else ""}{' '*(76-len(f'R² = {r2_r:.4f}  │  Equation: {eq_r[:50]}{"..." if len(eq_r) > 50 else ""}'))} ║"
+      f"\n║ [2] BEST SYMBOLIC EQUATION — PySR (Inverse Derivation: R/T_int_ISO)        ║"
+      f"\n║     {eq_str:<72} ║"
       f"\n{'╠'+'═'*78+'╣'}"
-      f"\n║ Output Figures : 2 most important scatter plots with metrics labeled{' '*(76-len('2 most important scatter plots with metrics labeled'))} ║"
-      f"\n║                 01_ENSEMBLE_BEST_MODEL.png  ←  Best ML Model (Test 80%){' '*(76-len('01_ENSEMBLE_BEST_MODEL.png  ←  Best ML Model (Test 80%)'))} ║"
-      f"\n║                 02_PYSR_BEST_EQUATION.png   ←  Best Equation (Test 80%){' '*(76-len('02_PYSR_BEST_EQUATION.png   ←  Best Equation (Test 80%)'))} ║"
-      f"\n║ Output Data    : FINAL_REPORT.txt │ results.json{' '*(76-len('FINAL_REPORT.txt │ results.json'))} ║"
+      f"\n║ Output Figures : 2 most important scatter plots with metrics labeled       ║"
+      f"\n║                 01_ENSEMBLE_BEST_MODEL.png  ←  Best ML Model (Test 80%)    ║"
+      f"\n║                 02_PYSR_BEST_EQUATION.png   ←  Best Equation (Test 80%)    ║"
+      f"\n║ Output Data    : FINAL_REPORT.txt │ results.json                          ║"
       f"\n{'╚'+'═'*78+'╝'}")
