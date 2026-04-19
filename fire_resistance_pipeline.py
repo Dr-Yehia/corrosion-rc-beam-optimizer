@@ -7,10 +7,10 @@
 ╠══════════════════════════════════════════════════════════════════════════════╣
 ║  TARGET    : R (min) — Fire Resistance of RC Columns                          ║
 ║  DATA      : ISO 834 (149) + ASTM E119 (108) = 257 specimens → 438 after OLR ║
-║  SPLIT     : 20% Training (88 samples) │ 80% Testing (350 samples)            ║
+║  SPLIT     : 80% Training (350 samples) │ 20% Testing (88 samples)            ║
 ║  STRATEGY  : ISO+ASTM → IQR Outlier Removal → PySR Symbolic → Weighted Vote  ║
 ║  ENSEMBLE  : GBR (40%) + CatBoost (40%) + XGBoost (20%)                       ║
-║  OUTPUTS   : 6 Scatter Plots + FINAL_REPORT.txt + results.json                ║
+║  OUTPUTS   : 2 Scatter Plots + FINAL_REPORT.txt + results.json                ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 """
 import subprocess, sys, os, json, time, warnings
@@ -40,7 +40,7 @@ from catboost import CatBoostRegressor
 import xgboost as xgb, optuna, shap
 from loguru import logger
 
-SEED, TEST, CV_K, N_TRIALS, TIMEOUT = 42, 0.80, 10, 120, 600
+SEED, TEST, CV_K, N_TRIALS, TIMEOUT = 42, 0.20, 10, 120, 600
 BASE = Path("/kaggle/working") if Path("/kaggle/working").exists() else (
        Path("/content")       if Path("/content").exists()       else Path.cwd())
 REPO = BASE / "corrosion-rc-beam-optimizer"
