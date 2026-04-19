@@ -108,10 +108,10 @@ X_clean, y_clean = X[mask].reset_index(drop=True), y[mask]
 yl_clean = np.log1p(y_clean)
 logger.info(f"✓ Outliers removed: {sum(~mask)} rows → {len(y_clean)} specimens remain")
 
-# Train/test split with TEST=0.80 means 20% train, 80% test (reversed)
+# Train/test split with TEST=0.20 means 80% train, 20% test
 Xtr, Xte, ytr, yte, yltr, ylte = train_test_split(
     X_clean.values, y_clean, yl_clean, test_size=TEST, random_state=SEED)
-logger.info(f"  Train: {len(yltr)} samples (20%)  Test: {len(ylte)} samples (80%)")
+logger.info(f"  Train: {len(yltr)} samples (80%)  Test: {len(ylte)} samples (20%)")
 
 # ═════════════════════════ SCORING FUNCTION ════════════════════════════════
 def score(y_true, y_pred, tag):
@@ -130,8 +130,10 @@ R = {}
 
 logger.info("─── Baseline models ───")
 R["GBR"] = train("GBR", GradientBoostingRegressor(n_estimators=500, random_state=SEED))
+gbr_m = R["GBR"][1]
 R["XGBoost"] = train("XGBoost", xgb.XGBRegressor(n_estimators=800, learning_rate=0.05,
                                                  max_depth=6, random_state=SEED, verbosity=0))
+xgb_m = R["XGBoost"][1]
 
 logger.info("─── CatBoost with Optuna tuning ───")
 optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -149,6 +151,7 @@ best_p = {"iterations":st.best_params["iter"], "learning_rate":st.best_params["l
           "random_state":SEED, "verbose":0}
 R["CatBoost"] = (CatBoostRegressor(**best_p).fit(Xtr, yltr), None)
 R["CatBoost"] = (R["CatBoost"][0], score(yte, np.expm1(R["CatBoost"][0].predict(Xte)), "CatBoost"))
+cat_m = R["CatBoost"][1]
 
 # ═════════════════════════ STEP 4: WEIGHTED ENSEMBLE ═══════════════════════
 logger.info("STEP 4: Creating weighted ensemble (GBR 40% + CatBoost 40% + XGBoost 20%)…")
@@ -199,7 +202,7 @@ plt.plot([lo, hi], [lo, hi], 'r--', lw=3, alpha=0.8, label='Perfect Prediction')
 plt.xlabel('Experimental R (min)', fontsize=14, fontweight='bold')
 plt.ylabel('Predicted R (min)', fontsize=14, fontweight='bold')
 plt.title('FIRE RESISTANCE PREDICTION — Best ML Model (Weighted Ensemble)\n' +
-          f'Train: {len(yltr)} samples (20%) | Test: {len(ylte)} samples (80%)\n' +
+          f'Train: {len(yltr)} samples (80%) | Test: {len(ylte)} samples (20%)\n' +
           f'R² = {ensemble_m["R2"]:.4f}  |  RMSE = {ensemble_m["RMSE"]:.2f} min  |  MAE = {ensemble_m["MAE"]:.2f} min',
           fontsize=13, fontweight='bold', pad=20)
 plt.grid(True, alpha=0.4, linestyle=':', linewidth=1)
@@ -219,8 +222,8 @@ plt.plot([lo_p, hi_p], [lo_p, hi_p], 'r--', lw=3, alpha=0.8, label='Perfect Pred
 plt.xlabel('Experimental R (min)', fontsize=14, fontweight='bold')
 plt.ylabel('Predicted R (min)', fontsize=14, fontweight='bold')
 plt.title('FIRE RESISTANCE PREDICTION — Best Symbolic Equation (PySR Inverse Derivation)\n' +
-          f'Train: {len(y_clean)//5} samples (20%) | Test: {4*len(y_clean)//5} samples (80%)\n' +
-          f'R² = {r2_r:.4f}  |  Equation: R/T_int_ISO = {eq_r[:70]}{"..." if len(eq_r) > 70 else ""}',
+          f'Full Dataset: {len(y_clean)} specimens (ISO 834 + ASTM E119)\n' +
+          f'R² = {r2_r:.4f}  |  Equation: R/T_int_ISO = {eq_r[:60]}{"..." if len(eq_r) > 60 else ""}',
           fontsize=13, fontweight='bold', pad=20)
 plt.grid(True, alpha=0.4, linestyle=':', linewidth=1)
 plt.legend(fontsize=11, loc='upper left')
@@ -241,8 +244,8 @@ report = f"""
   ├─ ASTM E119 specimens: 108
   ├─ Total before cleaning: 257
   ├─ After IQR outlier removal: {len(y_clean)}
-  ├─ Training set (20%): {len(yltr)} samples
-  └─ Test set (80%): {len(ylte)} samples
+  ├─ Training set (80%): {len(yltr)} samples
+  └─ Test set (20%): {len(ylte)} samples
 
 2. OPTIMIZATION STRATEGY (4-STEP)
   ├─ Step 1: Load ISO 834 + ASTM E119 data
@@ -279,8 +282,8 @@ report = f"""
 
 6. OUTPUT FILES
   ├─ Figures (Most Important 2):
-  │  ├─ 01_ENSEMBLE_BEST_MODEL.png (Best ML Model after 20/80 split)
-  │  └─ 02_PYSR_BEST_EQUATION.png (Best Symbolic Equation after 20/80 split)
+  │  ├─ 01_ENSEMBLE_BEST_MODEL.png (Best ML Model after 80/20 split)
+  │  └─ 02_PYSR_BEST_EQUATION.png (Best Symbolic Equation)
   └─ Data:
      ├─ results.json (structured metrics)
      └─ FINAL_REPORT.txt (this file)
@@ -308,7 +311,7 @@ results = {
         "after_outlier_removal": int(len(y_clean)),
         "train_samples": int(len(yltr)),
         "test_samples": int(len(ylte)),
-        "train_test_split": "20% / 80%",
+        "train_test_split": "80% / 20%",
         "features": FEATS
     },
     "strategy": [
@@ -339,12 +342,12 @@ results = {
 logger.info("  ✓ results.json")
 
 logger.success(f"✓ PIPELINE COMPLETE — All outputs saved to: {OUT}")
-dataset_str = f"{len(y_clean)} specimens (ISO+ASTM) → Train: {len(yltr)} / Test: {len(ylte)}"
+dataset_str = f"{len(y_clean)} specimens (ISO+ASTM) → Train: {len(yltr)} (80%) / Test: {len(ylte)} (20%)"
 ensemble_str = f"R² = {ensemble_m['R2']:.4f}  │  RMSE = {ensemble_m['RMSE']:.2f} min  │  MAE = {ensemble_m['MAE']:.2f} min"
 eq_preview = eq_r[:50] + ("..." if len(eq_r) > 50 else "")
 eq_str = f"R² = {r2_r:.4f}  │  Equation: {eq_preview}"
 print(f"\n{'╔'+'═'*78+'╗'}"
-      f"\n║ {'FIRE RESISTANCE — FINAL RESULTS (20/80 SPLIT)':<76} ║"
+      f"\n║ {'FIRE RESISTANCE — FINAL RESULTS (80/20 SPLIT)':<76} ║"
       f"\n{'╠'+'═'*78+'╣'}"
       f"\n║ Dataset        : {dataset_str:<73} ║"
       f"\n{'├'+'─'*76+'┤'}"
