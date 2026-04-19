@@ -175,7 +175,7 @@ PY = dict(niterations=60, populations=15, population_size=40,
           binary_operators=["+","-","*","/","^"],
           unary_operators=["log","exp","sqrt","square"],
           model_selection="best", maxsize=25, progress=False,
-          random_state=SEED, deterministic=True, procs=0, verbosity=0)
+          random_state=SEED, deterministic=True, parallelism="serial", verbosity=0)
 
 logger.info("  [A] Direct: R = f(X)")
 psr_d = PySRRegressor(**PY).fit(X.values, y, variable_names=FEATS_SAFE)
