@@ -29,6 +29,8 @@ _pip("pandas", "numpy", "scikit-learn", "catboost", "xgboost", "lightgbm",
 import numpy as np, pandas as pd, matplotlib.pyplot as plt, joblib
 from sklearn.model_selection import train_test_split, KFold, cross_val_predict
 from sklearn.impute import KNNImputer
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, StackingRegressor
 from sklearn.linear_model import Ridge
@@ -108,8 +110,9 @@ def train(tag, m):
 
 logger.info("─── Baseline models ───")
 R = {}
-R["MLP"]     = train("MLP",          MLPRegressor(hidden_layer_sizes=(128,64,32), max_iter=500,
-                                                   early_stopping=True, random_state=SEED))
+R["MLP"]     = train("MLP",          Pipeline([("sc", StandardScaler()),
+                                               ("mlp", MLPRegressor(hidden_layer_sizes=(128,64,32),
+                                               max_iter=500, early_stopping=True, random_state=SEED))]))
 R["XGBoost"] = train("XGBoost",      xgb.XGBRegressor(n_estimators=800, learning_rate=0.05,
                                                       max_depth=6, random_state=SEED, verbosity=0))
 R["RF"]      = train("RandomForest", RandomForestRegressor(n_estimators=500, n_jobs=-1, random_state=SEED))
@@ -160,6 +163,14 @@ except Exception as e:
 # ═══════════════════════════ 6 · INVERSE / SYMBOLIC REGRESSION (PySR) ═════════
 logger.info("─── PySR symbolic regression (inverse derivation) ───")
 from pysr import PySRRegressor
+import re as _re
+def _clean(s):                                                               # PySR requires alnum+_
+    s = s.replace("ρ", "rho").replace("%", "pct").replace("°", "deg")
+    s = _re.sub(r"[^a-zA-Z0-9_]", "_", s); s = _re.sub(r"_+", "_", s).strip("_")
+    return s or "x"
+FEATS_SAFE = [_clean(f) for f in FEATS]
+logger.info(f"  Sanitized feature names for PySR: {FEATS_SAFE}")
+
 PY = dict(niterations=60, populations=15, population_size=40,
           binary_operators=["+","-","*","/","^"],
           unary_operators=["log","exp","sqrt","square"],
@@ -167,13 +178,13 @@ PY = dict(niterations=60, populations=15, population_size=40,
           random_state=SEED, deterministic=True, procs=0, verbosity=0)
 
 logger.info("  [A] Direct: R = f(X)")
-psr_d = PySRRegressor(**PY).fit(X.values, y, variable_names=FEATS)
+psr_d = PySRRegressor(**PY).fit(X.values, y, variable_names=FEATS_SAFE)
 eq_d, r2_d = str(psr_d.get_best()["equation"]), float(r2_score(y, psr_d.predict(X.values)))
 logger.info(f"      R²={r2_d:.4f}   EQ: {eq_d}")
 
 logger.info("  [B] Ratio: (R / T_int_ISO) = f(X)")
 rat = y / (df["T_int_ISO"].values + 1e-9)
-psr_r = PySRRegressor(**PY).fit(X.values, rat, variable_names=FEATS)
+psr_r = PySRRegressor(**PY).fit(X.values, rat, variable_names=FEATS_SAFE)
 pred_r = psr_r.predict(X.values) * df["T_int_ISO"].values
 eq_r, r2_r = str(psr_r.get_best()["equation"]), float(r2_score(y, pred_r))
 logger.info(f"      R²={r2_r:.4f}   EQ: {eq_r}")
