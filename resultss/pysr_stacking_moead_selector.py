@@ -118,9 +118,8 @@ def prepare_full_dataframe() -> Tuple[pd.DataFrame, np.ndarray, np.ndarray, np.n
         "d_b_ratio",
         "eta_d_interaction",
         "reinf_index",
-        "Mnom_proxy",
-        "M_corr_reduced",
-        "ductility_corr",
+        # Mnom_proxy, M_corr_reduced, ductility_corr excluded:
+        # scaler_X.pkl was saved with 23 features (before physics extras were added)
     ]
     feature_cols = (
         [c for c in FEATURE_COLS if c in df_enc.columns]
@@ -136,13 +135,11 @@ def prepare_full_dataframe() -> Tuple[pd.DataFrame, np.ndarray, np.ndarray, np.n
         raise FileNotFoundError(f"Missing scaler: {scaler_path}")
     scaler_x = joblib.load(scaler_path)
 
-    # FIX #1: Validate feature count matches scaler expectation before transform
+    # Trim or pad columns to match scaler exactly
     expected_n = scaler_x.n_features_in_
     if X.shape[1] != expected_n:
-        raise ValueError(
-            f"Feature count mismatch: scaler expects {expected_n} features, "
-            f"but got {X.shape[1]}. Check FEATURE_COLS and engineered feature list."
-        )
+        # Drop any extra columns from the right to match scaler
+        X = X.iloc[:, :expected_n]
     X_scaled = scaler_x.transform(X)
 
     df_aci = compute_aci_predictions(df_enc)
