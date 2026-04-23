@@ -881,6 +881,7 @@ def main() -> None:
     save_outputs(cands, best_idx, y_true, m_aci, data_dict, m_stack=m_stack)
 
     logger.success("Done. Best equation pipeline finished successfully.")
+    import os; os._exit(0)  # force-quit Julia process (prevents Kaggle hang)
 
 
 if __name__ == "__main__":
