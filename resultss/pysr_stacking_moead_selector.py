@@ -178,12 +178,17 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
                 return df[matches[0]].to_numpy(dtype=float)
         raise KeyError(f"None of {candidates} found in DataFrame columns: {list(df.columns)}")
 
-    eta   = find_col(df, ["Mass Loss (Tensile bars), ηm (%)", "Mass Loss", "eta_m", "ηm (%)"])
-    rho_t = find_col(df, ["Tension Reinforcement Ratio, pten (%)", "pten (%)", "rho_t"])
-    d     = find_col(df, ["Depth (mm)", "d (mm)", "depth"])
-    b     = find_col(df, ["Width (mm)", "b (mm)", "width"])
-    fc    = find_col(df, ["f'c (MPa)", "fc (MPa)", "fc"])
-    fy    = find_col(df, ["fy Longitudinal Bars (Tensile), (MPa) ", "fy (MPa)", "fy"])
+    eta    = find_col(df, ["Mass Loss (Tensile bars), ηm (%)", "Mass Loss", "eta_m", "ηm (%)"])
+    rho_t  = find_col(df, ["Tension Reinforcement Ratio, pten (%)", "pten (%)", "rho_t"])
+    d      = find_col(df, ["Depth (mm)", "d (mm)", "depth"])
+    b      = find_col(df, ["Width (mm)", "b (mm)", "width"])
+    fc     = find_col(df, ["f'c (MPa)", "fc (MPa)", "fc"])
+    fy     = find_col(df, ["fy Longitudinal Bars (Tensile), (MPa) ", "fy (MPa)", "fy"])
+    n_bars = find_col(df, ["# Tensile Bars", "n_bars", "num_bars"])
+    db_t   = find_col(df, ["Diameter Tensile Bars, db,t (mm)", "db,t (mm)", "db_t"])
+
+    # Steel area As = n * π * (db/2)² — direct structural capacity driver
+    As = n_bars * np.pi * (db_t / 2.0) ** 2
 
     csi = df["corr_severity_idx"].to_numpy(dtype=float)
     ri  = df["reinf_index"].to_numpy(dtype=float)
@@ -195,10 +200,11 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
         {
             "eta":  eta   / 100.0,
             "rho":  rho_t / 100.0,
-            "d_mm": d     / 300.0,   # SHAP rank 1: Depth
-            "b_mm": b     / 200.0,   # SHAP rank 2: Width
-            "fc":   fc    /  40.0,   # concrete strength (MPa), norm ~40
-            "fy":   fy    / 500.0,   # steel yield (MPa),       norm ~500
+            "d_mm": d     / 300.0,    # SHAP rank 1: Depth
+            "b_mm": b     / 200.0,    # SHAP rank 2: Width
+            "fc":   fc    /  40.0,    # concrete strength (MPa), norm ~40
+            "fy":   fy    / 500.0,    # steel yield (MPa), norm ~500
+            "As":   As    / 1500.0,   # steel area (mm²), norm ~1500
             "csi":  csi   / max(csi_med, eps),
             "ri":   ri    / max(ri_med,  eps),
         }
@@ -230,6 +236,8 @@ def augment_with_anchor_samples(
     return X_aug, y_aug
 
 
+PYSR_MODEL_PATH = MODELS_DIR / "pysr_model.pkl"
+
 def run_pysr(
     X_sym: pd.DataFrame,
     y_target: np.ndarray,
@@ -243,34 +251,50 @@ def run_pysr(
     except Exception as exc:  # pragma: no cover
         raise ImportError("PySR is required. Install with: pip install pysr") from exc
 
-    logger.info(
-        f"Running PySR: niterations={niterations}, populations={populations}, maxsize={maxsize}"
-    )
-
-    model = PySRRegressor(
-        niterations=niterations,
-        populations=populations,
-        maxsize=maxsize,
-        binary_operators=["+", "-", "*", "/", "^"],
-        unary_operators=["sqrt", "log", "exp"],  # FIX #3: Added exp — physical decay with eta
-        nested_constraints={
-            "sqrt": {"sqrt": 0, "log": 1, "exp": 1},
-            "log": {"log": 0, "sqrt": 1, "exp": 0},
-            "exp": {"exp": 0, "log": 1, "sqrt": 1},
-        },
-        # FIX #4: Use positive complexity limits (not -1) so ^ operator is actually usable
-        constraints={"^": (3, 3), "sqrt": 8, "log": 8, "exp": 6},
-        model_selection="accuracy",
-        elementwise_loss="loss(x, y) = abs(x - y)",
-        random_state=random_state,
-        # FIX #5: serial + deterministic=True for full reproducibility
-        deterministic=True,
-        parallelism="serial",
-        # FIX #6: turbo removed — not guaranteed on Kaggle/Colab Julia environments
-        verbosity=1,
-    )
+    # Warm-start: continue from previous run if saved model exists
+    warm = PYSR_MODEL_PATH.exists()
+    if warm:
+        logger.info(f"Warm-starting PySR from {PYSR_MODEL_PATH}")
+        model = joblib.load(PYSR_MODEL_PATH)
+        model.niterations  = niterations
+        model.populations  = populations
+        model.warm_start   = True
+    else:
+        logger.info(
+            f"Running PySR fresh: niterations={niterations}, "
+            f"populations={populations}, maxsize={maxsize}"
+        )
+        model = PySRRegressor(
+            niterations=niterations,
+            populations=populations,
+            maxsize=maxsize,
+            binary_operators=["+", "-", "*", "/", "^"],
+            unary_operators=["sqrt", "log", "exp"],
+            nested_constraints={
+                "sqrt": {"sqrt": 0, "log": 1, "exp": 1},
+                "log":  {"log":  0, "sqrt": 1, "exp": 0},
+                "exp":  {"exp":  0, "log":  1, "sqrt": 1},
+            },
+            constraints={"^": (3, 3), "sqrt": 8, "log": 8, "exp": 6},
+            model_selection="accuracy",
+            # Huber loss: robust to outliers, smooth near zero
+            elementwise_loss=(
+                "loss(x, y) = begin\n"
+                "  r = x - y\n"
+                "  abs(r) < 1.0 ? 0.5*r^2 : abs(r) - 0.5\n"
+                "end"
+            ),
+            random_state=random_state,
+            deterministic=True,
+            parallelism="serial",
+            verbosity=1,
+        )
 
     model.fit(X_sym.to_numpy(dtype=float), y_target, variable_names=list(X_sym.columns))
+
+    # Save for future warm-starts
+    joblib.dump(model, PYSR_MODEL_PATH)
+    logger.info(f"PySR model saved → {PYSR_MODEL_PATH}")
 
     eq_df = model.equations_.copy()
     return model, eq_df
@@ -345,7 +369,7 @@ def estimate_complexity(row: pd.Series, expr: str) -> float:
         return float(row["complexity"])
     ops = len(re.findall(r"[\+\-\*/\^]", expr))
     funcs = len(re.findall(r"sqrt|log|exp|abs", expr))
-    terms = len(re.findall(r"eta|rho|d_mm|b_mm|csi|ri", expr))
+    terms = len(re.findall(r"eta|rho|d_mm|b_mm|fc|fy|As|csi|ri", expr))
     return float(ops + 1.5 * funcs + 0.5 * terms)
 
 
@@ -737,9 +761,9 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Stacking to PySR symbolic distillation with MOEA/D-style selection"
     )
-    p.add_argument("--niterations", type=int, default=500)
-    p.add_argument("--populations", type=int, default=40)
-    p.add_argument("--maxsize", type=int, default=16)
+    p.add_argument("--niterations", type=int, default=2000)
+    p.add_argument("--populations", type=int, default=100)
+    p.add_argument("--maxsize",     type=int, default=25)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--ref-vectors", type=int, default=8,
                    help="NSGA-III Das-Dennis partitions (default=8 → ~702 ref-points for 7 obj)")
