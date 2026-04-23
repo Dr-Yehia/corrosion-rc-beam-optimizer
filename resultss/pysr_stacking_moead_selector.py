@@ -185,16 +185,17 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
 
     csi = df["corr_severity_idx"].to_numpy(dtype=float)
     ri = df["reinf_index"].to_numpy(dtype=float)
-    d_b = d / np.maximum(b, eps)
 
     csi_med = np.median(np.abs(csi))
     ri_med = np.median(np.abs(ri))
 
+    # Include absolute d and b (SHAP: Depth=47%, Width=12%) — critical for magnitude
     X_sym = pd.DataFrame(
         {
             "eta": eta / 100.0,
             "rho": rho_t / 100.0,
-            "d_b": d_b,
+            "d_mm": d / 300.0,   # normalised by typical depth ~300 mm
+            "b_mm": b / 200.0,   # normalised by typical width ~200 mm
             "csi": csi / max(csi_med, eps),
             "ri": ri / max(ri_med, eps),
         }
@@ -295,7 +296,7 @@ def evaluate_endpoint_ratio(expr_sp, med: Dict[str, float], eta_value: float) ->
 
 
 def monotonic_violation(expr_sp, med: Dict[str, float], n_grid: int = 60) -> float:
-    eta_vals = np.linspace(0.0, 1.0, n_grid)
+    eta_vals = np.linspace(0.0, 0.64, n_grid)  # limit to realistic data range
     vals = []
     for e in eta_vals:
         subs = dict(med)
@@ -319,7 +320,7 @@ def estimate_complexity(row: pd.Series, expr: str) -> float:
         return float(row["complexity"])
     ops = len(re.findall(r"[\+\-\*/\^]", expr))
     funcs = len(re.findall(r"sqrt|log|exp|abs", expr))
-    terms = len(re.findall(r"eta|rho|d_b|csi|ri", expr))
+    terms = len(re.findall(r"eta|rho|d_mm|b_mm|csi|ri", expr))
     return float(ops + 1.5 * funcs + 0.5 * terms)
 
 
@@ -372,7 +373,8 @@ def evaluate_candidates(
         )
 
         r0 = evaluate_endpoint_ratio(expr_sp, med, 0.0)
-        r100 = evaluate_endpoint_ratio(expr_sp, med, 1.0)
+        # Max mass loss in data is ~64 %; evaluate at realistic limit, not impossible 100 %
+        r100 = evaluate_endpoint_ratio(expr_sp, med, 0.64)
         end0 = abs(r0 - 1.0) if np.isfinite(r0) else 1.0
         end100 = abs(r100 - 0.0) if np.isfinite(r100) else 1.0
 
@@ -492,6 +494,7 @@ def save_outputs(
     y_true: np.ndarray,
     m_aci: np.ndarray,
     data_dict: Dict[str, np.ndarray],
+    m_stack: np.ndarray | None = None,
 ) -> None:
     best = cands[best_idx]
 
@@ -535,6 +538,7 @@ def save_outputs(
         * 100.0
     )
 
+    stack_r2 = float(r2_score(y_true, m_stack)) if m_stack is not None else None
     out_metrics = {
         "approach": "Stacking-to-PySR ratio distillation with MOEA/D-style candidate selection",
         "equation": best.equation,
@@ -545,13 +549,17 @@ def save_outputs(
         "complexity": round(best.complexity, 4),
         "selection_score": round(best.score, 6),
         "n_candidates": len(cands),
+        "stacking_R2_reference": round(stack_r2, 4) if stack_r2 is not None else None,
     }
     (MODELS_DIR / "pysr_stacking_metrics.json").write_text(json.dumps(out_metrics, indent=2))
 
-    # Equation text
+    stack_label = f"  Stacking R²={stack_r2:.4f}\n" if stack_r2 is not None else ""
     (EQ_DIR / "best_equation_stacking.txt").write_text(
         "# Best Equation from Stacking->PySR\n"
-        f"# R2={r2:.4f} RMSE={rmse:.4f} MAE={mae:.4f} MAPE={mape:.2f}%\n\n"
+        f"# Symbolic R²={r2:.4f}  RMSE={rmse:.4f}  MAE={mae:.4f}  MAPE={mape:.2f}%\n"
+        f"{stack_label}"
+        "# Features: eta=mass_loss/100, rho=reinf_ratio/100,\n"
+        "#            d_mm=depth/300, b_mm=width/200, csi=corr_severity_idx, ri=reinf_index\n\n"
         f"ratio = {best.equation}\n"
         "Mmax = ratio * M_ACI\n"
     )
@@ -676,7 +684,7 @@ def main() -> None:
         w_physics=args.w_physics,
         w_complexity=args.w_complexity,
     )
-    save_outputs(cands, best_idx, y_true, m_aci, data_dict)
+    save_outputs(cands, best_idx, y_true, m_aci, data_dict, m_stack=m_stack)
 
     logger.success("Done. Best equation pipeline finished successfully.")
 
