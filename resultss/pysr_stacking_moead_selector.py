@@ -321,11 +321,15 @@ def run_kan_symbolic(
 ) -> List[str]:
     """Train KAN, auto-convert to symbolic, return candidate expression strings."""
     try:
-        from kan import KAN          # pip install pykan
+        from kan.KAN import KAN   # works across all pykan versions
         import torch
     except ImportError:
-        logger.warning("pykan not installed — skipping KAN. (pip install pykan torch)")
-        return []
+        try:
+            from kan import KAN   # fallback for older pykan
+            import torch
+        except ImportError:
+            logger.warning("pykan not installed — skipping KAN. (pip install pykan torch)")
+            return []
     try:
         torch.manual_seed(random_state)
         X_t = torch.tensor(X_sym.to_numpy(dtype=float), dtype=torch.float32)
