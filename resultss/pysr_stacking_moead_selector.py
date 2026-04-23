@@ -96,7 +96,65 @@ except Exception:  # pragma: no cover
 # --------------------------------------------------------------------------------------
 # Paths and imports
 # --------------------------------------------------------------------------------------
-ROOT = Path(__file__).resolve().parents[1]
+def is_project_root(path: Path) -> bool:
+    return (
+        path.is_dir()
+        and (path / "src" / "config.py").exists()
+        and (path / "src" / "data_preprocessing.py").exists()
+    )
+
+
+def iter_root_candidates() -> Sequence[Path]:
+    candidates: List[Path] = []
+
+    if "__file__" in globals():
+        file_path = Path(__file__).resolve()
+        candidates.append(file_path.parent)
+        candidates.extend(file_path.parents)
+
+    cwd = Path.cwd().resolve()
+    candidates.append(cwd)
+    candidates.extend(cwd.parents)
+
+    for base in (cwd, Path("/kaggle/working"), Path("/kaggle/input")):
+        if not base.exists() or not base.is_dir():
+            continue
+        candidates.append(base)
+        try:
+            for child in base.iterdir():
+                if child.is_dir():
+                    candidates.append(child.resolve())
+                    if base.name == "input":
+                        for grandchild in child.iterdir():
+                            if grandchild.is_dir():
+                                candidates.append(grandchild.resolve())
+        except Exception:
+            continue
+
+    seen = set()
+    unique_candidates: List[Path] = []
+    for candidate in candidates:
+        key = str(candidate)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_candidates.append(candidate)
+    return unique_candidates
+
+
+def discover_project_root() -> Path:
+    for candidate in iter_root_candidates():
+        if is_project_root(candidate):
+            return candidate
+
+    raise RuntimeError(
+        "Could not locate the project root. "
+        "Expected a directory containing src/config.py and src/data_preprocessing.py. "
+        "If running on Kaggle Notebook, place the repo under /kaggle/working or /kaggle/input."
+    )
+
+
+ROOT = discover_project_root()
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
