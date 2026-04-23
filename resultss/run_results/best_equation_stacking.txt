@@ -1,0 +1,10 @@
+# Best Equation from Stacking->PySR
+# Symbolic R²=-0.6207  RMSE=30.7488  MAE=19.9980  MAPE=75.87%
+  Stacking R²=-0.6159
+# Features: eta=mass_loss/100, rho=reinf_ratio/100,
+#            d_mm=depth/300, b_mm=width/200,
+#            fc=fc_MPa/40, fy=fy_MPa/500,
+#            csi=corr_severity_idx, ri=reinf_index
+
+log1p_Mmax = 1.7127125 + log(As)/(2.338135 - eta)**exp(d_mm)
+Mmax = expm1(log1p_Mmax)   [kN·m]

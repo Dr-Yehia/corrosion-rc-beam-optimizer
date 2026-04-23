@@ -1,0 +1,3 @@
+% Best Equation from Stacking->PySR (log1p direct distillation)
+\ln(M_{\max}+1) = 1.7127125 + \left(2.338135 - \eta\right)^{- e^{d_{mm}}} \log{\left(As \right)}
+M_{\max} = e^{\mathrm{equation}} - 1 \quad [\mathrm{kN{\cdot}m}]
