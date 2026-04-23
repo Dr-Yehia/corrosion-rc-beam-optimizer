@@ -288,6 +288,8 @@ def run_pysr(
             deterministic=True,
             parallelism="serial",
             verbosity=1,
+            julia_kwargs={"optimize": 3},
+            tempdir="/tmp/pysr_run",
         )
 
     model.fit(X_sym.to_numpy(dtype=float), y_target, variable_names=list(X_sym.columns))
@@ -881,7 +883,9 @@ def main() -> None:
     save_outputs(cands, best_idx, y_true, m_aci, data_dict, m_stack=m_stack)
 
     logger.success("Done. Best equation pipeline finished successfully.")
-    import os; os._exit(0)  # force-quit Julia process (prevents Kaggle hang)
+    # Force-kill Julia runtime so Kaggle/Colab session ends cleanly
+    import os, signal
+    os.kill(os.getpid(), signal.SIGTERM)
 
 
 if __name__ == "__main__":
