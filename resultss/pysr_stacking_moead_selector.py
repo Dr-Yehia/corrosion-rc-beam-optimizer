@@ -361,16 +361,24 @@ def run_pysr(
         f"niterations={niterations}, populations={populations}, maxsize={maxsize}"
     )
 
+    # FIX 1: Pure relative loss — robust to outliers, no MSE penalty
+    relative_loss = (
+        "loss(x, y) = "
+        "0.70 * abs(x - y) / (abs(y) + 0.05) + "
+        "0.30 * abs(x - y)"
+    )
+
     common_kwargs = dict(
         niterations=niterations,
         populations=populations,
         maxsize=maxsize,
         binary_operators=["+", "-", "*", "/", "^"],
         unary_operators=["sqrt", "log", "exp"],
+        # FIX 2: Allow log(exp(...)) — common in corrosion equations
         nested_constraints={
             "sqrt": {"sqrt": 0, "log": 1, "exp": 1},
-            "log": {"log": 0, "sqrt": 1, "exp": 0},
-            "exp": {"exp": 0, "log": 1, "sqrt": 1},
+            "log":  {"log": 0, "sqrt": 1, "exp": 1},
+            "exp":  {"exp": 0, "log": 1, "sqrt": 1},
         },
         constraints={"^": (-1, 1), "sqrt": 8, "log": 8, "exp": 6},
         model_selection="accuracy",
@@ -380,12 +388,6 @@ def run_pysr(
 
     x_np = x_train.to_numpy(dtype=float)
     variable_names = list(x_train.columns)
-    relative_loss = (
-        "loss(x, y) = "
-        "0.60 * abs(x - y) / (abs(y) + 0.1) + "
-        "0.25 * abs(x - y) + "
-        "0.15 * (x - y)^2"
-    )
     search_modes = [
         (
             "fast_relative_mt",
@@ -953,17 +955,22 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Experimental-ratio PySR symbolic discovery with hard physics gates"
     )
-    parser.add_argument("--niterations", type=int, default=220)
-    parser.add_argument("--populations", type=int, default=40)
-    parser.add_argument("--maxsize", type=int, default=16)
+    # FIX 3: niterations 220 -> 500
+    parser.add_argument("--niterations", type=int, default=500)
+    # FIX 4: populations 40 -> 60
+    parser.add_argument("--populations", type=int, default=60)
+    # FIX 5: maxsize 16 -> 22
+    parser.add_argument("--maxsize", type=int, default=22)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--ref-vectors", type=int, default=64, help="Deprecated; kept for CLI compatibility.")
-    parser.add_argument("--anchor-repeats", type=int, default=24)
+    # FIX 6: anchor_repeats 24 -> 50
+    parser.add_argument("--anchor-repeats", type=int, default=50)
     parser.add_argument("--elite-r2-gap", type=float, default=0.01)
     parser.add_argument("--elite-error-pct", type=float, default=0.05)
-    parser.add_argument("--w-accuracy", type=float, default=0.65)
-    parser.add_argument("--w-physics", type=float, default=0.30)
-    parser.add_argument("--w-complexity", type=float, default=0.05)
+    # FIX 7: w_accuracy 0.65 -> 0.55, w_physics 0.30 -> 0.40
+    parser.add_argument("--w-accuracy",    type=float, default=0.55)
+    parser.add_argument("--w-physics",     type=float, default=0.40)
+    parser.add_argument("--w-complexity",  type=float, default=0.05)
     return parser.parse_args()
 
 
@@ -1027,4 +1034,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
