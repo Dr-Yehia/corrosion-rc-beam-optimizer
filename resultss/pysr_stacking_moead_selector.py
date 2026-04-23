@@ -321,8 +321,12 @@ def run_kan_symbolic(
                    "test_input":  X_t, "test_label":  y_t}
 
         n_feat = X_sym.shape[1]
-        model  = KAN(width=[n_feat, 6, 1], grid=5, k=3, seed=random_state)
-        model.train(dataset, opt="LBFGS", steps=300, lamb=0.001, verbose=False)
+        model = KAN(width=[n_feat, 6, 1], grid=5, k=3, seed=random_state)
+        # pykan ≥0.2: fit() replaces train(); fall back to train() for older versions
+        try:
+            model.fit(dataset, opt="LBFGS", steps=300, lamb=0.001, verbose=False)
+        except (TypeError, AttributeError):
+            model.train(dataset, steps=300, lamb=0.001, verbose=False)
         model.prune()
         model.auto_symbolic(lib=["x", "x^2", "sqrt", "exp", "log"])
 
