@@ -178,26 +178,29 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
                 return df[matches[0]].to_numpy(dtype=float)
         raise KeyError(f"None of {candidates} found in DataFrame columns: {list(df.columns)}")
 
-    eta = find_col(df, ["Mass Loss (Tensile bars), ηm (%)", "Mass Loss", "eta_m", "ηm (%)"])
+    eta   = find_col(df, ["Mass Loss (Tensile bars), ηm (%)", "Mass Loss", "eta_m", "ηm (%)"])
     rho_t = find_col(df, ["Tension Reinforcement Ratio, pten (%)", "pten (%)", "rho_t"])
-    d = find_col(df, ["Depth (mm)", "d (mm)", "depth"])
-    b = find_col(df, ["Width (mm)", "b (mm)", "width"])
+    d     = find_col(df, ["Depth (mm)", "d (mm)", "depth"])
+    b     = find_col(df, ["Width (mm)", "b (mm)", "width"])
+    fc    = find_col(df, ["f'c (MPa)", "fc (MPa)", "fc"])
+    fy    = find_col(df, ["fy Longitudinal Bars (Tensile), (MPa) ", "fy (MPa)", "fy"])
 
     csi = df["corr_severity_idx"].to_numpy(dtype=float)
-    ri = df["reinf_index"].to_numpy(dtype=float)
+    ri  = df["reinf_index"].to_numpy(dtype=float)
 
     csi_med = np.median(np.abs(csi))
-    ri_med = np.median(np.abs(ri))
+    ri_med  = np.median(np.abs(ri))
 
-    # Include absolute d and b (SHAP: Depth=47%, Width=12%) — critical for magnitude
     X_sym = pd.DataFrame(
         {
-            "eta": eta / 100.0,
-            "rho": rho_t / 100.0,
-            "d_mm": d / 300.0,   # normalised by typical depth ~300 mm
-            "b_mm": b / 200.0,   # normalised by typical width ~200 mm
-            "csi": csi / max(csi_med, eps),
-            "ri": ri / max(ri_med, eps),
+            "eta":  eta   / 100.0,
+            "rho":  rho_t / 100.0,
+            "d_mm": d     / 300.0,   # SHAP rank 1: Depth
+            "b_mm": b     / 200.0,   # SHAP rank 2: Width
+            "fc":   fc    /  40.0,   # concrete strength (MPa), norm ~40
+            "fy":   fy    / 500.0,   # steel yield (MPa),       norm ~500
+            "csi":  csi   / max(csi_med, eps),
+            "ri":   ri    / max(ri_med,  eps),
         }
     )
 
@@ -205,9 +208,31 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
     return X_sym, data_dict
 
 
+def augment_with_anchor_samples(
+    X_sym: pd.DataFrame,
+    y_target: np.ndarray,
+    n_anchors: int = 30,
+) -> Tuple[pd.DataFrame, np.ndarray]:
+    """Inject physics anchors: near-zero-eta rows reinforce no-corrosion behaviour."""
+    eta = X_sym["eta"].to_numpy()
+    near_zero = eta < 0.05
+    if near_zero.sum() < 3:
+        logger.warning("Too few near-zero eta samples for anchoring; skipping augmentation")
+        return X_sym, y_target
+    anchor_target = float(np.median(y_target[near_zero]))
+    med_row = {c: float(np.median(X_sym[c])) for c in X_sym.columns}
+    med_row["eta"] = 0.0
+    anchors_X = pd.DataFrame([med_row] * n_anchors)
+    anchors_y = np.full(n_anchors, anchor_target)
+    X_aug = pd.concat([X_sym, anchors_X], ignore_index=True)
+    y_aug = np.concatenate([y_target, anchors_y])
+    logger.info(f"Anchors added: {n_anchors} rows at eta=0, target={anchor_target:.4f}")
+    return X_aug, y_aug
+
+
 def run_pysr(
     X_sym: pd.DataFrame,
-    y_ratio: np.ndarray,
+    y_target: np.ndarray,
     niterations: int,
     populations: int,
     maxsize: int,
@@ -245,7 +270,7 @@ def run_pysr(
         verbosity=1,
     )
 
-    model.fit(X_sym.to_numpy(dtype=float), y_ratio, variable_names=list(X_sym.columns))
+    model.fit(X_sym.to_numpy(dtype=float), y_target, variable_names=list(X_sym.columns))
 
     eq_df = model.equations_.copy()
     return model, eq_df
@@ -328,75 +353,71 @@ def evaluate_candidates(
     eq_df: pd.DataFrame,
     data_dict: Dict[str, np.ndarray],
     y_true: np.ndarray,
-    m_aci: np.ndarray,
+    y_target: np.ndarray,          # log1p(M_stack) — used for endpoint references
 ) -> List[Candidate]:
     cands: List[Candidate] = []
 
-    med = {k: float(np.median(v)) for k, v in data_dict.items()}
-    mean_y = float(np.mean(y_true))
+    med        = {k: float(np.median(v)) for k, v in data_dict.items()}
+    mean_y     = float(np.mean(y_true))
+    tgt_median = float(np.median(y_target))
+    tgt_std    = float(np.std(y_target)) or 1.0
 
     for _, row in eq_df.iterrows():
-        expr = _get_equation_string(row)  # FIX #7 applied here
+        expr = _get_equation_string(row)
         if not expr:
             continue
 
         try:
             expr_sp = safe_sympify(expr)
-            fn = sp.lambdify(tuple(data_dict.keys()), expr_sp, modules=["numpy"])
+            fn   = sp.lambdify(tuple(data_dict.keys()), expr_sp, modules=["numpy"])
             args = [data_dict[k] for k in data_dict.keys()]
-            ratio_pred = np.asarray(fn(*args), dtype=float)
+            log_pred = np.asarray(fn(*args), dtype=float)
         except Exception:
             continue
 
-        if ratio_pred.ndim != 1 or len(ratio_pred) != len(y_true):
+        if log_pred.ndim != 1 or len(log_pred) != len(y_true):
             continue
 
-        ratio_pred = np.nan_to_num(ratio_pred, nan=0.0, posinf=10.0, neginf=0.0)
-        ratio_pred = np.clip(ratio_pred, 0.0, 5.0)
+        log_pred = np.nan_to_num(log_pred, nan=0.0, posinf=20.0, neginf=0.0)
+        y_pred   = np.maximum(np.expm1(log_pred), 0.0)   # direct kN·m prediction
 
-        y_pred = ratio_pred * m_aci
-        y_pred = np.maximum(y_pred, 0.0)
-
-        r2 = float(r2_score(y_true, y_pred))
+        r2   = float(r2_score(y_true, y_pred))
         rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
-        mae = float(mean_absolute_error(y_true, y_pred))
-        # FIX: Clip MAPE per-sample ratio to avoid explosion near zero
+        mae  = float(mean_absolute_error(y_true, y_pred))
         mape = float(
             np.mean(
                 np.clip(
                     np.abs((y_true - y_pred) / np.maximum(np.abs(y_true), 1.0)),
-                    0.0,
-                    10.0,
+                    0.0, 10.0,
                 )
-            )
-            * 100.0
+            ) * 100.0
         )
 
-        r0 = evaluate_endpoint_ratio(expr_sp, med, 0.0)
-        # Max mass loss in data is ~64 %; evaluate at realistic limit, not impossible 100 %
+        # Endpoint physics in log1p space
+        r0   = evaluate_endpoint_ratio(expr_sp, med, 0.0)
         r100 = evaluate_endpoint_ratio(expr_sp, med, 0.64)
-        end0 = abs(r0 - 1.0) if np.isfinite(r0) else 1.0
-        end100 = abs(r100 - 0.0) if np.isfinite(r100) else 1.0
+        # At eta=0: equation should give high output (≥ median target)
+        end0   = max(0.0, tgt_median - r0)   / tgt_std if np.isfinite(r0)   else 1.0
+        # At eta=0.64: equation should give low output (≤ median target)
+        end100 = max(0.0, r100 - tgt_median) / tgt_std if np.isfinite(r100) else 1.0
 
         mono = monotonic_violation(expr_sp, med)
-        comp = estimate_complexity(row, expr)  # FIX #8 applied here
+        comp = estimate_complexity(row, expr)
 
         metrics = {
-            "R2": round(r2, 4),
-            "RMSE": round(rmse, 4),
-            "MAE": round(mae, 4),
-            "MAPE": round(mape, 2),
-            "ratio_eta0": round(float(r0), 4) if np.isfinite(r0) else None,
-            "ratio_eta100": round(float(r100), 4) if np.isfinite(r100) else None,
+            "R2": round(r2, 4), "RMSE": round(rmse, 4),
+            "MAE": round(mae, 4), "MAPE": round(mape, 2),
+            "log1p_eta0":   round(float(r0),   4) if np.isfinite(r0)   else None,
+            "log1p_eta064": round(float(r100),  4) if np.isfinite(r100) else None,
         }
         objectives = {
-            "obj_r2": max(0.0, 1.0 - r2),
-            "obj_mape": mape / 100.0,
-            "obj_rmse": rmse / max(mean_y, 1e-6),
-            "obj_end0": end0,
+            "obj_r2":     max(0.0, 1.0 - r2),
+            "obj_mape":   mape / 100.0,
+            "obj_rmse":   rmse / max(mean_y, 1e-6),
+            "obj_end0":   end0,
             "obj_end100": end100,
-            "obj_mono": mono,
-            "obj_comp": comp / 50.0,
+            "obj_mono":   mono,
+            "obj_comp":   comp / 50.0,
         }
 
         cands.append(
@@ -608,14 +629,12 @@ def save_outputs(
     out_rank = MODELS_DIR / "pysr_candidates_ranked.json"
     out_rank.write_text(json.dumps(ranked, indent=2))
 
-    # Recompute best predictions
-    expr_sp = safe_sympify(best.equation)
-    fn = sp.lambdify(tuple(data_dict.keys()), expr_sp, modules=["numpy"])
-    ratio = np.asarray(fn(*[data_dict[k] for k in data_dict.keys()]), dtype=float)
-    ratio = np.nan_to_num(ratio, nan=0.0, posinf=10.0, neginf=0.0)
-    # FIX #10: clip ratio to physically sane range
-    ratio = np.clip(ratio, 0.0, 5.0)
-    y_pred = ratio * m_aci
+    # Recompute best predictions from log1p space
+    expr_sp  = safe_sympify(best.equation)
+    fn       = sp.lambdify(tuple(data_dict.keys()), expr_sp, modules=["numpy"])
+    log_pred = np.asarray(fn(*[data_dict[k] for k in data_dict.keys()]), dtype=float)
+    log_pred = np.nan_to_num(log_pred, nan=0.0, posinf=20.0, neginf=0.0)
+    y_pred   = np.maximum(np.expm1(log_pred), 0.0)
 
     r2 = float(r2_score(y_true, y_pred))
     rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
@@ -633,7 +652,7 @@ def save_outputs(
 
     stack_r2 = float(r2_score(y_true, m_stack)) if m_stack is not None else None
     out_metrics = {
-        "approach": "Stacking-to-PySR ratio distillation with MOEA/D-style candidate selection",
+        "approach": "Stacking-to-PySR log1p direct distillation with NSGA-III + SHAP selection",
         "equation": best.equation,
         "R2": round(r2, 4),
         "RMSE": round(rmse, 4),
@@ -652,17 +671,18 @@ def save_outputs(
         f"# Symbolic R²={r2:.4f}  RMSE={rmse:.4f}  MAE={mae:.4f}  MAPE={mape:.2f}%\n"
         f"{stack_label}"
         "# Features: eta=mass_loss/100, rho=reinf_ratio/100,\n"
-        "#            d_mm=depth/300, b_mm=width/200, csi=corr_severity_idx, ri=reinf_index\n\n"
-        f"ratio = {best.equation}\n"
-        "Mmax = ratio * M_ACI\n"
+        "#            d_mm=depth/300, b_mm=width/200,\n"
+        "#            fc=fc_MPa/40, fy=fy_MPa/500,\n"
+        "#            csi=corr_severity_idx, ri=reinf_index\n\n"
+        f"log1p_Mmax = {best.equation}\n"
+        "Mmax = expm1(log1p_Mmax)   [kN·m]\n"
     )
 
-    # FIX #11: LaTeX file — use real newlines, not escaped \\n
     latex_eq = sp.latex(expr_sp)
     (EQ_DIR / "best_equation_stacking.latex").write_text(
-        "% Best Equation from Stacking->PySR\n"
-        f"R = {latex_eq}\n"
-        r"M_{\max} = R \cdot M_{\mathrm{ACI}}" + "\n"
+        "% Best Equation from Stacking->PySR (log1p direct distillation)\n"
+        f"\\ln(M_{{\\max}}+1) = {latex_eq}\n"
+        r"M_{\max} = e^{\mathrm{equation}} - 1 \quad [\mathrm{kN{\cdot}m}]" + "\n"
     )
 
     # Figure 1: predicted vs true
@@ -717,7 +737,7 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Stacking to PySR symbolic distillation with MOEA/D-style selection"
     )
-    p.add_argument("--niterations", type=int, default=220)
+    p.add_argument("--niterations", type=int, default=500)
     p.add_argument("--populations", type=int, default=40)
     p.add_argument("--maxsize", type=int, default=16)
     p.add_argument("--seed", type=int, default=42)
@@ -747,23 +767,24 @@ def main() -> None:
         raise ImportError("Missing dependency: sympy. Install with: pip install sympy")
 
     df, X_scaled, y_true, m_aci = prepare_full_dataframe()
-    m_stack = get_stacking_predictions(X_scaled)
-
-    # Distillation target (dimensionless, clipped to physical range)
-    y_ratio = np.clip(m_stack / np.maximum(m_aci, 1e-9), 0.0, 5.0)  # FIX #10
+    m_stack  = get_stacking_predictions(X_scaled)
+    y_target = np.log1p(np.maximum(m_stack, 0.0))   # clean log1p target
 
     X_sym, data_dict = build_symbolic_inputs(df)
+    X_sym_aug, y_target_aug = augment_with_anchor_samples(X_sym, y_target)
+
+    logger.info(f"Training set: {len(X_sym)} real + {len(X_sym_aug)-len(X_sym)} anchors")
 
     _, eq_df = run_pysr(
-        X_sym=X_sym,
-        y_ratio=y_ratio,
+        X_sym=X_sym_aug,
+        y_target=y_target_aug,
         niterations=args.niterations,
         populations=args.populations,
         maxsize=args.maxsize,
         random_state=args.seed,
     )
 
-    cands = evaluate_candidates(eq_df, data_dict, y_true, m_aci)
+    cands = evaluate_candidates(eq_df, data_dict, y_true, y_target)
     if not cands:
         raise RuntimeError(
             "No valid candidate equations generated. "
