@@ -151,14 +151,27 @@ def prepare_full_dataframe() -> Tuple[pd.DataFrame, np.ndarray, np.ndarray, np.n
 
 
 def get_stacking_predictions(X_scaled: np.ndarray) -> np.ndarray:
+    """Return Stacking predictions in kN·m (inverse-transforms log1p if needed)."""
     model_path = MODELS_DIR / "model_stacking.pkl"
     if not model_path.exists():
         raise FileNotFoundError(f"Missing model: {model_path}")
     model = joblib.load(model_path)
-    pred = model.predict(X_scaled)
-    pred = np.asarray(pred, dtype=float)
-    pred = np.maximum(pred, 0.0)
-    return pred
+    pred  = np.asarray(model.predict(X_scaled), dtype=float)
+
+    # part1_summary.json records whether the model was trained with log_transform
+    summary_path = RESULTSS_DIR / "for_part2" / "part1_summary.json"
+    log_transform = False
+    if summary_path.exists():
+        try:
+            log_transform = json.loads(summary_path.read_text()).get("log_transform", False)
+        except Exception:
+            pass
+
+    if log_transform:
+        pred = np.expm1(pred)   # convert log1p-space predictions → kN·m
+        logger.info("Stacking model outputs log1p-space → applied expm1 to get kN·m")
+
+    return np.maximum(pred, 0.0)
 
 
 def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.ndarray]]:
