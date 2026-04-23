@@ -174,7 +174,34 @@ def _sanitize_name(name):
         return MAPPING[name]
     clean = re.sub(r"[^a-zA-Z0-9_]", "_", name)
     clean = re.sub(r"_+", "_", clean).strip("_")
-    return clean if clean else "x"
+    clean = clean if clean else "x"
+
+    # Avoid collisions with SymPy/PySR function names and parser symbols.
+    reserved = {
+        "abs", "log", "sqrt", "exp", "pow",
+        "sin", "cos", "tan", "asin", "acos", "atan",
+        "pi", "e", "E", "I", "oo", "nan", "inf",
+        "Float", "Integer", "Symbol",
+    }
+    if clean in reserved or clean.startswith("__"):
+        clean = f"x_{clean}"
+    return clean
+
+
+def _unique_safe_names(raw_names):
+    """Create parser-safe, unique variable names for PySR."""
+    used = set()
+    out = []
+    for n in raw_names:
+        base = _sanitize_name(n)
+        cand = base
+        i = 2
+        while cand in used:
+            cand = f"{base}_{i}"
+            i += 1
+        used.add(cand)
+        out.append(cand)
+    return out
 
 
 # ======= PySR HYPERPARAMETERS — OPTIMIZED FOR BEST RMSE+MAE+CV% =======
@@ -232,7 +259,7 @@ RATIO_FEATURES = [
 ]
 
 available_R = [f for f in RATIO_FEATURES if f in df_clean.columns]
-safe_names_R = [_sanitize_name(n) for n in available_R]
+safe_names_R = _unique_safe_names(available_R)
 
 X_ratio = df_clean[available_R].values.astype(np.float64)
 y_mmax = df_clean[TARGET_COL].values.astype(np.float64)
@@ -376,7 +403,7 @@ DIRECT_FEATURES = [
 ]
 
 available_D = [f for f in DIRECT_FEATURES if f in df_clean.columns]
-safe_names_D = [_sanitize_name(n) for n in available_D]
+safe_names_D = _unique_safe_names(available_D)
 
 X_direct = df_clean[available_D].values.astype(np.float64)
 y_direct = df_clean[TARGET_COL].values.astype(np.float64)
