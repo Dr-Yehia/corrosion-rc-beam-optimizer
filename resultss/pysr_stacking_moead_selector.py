@@ -300,6 +300,50 @@ def run_pysr(
     return model, eq_df
 
 
+# ── KAN (Kolmogorov-Arnold Networks, MIT 2024) ─────────────────────────────
+def run_kan_symbolic(
+    X_sym: pd.DataFrame,
+    y_target: np.ndarray,
+    random_state: int = 42,
+) -> List[str]:
+    """Train KAN, auto-convert to symbolic, return candidate expression strings."""
+    try:
+        from kan import KAN          # pip install pykan
+        import torch
+    except ImportError:
+        logger.warning("pykan not installed — skipping KAN. (pip install pykan torch)")
+        return []
+    try:
+        torch.manual_seed(random_state)
+        X_t = torch.tensor(X_sym.to_numpy(dtype=float), dtype=torch.float32)
+        y_t = torch.tensor(y_target, dtype=torch.float32).unsqueeze(1)
+        dataset = {"train_input": X_t, "train_label": y_t,
+                   "test_input":  X_t, "test_label":  y_t}
+
+        n_feat = X_sym.shape[1]
+        model  = KAN(width=[n_feat, 6, 1], grid=5, k=3, seed=random_state)
+        model.train(dataset, opt="LBFGS", steps=300, lamb=0.001, verbose=False)
+        model.prune()
+        model.auto_symbolic(lib=["x", "x^2", "sqrt", "exp", "log"])
+
+        raw_formulas = model.symbolic_formula()
+        feat_names   = list(X_sym.columns)
+        results: List[str] = []
+        for entry in (raw_formulas if isinstance(raw_formulas, list) else [raw_formulas]):
+            s = str(entry[0]) if isinstance(entry, (list, tuple)) else str(entry)
+            if not s or s in ("nan", "0", "None", ""):
+                continue
+            for i, name in enumerate(feat_names, 1):
+                s = s.replace(f"x_{i}", name)
+            results.append(s)
+
+        logger.info(f"KAN produced {len(results)} symbolic candidate(s)")
+        return results
+    except Exception as exc:
+        logger.warning(f"KAN symbolic extraction failed: {exc}")
+        return []
+
+
 def safe_sympify(expr: str):
     if sp is None:
         raise ImportError("sympy is required. Install with: pip install sympy")
@@ -809,6 +853,15 @@ def main() -> None:
     )
 
     cands = evaluate_candidates(eq_df, data_dict, y_true, y_target)
+
+    # KAN candidates — merged into same pool, evaluated on same objectives
+    kan_exprs = run_kan_symbolic(X_sym, y_target, random_state=args.seed)
+    if kan_exprs:
+        kan_df    = pd.DataFrame([{"sympy_format": e, "complexity": 15.0} for e in kan_exprs])
+        kan_cands = evaluate_candidates(kan_df, data_dict, y_true, y_target)
+        logger.info(f"KAN contributed {len(kan_cands)} valid candidate(s)")
+        cands.extend(kan_cands)
+
     if not cands:
         raise RuntimeError(
             "No valid candidate equations generated. "
