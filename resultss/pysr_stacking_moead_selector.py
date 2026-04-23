@@ -334,12 +334,25 @@ def run_kan_symbolic(
                    "test_input":  X_t, "test_label":  y_t}
 
         n_feat = X_sym.shape[1]
-        model = KAN(width=[n_feat, 6, 1], grid=5, k=3, seed=random_state)
-        # pykan ≥0.2: fit() replaces train(); fall back to train() for older versions
-        try:
-            model.fit(dataset, opt="LBFGS", steps=300, lamb=0.001, verbose=False)
-        except (TypeError, AttributeError):
-            model.train(dataset, steps=300, lamb=0.001, verbose=False)
+        model  = KAN(width=[n_feat, 6, 1], grid=5, k=3, seed=random_state)
+
+        # Robust training: try every known API variant across pykan versions
+        trained = False
+        for _call in [
+            lambda: model.fit(dataset,   opt="LBFGS", steps=300, lamb=0.001, verbose=False),
+            lambda: model.fit(dataset,   steps=300,   lamb=0.001, verbose=False),
+            lambda: model.fit(dataset,   steps=300,   verbose=False),
+            lambda: model.fit(dataset),
+            lambda: model.train(dataset, opt="LBFGS", steps=300, lamb=0.001, verbose=False),
+            lambda: model.train(dataset, steps=300,   verbose=False),
+            lambda: model.train(dataset),
+        ]:
+            try:
+                _call(); trained = True; break
+            except (TypeError, AttributeError):
+                continue
+        if not trained:
+            raise RuntimeError("KAN: no compatible train/fit API found in installed pykan")
         model.prune()
         model.auto_symbolic(lib=["x", "x^2", "sqrt", "exp", "log"])
 
@@ -822,7 +835,7 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Stacking to PySR symbolic distillation with MOEA/D-style selection"
     )
-    p.add_argument("--niterations", type=int, default=2000)
+    p.add_argument("--niterations", type=int, default=50)   # TODO: restore to 2000 after testing
     p.add_argument("--populations", type=int, default=100)
     p.add_argument("--maxsize",     type=int, default=25)
     p.add_argument("--seed", type=int, default=42)
