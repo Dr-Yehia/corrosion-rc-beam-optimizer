@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 Discover a physics-constrained symbolic correction factor for ACI predictions.
 
@@ -29,64 +29,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
 
-import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from loguru import logger
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-
-try:
-    from loguru import logger
-except Exception:  # pragma: no cover
-    import logging
-
-    class _StdLoggerAdapter:
-        def __init__(self) -> None:
-            self._logger = logging.getLogger("pysr_stacking_selector")
-            if not self._logger.handlers:
-                handler = logging.StreamHandler(sys.stderr)
-                handler.setFormatter(
-                    logging.Formatter(
-                        "%(asctime)s | %(levelname)-8s | %(message)s",
-                        "%H:%M:%S",
-                    )
-                )
-                self._logger.addHandler(handler)
-            self._logger.setLevel(logging.INFO)
-
-        def remove(self) -> None:
-            return None
-
-        def add(self, sink, level="INFO", **_: object) -> None:
-            if sink == sys.stderr:
-                return None
-            try:
-                handler = logging.FileHandler(str(sink))
-                handler.setFormatter(
-                    logging.Formatter(
-                        "%(asctime)s | %(levelname)-8s | %(message)s",
-                        "%Y-%m-%d %H:%M:%S",
-                    )
-                )
-                self._logger.addHandler(handler)
-            except Exception as exc:
-                self._logger.warning("Could not attach file logger %s: %s", sink, exc)
-
-        def info(self, message: str) -> None:
-            self._logger.info(message)
-
-        def warning(self, message: str) -> None:
-            self._logger.warning(message)
-
-        def error(self, message: str) -> None:
-            self._logger.error(message)
-
-        def success(self, message: str) -> None:
-            self._logger.info(message)
-
-    logger = _StdLoggerAdapter()
 
 try:
     import sympy as sp
@@ -202,21 +149,21 @@ def build_symbolic_inputs(
     """Build explicit dimensionless groups for symbolic regression."""
     eta_col = find_column(
         df,
-        "Mass Loss (Tensile bars)",
+        "Mass Loss (Tensile bars), ηm (%)",
+        "Mass Loss (Tensile bars), 畏m (%)",
         "Mass Loss",
-        "eta",
     )
     rho_col = find_column(
         df,
-        "Tension Reinforcement Ratio",
-        "pten",
+        "Tension Reinforcement Ratio, pten (%)",
+        "pten (%)",
         "rho_t",
     )
-    d_col = find_column(df, "Depth (mm)", "Depth", "depth")
-    b_col = find_column(df, "Width (mm)", "Width", "width")
-    db_col = find_column(df, "Diameter Tensile Bars", "db,t", "db_t")
-    fy_col = find_column(df, "fy Longitudinal Bars", "fy")
-    fc_col = find_column(df, "f'c (MPa)", "f'c", "fc")
+    d_col = find_column(df, "Depth (mm)", "depth")
+    b_col = find_column(df, "Width (mm)", "width")
+    db_col = find_column(df, "Diameter Tensile Bars, db,t (mm)", "db,t")
+    fy_col = find_column(df, "fy Longitudinal Bars (Tensile), (MPa) ", "fy")
+    fc_col = find_column(df, "f'c (MPa)", "fc")
 
     eta = np.clip(df[eta_col].to_numpy(dtype=float) / 100.0, 0.0, 1.0)
     rho = np.maximum(df[rho_col].to_numpy(dtype=float) / 100.0, EPS)
@@ -303,7 +250,7 @@ def run_pysr(
         f"niterations={niterations}, populations={populations}, maxsize={maxsize}"
     )
 
-    common_kwargs = dict(
+    model = PySRRegressor(
         niterations=niterations,
         populations=populations,
         maxsize=maxsize,
@@ -316,59 +263,21 @@ def run_pysr(
         },
         constraints={"^": (-1, 1), "sqrt": 8, "log": 8, "exp": 6},
         model_selection="accuracy",
+        elementwise_loss=(
+            "loss(x, y) = "
+            "0.60 * abs(x - y) / (abs(y) + 0.1) + "
+            "0.25 * abs(x - y) + "
+            "0.15 * (x - y)^2"
+        ),
         random_state=random_state,
+        deterministic=False,
+        parallelism="multithreading",
+        turbo=True,
         verbosity=1,
     )
 
-    x_np = x_train.to_numpy(dtype=float)
-    variable_names = list(x_train.columns)
-    relative_loss = (
-        "loss(x, y) = "
-        "0.60 * abs(x - y) / (abs(y) + 0.1) + "
-        "0.25 * abs(x - y) + "
-        "0.15 * (x - y)^2"
-    )
-    search_modes = [
-        (
-            "fast_relative_mt",
-            {
-                "elementwise_loss": relative_loss,
-                "deterministic": False,
-                "parallelism": "multithreading",
-                "turbo": True,
-            },
-        ),
-        (
-            "safe_relative",
-            {
-                "elementwise_loss": relative_loss,
-            },
-        ),
-        ("safe_default", {}),
-    ]
-
-    last_exc: Exception | None = None
-    for mode_name, extra_kwargs in search_modes:
-        try:
-            logger.info(f"Trying PySR mode: {mode_name}")
-            model = PySRRegressor(**common_kwargs, **extra_kwargs)
-            model.fit(x_np, y_train, variable_names=variable_names)
-
-            eq_df = getattr(model, "equations_", None)
-            if eq_df is None:
-                raise RuntimeError("PySR finished without equations_ output.")
-            if not isinstance(eq_df, pd.DataFrame):
-                eq_df = pd.DataFrame(eq_df)
-            if eq_df.empty:
-                raise RuntimeError("PySR produced an empty hall-of-fame table.")
-
-            logger.info(f"PySR succeeded in mode '{mode_name}' with {len(eq_df)} equations.")
-            return model, eq_df.copy(), mode_name
-        except Exception as exc:
-            last_exc = exc
-            logger.warning(f"PySR mode '{mode_name}' failed: {exc}")
-
-    raise RuntimeError("PySR failed in all compatibility modes.") from last_exc
+    model.fit(x_train.to_numpy(dtype=float), y_train, variable_names=list(x_train.columns))
+    return model, model.equations_.copy()
 
 
 def safe_sympify(expr: str):
@@ -604,15 +513,6 @@ def select_rankable_indices(candidates: List[Candidate]) -> Tuple[List[int], str
         logger.warning("No candidate passed strict physics gates; falling back to eta-preserving finite candidates.")
         return relaxed, "relaxed"
 
-    finite_only = [
-        idx
-        for idx, candidate in enumerate(candidates)
-        if "non_finite_metric" not in candidate.failures
-    ]
-    if finite_only:
-        logger.warning("No candidate passed relaxed gates; falling back to finite-metric candidates.")
-        return finite_only, "finite_only"
-
     return [], "empty"
 
 
@@ -770,7 +670,6 @@ def save_outputs(
     m_aci: np.ndarray,
     data_dict: Dict[str, np.ndarray],
     selection_mode: str,
-    search_mode: str,
 ) -> None:
     best = candidates[best_idx]
 
@@ -824,7 +723,6 @@ def save_outputs(
         "complexity": round(best.complexity, 4),
         "selection_score": round(best.score, 6),
         "selection_mode": selection_mode,
-        "search_mode": search_mode,
         "n_candidates": len(candidates),
         "n_rankable": len(rankable_idx),
         "n_elite": len(elite_idx),
@@ -836,7 +734,7 @@ def save_outputs(
     (EQ_DIR / "best_equation_stacking.txt").write_text(
         "# Best Equation from Experimental-Ratio PySR\n"
         f"# R2={r2:.4f} RMSE={rmse:.4f} MAE={mae:.4f} MAPE={mape:.2f}%\n"
-        f"# Search mode={search_mode} | Selection mode={selection_mode} | rankable={len(rankable_idx)} "
+        f"# Selection mode={selection_mode} | rankable={len(rankable_idx)} "
         f"| elite={len(elite_idx)} | pareto={len(pareto_idx)}\n\n"
         f"ratio = {best.equation}\n"
         "Mmax = ratio * M_ACI\n"
@@ -925,7 +823,7 @@ def main() -> None:
     y_train = np.concatenate([y_ratio, anchor_y])
     logger.info(f"PySR training matrix: {len(x_train)} rows ({len(anchor_df)} anchors)")
 
-    _, eq_df, search_mode = run_pysr(
+    _, eq_df = run_pysr(
         x_train=x_train,
         y_train=y_train,
         niterations=args.niterations,
@@ -961,7 +859,6 @@ def main() -> None:
         m_aci=m_aci,
         data_dict=data_dict,
         selection_mode=selection_mode,
-        search_mode=search_mode,
     )
 
     logger.success("Done. Physics-constrained PySR pipeline finished successfully.")
