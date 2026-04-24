@@ -41,6 +41,16 @@ try:
 except Exception:  # pragma: no cover
     sp = None
 
+# Auto-install pykan if missing (needed on Kaggle/Colab)
+try:
+    import kan as _kan_check  # noqa: F401
+except ImportError:
+    import subprocess
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "pykan==0.2.4", "--quiet"],
+        check=False,
+    )
+
 # --------------------------------------------------------------------------------------
 # Paths and imports
 # --------------------------------------------------------------------------------------
@@ -341,11 +351,12 @@ def run_kan_symbolic(
                    "test_input":  X_t, "test_label":  y_t}
 
         n_feat = X_sym.shape[1]
-        model  = KAN(width=[n_feat, 6, 1], grid=5, k=3, seed=random_state)
+        model  = KAN(width=[n_feat, 5, 3, 1], grid=5, k=3, seed=random_state)
 
         # Robust training: try every known API variant across pykan versions
         trained = False
         for _call in [
+            lambda: model.fit(dataset,   opt="LBFGS", steps=300, lamb=0.001, lamb_entropy=2.0, verbose=False),
             lambda: model.fit(dataset,   opt="LBFGS", steps=300, lamb=0.001, verbose=False),
             lambda: model.fit(dataset,   steps=300,   lamb=0.001, verbose=False),
             lambda: model.fit(dataset,   steps=300,   verbose=False),
