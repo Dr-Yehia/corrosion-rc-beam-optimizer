@@ -281,14 +281,17 @@ def run_pysr(
             niterations=niterations,
             populations=populations,
             maxsize=maxsize,
-            binary_operators=["+", "-", "*", "/", "^"],
-            unary_operators=["sqrt", "log", "exp"],
+            binary_operators=["+", "-", "*", "/"],
+            unary_operators=["sqrt", "log", "exp", "square", "cube"],
+            extra_sympy_mappings={"square": lambda x: x**2, "cube": lambda x: x**3},
             nested_constraints={
-                "sqrt": {"sqrt": 0, "log": 1, "exp": 1},
-                "log":  {"log":  0, "sqrt": 1, "exp": 0},
-                "exp":  {"exp":  0, "log":  1, "sqrt": 1},
+                "sqrt":   {"sqrt": 0, "log": 1, "exp": 1},
+                "log":    {"log":  0, "sqrt": 1, "exp": 0},
+                "exp":    {"exp":  0, "log":  1, "sqrt": 1},
+                "square": {"square": 0, "cube": 0, "exp": 1},
+                "cube":   {"cube":   0, "square": 0, "exp": 1},
             },
-            constraints={"^": (3, 3), "sqrt": 8, "log": 8, "exp": 6},
+            constraints={"sqrt": 8, "log": 8, "exp": 6, "square": 8, "cube": 8},
             model_selection="accuracy",
             # Huber loss: robust to outliers, smooth near zero
             elementwise_loss=(
@@ -386,10 +389,12 @@ def safe_sympify(expr: str):
     return sp.sympify(
         expr_clean,
         locals={
-            "sqrt": sp.sqrt,
-            "log": sp.log,
-            "exp": sp.exp,
-            "abs": sp.Abs,
+            "sqrt":   sp.sqrt,
+            "log":    sp.log,
+            "exp":    sp.exp,
+            "abs":    sp.Abs,
+            "square": lambda x: x**2,
+            "cube":   lambda x: x**3,
         },
     )
 
@@ -455,7 +460,8 @@ def evaluate_candidates(
     eq_df: pd.DataFrame,
     data_dict: Dict[str, np.ndarray],
     y_true: np.ndarray,
-    y_target: np.ndarray,          # log1p(M_stack) — used for endpoint references
+    y_target: np.ndarray,          # M_stack/M_ACI ratio
+    m_aci: np.ndarray | None = None,
 ) -> List[Candidate]:
     cands: List[Candidate] = []
 
@@ -480,8 +486,9 @@ def evaluate_candidates(
         if log_pred.ndim != 1 or len(log_pred) != len(y_true):
             continue
 
-        log_pred = np.nan_to_num(log_pred, nan=0.0, posinf=20.0, neginf=0.0)
-        y_pred   = np.maximum(np.expm1(log_pred), 0.0)   # direct kN·m prediction
+        ratio_pred = np.nan_to_num(log_pred, nan=0.0, posinf=5.0, neginf=0.0)
+        _maci = m_aci if m_aci is not None else np.ones(len(y_true))
+        y_pred = np.maximum(ratio_pred * _maci, 0.0)   # ratio × M_ACI → kN·m
 
         r2   = float(r2_score(y_true, y_pred))
         rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
@@ -495,13 +502,13 @@ def evaluate_candidates(
             ) * 100.0
         )
 
-        # Endpoint physics in log1p space
+        # Endpoint physics in ratio space
         r0   = evaluate_endpoint_ratio(expr_sp, med, 0.0)
         r100 = evaluate_endpoint_ratio(expr_sp, med, 0.64)
-        # At eta=0: equation should give high output (≥ median target)
-        end0   = max(0.0, tgt_median - r0)   / tgt_std if np.isfinite(r0)   else 1.0
-        # At eta=0.64: equation should give low output (≤ median target)
-        end100 = max(0.0, r100 - tgt_median) / tgt_std if np.isfinite(r100) else 1.0
+        # At eta=0: ratio should be ~1.0 (no corrosion = full capacity)
+        end0   = abs(r0 - 1.0)          if np.isfinite(r0)   else 1.0
+        # At eta=0.64: ratio should be < 0.5 (heavy corrosion = significant loss)
+        end100 = max(0.0, r100 - 0.5)   if np.isfinite(r100) else 1.0
 
         mono = monotonic_violation(expr_sp, med)
         comp = estimate_complexity(row, expr)
@@ -509,8 +516,8 @@ def evaluate_candidates(
         metrics = {
             "R2": round(r2, 4), "RMSE": round(rmse, 4),
             "MAE": round(mae, 4), "MAPE": round(mape, 2),
-            "log1p_eta0":   round(float(r0),   4) if np.isfinite(r0)   else None,
-            "log1p_eta064": round(float(r100),  4) if np.isfinite(r100) else None,
+            "ratio_eta0":   round(float(r0),   4) if np.isfinite(r0)   else None,
+            "ratio_eta064": round(float(r100),  4) if np.isfinite(r100) else None,
         }
         objectives = {
             "obj_r2":     max(0.0, 1.0 - r2),
@@ -731,12 +738,12 @@ def save_outputs(
     out_rank = MODELS_DIR / "pysr_candidates_ranked.json"
     out_rank.write_text(json.dumps(ranked, indent=2))
 
-    # Recompute best predictions from log1p space
-    expr_sp  = safe_sympify(best.equation)
-    fn       = sp.lambdify(tuple(data_dict.keys()), expr_sp, modules=["numpy"])
-    log_pred = np.asarray(fn(*[data_dict[k] for k in data_dict.keys()]), dtype=float)
-    log_pred = np.nan_to_num(log_pred, nan=0.0, posinf=20.0, neginf=0.0)
-    y_pred   = np.maximum(np.expm1(log_pred), 0.0)
+    # Recompute best predictions: equation gives ratio R, Mmax = R * M_ACI
+    expr_sp    = safe_sympify(best.equation)
+    fn         = sp.lambdify(tuple(data_dict.keys()), expr_sp, modules=["numpy"])
+    ratio_pred = np.asarray(fn(*[data_dict[k] for k in data_dict.keys()]), dtype=float)
+    ratio_pred = np.nan_to_num(ratio_pred, nan=0.0, posinf=5.0, neginf=0.0)
+    y_pred     = np.maximum(ratio_pred * m_aci, 0.0)
 
     r2 = float(r2_score(y_true, y_pred))
     rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
@@ -754,7 +761,7 @@ def save_outputs(
 
     stack_r2 = float(r2_score(y_true, m_stack)) if m_stack is not None else None
     out_metrics = {
-        "approach": "Stacking-to-PySR log1p direct distillation with NSGA-III + SHAP selection",
+        "approach": "Stacking-to-PySR ratio distillation (Mstack/MACI) with NSGA-III + SHAP selection",
         "equation": best.equation,
         "R2": round(r2, 4),
         "RMSE": round(rmse, 4),
@@ -769,22 +776,23 @@ def save_outputs(
 
     stack_label = f"  Stacking R²={stack_r2:.4f}\n" if stack_r2 is not None else ""
     (EQ_DIR / "best_equation_stacking.txt").write_text(
-        "# Best Equation from Stacking->PySR\n"
+        "# Best Equation from Stacking->PySR (ratio distillation)\n"
         f"# Symbolic R²={r2:.4f}  RMSE={rmse:.4f}  MAE={mae:.4f}  MAPE={mape:.2f}%\n"
         f"{stack_label}"
         "# Features: eta=mass_loss/100, rho=reinf_ratio/100,\n"
         "#            d_mm=depth/300, b_mm=width/200,\n"
         "#            fc=fc_MPa/40, fy=fy_MPa/500,\n"
-        "#            csi=corr_severity_idx, ri=reinf_index\n\n"
-        f"log1p_Mmax = {best.equation}\n"
-        "Mmax = expm1(log1p_Mmax)   [kN·m]\n"
+        "#            csi=corr_severity_idx, ri=reinf_index\n"
+        "# R = Mmax / MACI  (dimensionless capacity ratio)\n\n"
+        f"R = {best.equation}\n"
+        "Mmax = R * MACI   [kN·m]\n"
     )
 
     latex_eq = sp.latex(expr_sp)
     (EQ_DIR / "best_equation_stacking.latex").write_text(
-        "% Best Equation from Stacking->PySR (log1p direct distillation)\n"
-        f"\\ln(M_{{\\max}}+1) = {latex_eq}\n"
-        r"M_{\max} = e^{\mathrm{equation}} - 1 \quad [\mathrm{kN{\cdot}m}]" + "\n"
+        "% Best Equation from Stacking->PySR (ratio distillation: R = Mmax/MACI)\n"
+        f"R = {latex_eq}\n"
+        r"M_{\max} = R \cdot M_{\mathrm{ACI}} \quad [\mathrm{kN{\cdot}m}]" + "\n"
     )
 
     # Figure 1: predicted vs true
@@ -870,7 +878,7 @@ def main() -> None:
 
     df, X_scaled, y_true, m_aci = prepare_full_dataframe()
     m_stack  = get_stacking_predictions(X_scaled)
-    y_target = np.log1p(np.maximum(m_stack, 0.0))   # clean log1p target
+    y_target = np.maximum(m_stack, 0.0) / np.maximum(m_aci, 1e-9)   # dimensionless ratio R = Mstack/MACI
 
     X_sym, data_dict = build_symbolic_inputs(df)
     X_sym_aug, y_target_aug = augment_with_anchor_samples(X_sym, y_target)
@@ -886,13 +894,13 @@ def main() -> None:
         random_state=args.seed,
     )
 
-    cands = evaluate_candidates(eq_df, data_dict, y_true, y_target)
+    cands = evaluate_candidates(eq_df, data_dict, y_true, y_target, m_aci)
 
     # KAN candidates — merged into same pool, evaluated on same objectives
     kan_exprs = run_kan_symbolic(X_sym, y_target, random_state=args.seed)
     if kan_exprs:
         kan_df    = pd.DataFrame([{"sympy_format": e, "complexity": 15.0} for e in kan_exprs])
-        kan_cands = evaluate_candidates(kan_df, data_dict, y_true, y_target)
+        kan_cands = evaluate_candidates(kan_df, data_dict, y_true, y_target, m_aci)
         logger.info(f"KAN contributed {len(kan_cands)} valid candidate(s)")
         cands.extend(kan_cands)
 
