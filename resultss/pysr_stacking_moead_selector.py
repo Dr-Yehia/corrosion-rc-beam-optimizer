@@ -465,10 +465,8 @@ def evaluate_candidates(
 ) -> List[Candidate]:
     cands: List[Candidate] = []
 
-    med        = {k: float(np.median(v)) for k, v in data_dict.items()}
-    mean_y     = float(np.mean(y_true))
-    tgt_median = float(np.median(y_target))
-    tgt_std    = float(np.std(y_target)) or 1.0
+    med    = {k: float(np.median(v)) for k, v in data_dict.items()}
+    mean_y = float(np.mean(y_true))
 
     for _, row in eq_df.iterrows():
         expr = _get_equation_string(row)
