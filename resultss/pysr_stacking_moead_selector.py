@@ -327,12 +327,58 @@ def run_pysr(
 
 
 # ── KAN (Kolmogorov-Arnold Networks, MIT 2024) ─────────────────────────────
+def _kan_top_features(X_sym: pd.DataFrame, k: int = 6) -> List[str]:
+    """Select top-k KAN features from shap_importance.csv (keyword matching)."""
+    shap_path = MODELS_DIR / "shap_importance.csv"
+    if not shap_path.exists():
+        return list(X_sym.columns)[:k]
+    try:
+        df_s = pd.read_csv(shap_path)
+        feat_col = next((c for c in df_s.columns if "feature" in c.lower()), df_s.columns[0])
+        imp_col  = next(
+            (c for c in df_s.columns if any(x in c.lower() for x in ["importance", "shap", "mean"])),
+            df_s.columns[1],
+        )
+        # keyword map: original feature name → X_sym column
+        KEYWORD_MAP = {
+            "depth":   "d_mm", "width": "b_mm",
+            "mass loss": "eta", "ηm":   "eta",  "eta": "eta",
+            "f'c":     "fc",   "fc":    "fc",
+            "fy":      "fy",
+            "pten":    "rho",  "reinf ratio": "rho",
+            "reinf_index": "ri", " ri":  "ri",
+            "corr_severity": "csi", "csi": "csi",
+            "as":      "As",
+        }
+        scored: dict[str, float] = {}
+        for _, row in df_s.iterrows():
+            fname = str(row[feat_col]).lower()
+            imp   = abs(float(row[imp_col]))
+            for kw, col in KEYWORD_MAP.items():
+                if kw in fname and col in X_sym.columns:
+                    scored[col] = scored.get(col, 0.0) + imp
+        if not scored:
+            return list(X_sym.columns)[:k]
+        top = sorted(scored, key=scored.get, reverse=True)[:k]
+        # fill up to k if not enough matched
+        for c in X_sym.columns:
+            if len(top) >= k:
+                break
+            if c not in top:
+                top.append(c)
+        logger.info(f"KAN top-{k} features (SHAP): {top}")
+        return top
+    except Exception as exc:
+        logger.warning(f"KAN SHAP feature selection failed ({exc}) — using all features")
+        return list(X_sym.columns)[:k]
+
+
 def run_kan_symbolic(
     X_sym: pd.DataFrame,
     y_target: np.ndarray,
     random_state: int = 42,
 ) -> List[str]:
-    """Train KAN, auto-convert to symbolic, return candidate expression strings."""
+    """Train KAN on SHAP top-6 features, auto-convert to symbolic, return candidates."""
     try:
         from kan.KAN import KAN   # works across all pykan versions
         import torch
@@ -344,25 +390,29 @@ def run_kan_symbolic(
             logger.warning("pykan not installed — skipping KAN. (pip install pykan torch)")
             return []
     try:
+        # ── 1. SHAP top-6 feature selection ───────────────────────────────
+        top_feats = _kan_top_features(X_sym, k=6)
+        X_kan = X_sym[top_feats]
+
         torch.manual_seed(random_state)
-        X_t = torch.tensor(X_sym.to_numpy(dtype=float), dtype=torch.float32)
+        X_t = torch.tensor(X_kan.to_numpy(dtype=float), dtype=torch.float32)
         y_t = torch.tensor(y_target, dtype=torch.float32).unsqueeze(1)
         dataset = {"train_input": X_t, "train_label": y_t,
                    "test_input":  X_t, "test_label":  y_t}
 
-        n_feat = X_sym.shape[1]
-        model  = KAN(width=[n_feat, 5, 3, 1], grid=5, k=3, seed=random_state)
+        n_feat = X_kan.shape[1]
+        model  = KAN(width=[n_feat, 4, 1], grid=5, k=3, seed=random_state)
 
-        # Robust training: try every known API variant across pykan versions
+        # ── 2. Robust training — 200 steps ────────────────────────────────
         trained = False
         for _call in [
-            lambda: model.fit(dataset,   opt="LBFGS", steps=300, lamb=0.001, lamb_entropy=2.0, verbose=False),
-            lambda: model.fit(dataset,   opt="LBFGS", steps=300, lamb=0.001, verbose=False),
-            lambda: model.fit(dataset,   steps=300,   lamb=0.001, verbose=False),
-            lambda: model.fit(dataset,   steps=300,   verbose=False),
+            lambda: model.fit(dataset,   opt="LBFGS", steps=200, lamb=0.001, lamb_entropy=2.0, verbose=False),
+            lambda: model.fit(dataset,   opt="LBFGS", steps=200, lamb=0.001, verbose=False),
+            lambda: model.fit(dataset,   steps=200,   lamb=0.001, verbose=False),
+            lambda: model.fit(dataset,   steps=200,   verbose=False),
             lambda: model.fit(dataset),
-            lambda: model.train(dataset, opt="LBFGS", steps=300, lamb=0.001, verbose=False),
-            lambda: model.train(dataset, steps=300,   verbose=False),
+            lambda: model.train(dataset, opt="LBFGS", steps=200, lamb=0.001, verbose=False),
+            lambda: model.train(dataset, steps=200,   verbose=False),
             lambda: model.train(dataset),
         ]:
             try:
@@ -371,24 +421,28 @@ def run_kan_symbolic(
                 continue
         if not trained:
             raise RuntimeError("KAN: no compatible train/fit API found in installed pykan")
+
+        # ── 3. Prune + safe auto_symbolic (no free-power x^a) ─────────────
         try:
             model.prune(threshold=0.03)
         except TypeError:
             model.prune()
-        try:
-            model.auto_symbolic(lib=["x", "x^2", "sqrt", "exp", "log"], r2_threshold=0.5)
-        except TypeError:
-            model.auto_symbolic(lib=["x", "x^2", "sqrt", "exp", "log"])
 
+        SAFE_LIB = ["x", "x^2", "x^3", "sqrt", "exp", "log"]  # no "x^a"
+        try:
+            model.auto_symbolic(lib=SAFE_LIB, r2_threshold=0.5)
+        except TypeError:
+            model.auto_symbolic(lib=SAFE_LIB)
+
+        # ── 4. Extract formula safely ──────────────────────────────────────
         with torch.no_grad():
             raw_formulas = model.symbolic_formula()
-        feat_names   = list(X_sym.columns)
         results: List[str] = []
         for entry in (raw_formulas if isinstance(raw_formulas, list) else [raw_formulas]):
             s = str(entry[0]) if isinstance(entry, (list, tuple)) else str(entry)
             if not s or s in ("nan", "0", "None", ""):
                 continue
-            for i, name in enumerate(feat_names, 1):
+            for i, name in enumerate(top_feats, 1):
                 s = s.replace(f"x_{i}", name)
             results.append(s)
 
