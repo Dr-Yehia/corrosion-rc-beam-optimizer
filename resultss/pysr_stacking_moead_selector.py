@@ -403,16 +403,15 @@ def run_kan_symbolic(
         n_feat = X_kan.shape[1]
         model  = KAN(width=[n_feat, 4, 1], grid=5, k=3, seed=random_state)
 
-        # ── 2. Robust training — 200 steps ────────────────────────────────
+        # ── 2. Phase-A: deep training without regularization (300 steps) ──
         trained = False
         for _call in [
-            lambda: model.fit(dataset,   opt="LBFGS", steps=200, lamb=0.001, lamb_entropy=2.0, verbose=False),
-            lambda: model.fit(dataset,   opt="LBFGS", steps=200, lamb=0.001, verbose=False),
-            lambda: model.fit(dataset,   steps=200,   lamb=0.001, verbose=False),
-            lambda: model.fit(dataset,   steps=200,   verbose=False),
+            lambda: model.fit(dataset,   opt="LBFGS", steps=300, lamb=0.0, verbose=False),
+            lambda: model.fit(dataset,   opt="LBFGS", steps=300, verbose=False),
+            lambda: model.fit(dataset,   steps=300,   verbose=False),
             lambda: model.fit(dataset),
-            lambda: model.train(dataset, opt="LBFGS", steps=200, lamb=0.001, verbose=False),
-            lambda: model.train(dataset, steps=200,   verbose=False),
+            lambda: model.train(dataset, opt="LBFGS", steps=300, lamb=0.0, verbose=False),
+            lambda: model.train(dataset, steps=300,   verbose=False),
             lambda: model.train(dataset),
         ]:
             try:
@@ -422,15 +421,26 @@ def run_kan_symbolic(
         if not trained:
             raise RuntimeError("KAN: no compatible train/fit API found in installed pykan")
 
-        # ── 3. Prune + safe auto_symbolic (no free-power x^a) ─────────────
+        # ── 3. Prune then Phase-B: fine-tune on clean network (100 steps) ──
         try:
             model.prune(threshold=0.03)
         except TypeError:
             model.prune()
 
-        SAFE_LIB = ["x", "x^2", "x^3", "sqrt", "exp", "tanh"]  # no log/x^a → prevents log(negative)
+        for _call in [
+            lambda: model.fit(dataset,   opt="LBFGS", steps=100, lamb=0.0, verbose=False),
+            lambda: model.fit(dataset,   steps=100,   verbose=False),
+            lambda: model.train(dataset, steps=100,   verbose=False),
+        ]:
+            try:
+                _call(); break
+            except (TypeError, AttributeError):
+                continue
+
+        # ── 4. Safe auto_symbolic (no log/x^a → prevents NaN) ─────────────
+        SAFE_LIB = ["x", "x^2", "x^3", "sqrt", "exp", "tanh"]
         try:
-            model.auto_symbolic(lib=SAFE_LIB, r2_threshold=0.5)
+            model.auto_symbolic(lib=SAFE_LIB, r2_threshold=0.45)
         except TypeError:
             model.auto_symbolic(lib=SAFE_LIB)
 
@@ -465,6 +475,9 @@ def safe_sympify(expr: str):
             "log":    sp.log,
             "exp":    sp.exp,
             "abs":    sp.Abs,
+            "tanh":   sp.tanh,
+            "sin":    sp.sin,
+            "cos":    sp.cos,
             "square": lambda x: x**2,
             "cube":   lambda x: x**3,
         },
