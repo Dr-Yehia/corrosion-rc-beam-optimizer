@@ -428,7 +428,7 @@ def run_kan_symbolic(
         except TypeError:
             model.prune()
 
-        SAFE_LIB = ["x", "x^2", "x^3", "sqrt", "exp", "log"]  # no "x^a"
+        SAFE_LIB = ["x", "x^2", "x^3", "sqrt", "exp", "tanh"]  # no log/x^a → prevents log(negative)
         try:
             model.auto_symbolic(lib=SAFE_LIB, r2_threshold=0.5)
         except TypeError:
