@@ -371,10 +371,17 @@ def run_kan_symbolic(
                 continue
         if not trained:
             raise RuntimeError("KAN: no compatible train/fit API found in installed pykan")
-        model.prune()
-        model.auto_symbolic(lib=["x", "x^2", "sqrt", "exp", "log"])
+        try:
+            model.prune(threshold=0.03)
+        except TypeError:
+            model.prune()
+        try:
+            model.auto_symbolic(lib=["x", "x^2", "sqrt", "exp", "log"], r2_threshold=0.5)
+        except TypeError:
+            model.auto_symbolic(lib=["x", "x^2", "sqrt", "exp", "log"])
 
-        raw_formulas = model.symbolic_formula()
+        with torch.no_grad():
+            raw_formulas = model.symbolic_formula()
         feat_names   = list(X_sym.columns)
         results: List[str] = []
         for entry in (raw_formulas if isinstance(raw_formulas, list) else [raw_formulas]):
