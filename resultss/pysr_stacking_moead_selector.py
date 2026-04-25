@@ -240,7 +240,7 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
 def augment_with_anchor_samples(
     X_sym: pd.DataFrame,
     y_target: np.ndarray,
-    n_anchors: int = 30,
+    n_anchors: int = 150,
 ) -> Tuple[pd.DataFrame, np.ndarray]:
     """Inject physics anchors: near-zero-eta rows reinforce no-corrosion behaviour."""
     eta = X_sym["eta"].to_numpy()
@@ -248,14 +248,24 @@ def augment_with_anchor_samples(
     if near_zero.sum() < 3:
         logger.warning("Too few near-zero eta samples for anchoring; skipping augmentation")
         return X_sym, y_target
-    anchor_target = float(np.median(y_target[near_zero]))
+    # R(η=0) = 1.0 by definition: no corrosion means full original capacity
+    anchor_target = 1.0
     med_row = {c: float(np.median(X_sym[c])) for c in X_sym.columns}
     med_row["eta"] = 0.0
     anchors_X = pd.DataFrame([med_row] * n_anchors)
     anchors_y = np.full(n_anchors, anchor_target)
-    X_aug = pd.concat([X_sym, anchors_X], ignore_index=True)
-    y_aug = np.concatenate([y_target, anchors_y])
-    logger.info(f"Anchors added: {n_anchors} rows at eta=0, target={anchor_target:.4f}")
+    # High-eta anchors: enforce R(η=0.64) ≈ 0.35 (significant capacity loss at heavy corrosion)
+    n_high = n_anchors // 3
+    high_row = dict(med_row)
+    high_row["eta"] = 0.64
+    anchors_high_X = pd.DataFrame([high_row] * n_high)
+    anchors_high_y = np.full(n_high, 0.35)
+    X_aug = pd.concat([X_sym, anchors_X, anchors_high_X], ignore_index=True)
+    y_aug = np.concatenate([y_target, anchors_y, anchors_high_y])
+    logger.info(
+        f"Anchors: {n_anchors} at eta=0 (target=1.0), "
+        f"{n_high} at eta=0.64 (target=0.35)"
+    )
     return X_aug, y_aug
 
 
@@ -303,6 +313,8 @@ def run_pysr(
             },
             constraints={"sqrt": 8, "log": 8, "exp": 6, "square": 8, "cube": 8},
             model_selection="accuracy",
+            # Boost eta (idx 0), csi (idx 7), ri (idx 8) — primary corrosion variables
+            variable_weights=np.array([3.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0]),
             # Huber loss: robust to outliers, smooth near zero
             elementwise_loss=(
                 "loss(x, y) = begin\n"
@@ -552,6 +564,9 @@ def evaluate_endpoint_ratio(expr_sp, med: Dict[str, float], eta_value: float) ->
 
 
 def monotonic_violation(expr_sp, med: Dict[str, float], n_grid: int = 60) -> float:
+    # Equation must contain eta to be monotonically decreasing with corrosion
+    if "eta" not in {str(s) for s in expr_sp.free_symbols}:
+        return 1.0
     eta_vals = np.linspace(0.0, 0.64, n_grid)  # limit to realistic data range
     vals = []
     for e in eta_vals:
@@ -634,6 +649,7 @@ def evaluate_candidates(
 
         mono = monotonic_violation(expr_sp, med)
         comp = estimate_complexity(row, expr)
+        has_eta = "eta" in {str(s) for s in expr_sp.free_symbols}
 
         metrics = {
             "R2": round(r2, 4), "RMSE": round(rmse, 4),
@@ -649,6 +665,7 @@ def evaluate_candidates(
             "obj_end100": end100,
             "obj_mono":   mono,
             "obj_comp":   comp / 50.0,
+            "obj_no_eta": 0.5 if not has_eta else 0.0,
         }
 
         cands.append(
@@ -705,6 +722,7 @@ def load_shap_weights(shap_path: Path) -> Dict[str, float]:
             "obj_end100": 1.0,
             "obj_mono":  1.2,
             "obj_comp":  0.5,
+            "obj_no_eta": 1.5,
         }
         logger.info(f"SHAP weights loaded — accuracy boost={boost:.3f} (depth={depth_imp:.2%}, eta={eta_imp:.2%})")
         return weights
@@ -811,10 +829,11 @@ def choose_final(
         "obj_r2":     wa * 0.45,
         "obj_mape":   wa * 0.35,
         "obj_rmse":   wa * 0.20,
-        "obj_end0":   wp * 0.40,
-        "obj_end100": wp * 0.40,
+        "obj_end0":   wp * 0.30,
+        "obj_end100": wp * 0.30,
         "obj_mono":   wp * 0.20,
         "obj_comp":   wc * 1.00,
+        "obj_no_eta": wp * 0.20,
     }
     # Apply SHAP multipliers to final scoring weights
     sw = shap_obj_weights or {}
