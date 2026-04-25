@@ -438,15 +438,23 @@ def run_kan_symbolic(
                 continue
 
         # ── 4. Safe auto_symbolic (no log/x^a → prevents NaN) ─────────────
-        SAFE_LIB = ["x", "x^2", "x^3", "sqrt", "exp", "tanh"]
+        # 5 elements only — pykan has off-by-one bug when lib size == n_features
+        SAFE_LIB = ["x", "x^2", "sqrt", "exp", "tanh"]
         try:
             model.auto_symbolic(lib=SAFE_LIB, r2_threshold=0.45)
-        except TypeError:
-            model.auto_symbolic(lib=SAFE_LIB)
+        except (TypeError, IndexError):
+            try:
+                model.auto_symbolic(lib=SAFE_LIB)
+            except IndexError:
+                pass
 
         # ── 4. Extract formula safely ──────────────────────────────────────
-        with torch.no_grad():
-            raw_formulas = model.symbolic_formula()
+        try:
+            with torch.no_grad():
+                raw_formulas = model.symbolic_formula()
+        except IndexError as ie:
+            logger.warning(f"KAN symbolic_formula IndexError (pykan bug) — skipping: {ie}")
+            return []
         results: List[str] = []
         for entry in (raw_formulas if isinstance(raw_formulas, list) else [raw_formulas]):
             s = str(entry[0]) if isinstance(entry, (list, tuple)) else str(entry)
