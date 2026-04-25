@@ -969,20 +969,19 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Stacking to PySR symbolic distillation with MOEA/D-style selection"
     )
-    p.add_argument("--niterations", type=int, default=2000)
+    p.add_argument("--niterations", type=int, default=500)
     p.add_argument("--populations", type=int, default=100)
     p.add_argument("--maxsize",     type=int, default=25)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--ref-vectors", type=int, default=8,
                    help="NSGA-III Das-Dennis partitions (default=8 → ~702 ref-points for 7 obj)")
-    # FIX #9: expose objective weights via CLI
     p.add_argument(
-        "--w-accuracy", type=float, default=0.55,
-        help="Weight for accuracy objectives (R2, MAPE, RMSE). Default=0.55"
+        "--w-accuracy", type=float, default=0.70,
+        help="Weight for accuracy objectives (R2, MAPE, RMSE). Default=0.70"
     )
     p.add_argument(
-        "--w-physics", type=float, default=0.35,
-        help="Weight for physics objectives (endpoints, monotonicity). Default=0.35"
+        "--w-physics", type=float, default=0.20,
+        help="Weight for physics objectives (endpoints, monotonicity). Default=0.20"
     )
     p.add_argument(
         "--w-complexity", type=float, default=0.10,
@@ -997,6 +996,11 @@ def main() -> None:
 
     if sp is None:
         raise ImportError("Missing dependency: sympy. Install with: pip install sympy")
+
+    # Always start fresh — delete saved PySR model to avoid warm-start contamination
+    if PYSR_MODEL_PATH.exists():
+        PYSR_MODEL_PATH.unlink()
+        logger.info("Deleted cached pysr_model.pkl — starting fresh search")
 
     df, X_scaled, y_true, m_aci = prepare_full_dataframe()
     m_stack  = get_stacking_predictions(X_scaled)
