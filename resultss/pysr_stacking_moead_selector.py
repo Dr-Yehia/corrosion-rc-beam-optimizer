@@ -7,9 +7,9 @@ Pipeline:
 2) Load Stacking model → generate M_stack predictions.
 3) Distillation target: R = M_stack / M_ACI  (dimensionless ratio).
 4) Symbolic features: eta, rho, d_mm, b_mm, csi, ri  (SHAP-informed).
-5) PySR evolves candidate equations over 7 objectives:
-   1-R², MAPE, RMSE_norm, endpoint(η=0)→1, endpoint(η=0.64)→0,
-   monotonicity, complexity.
+5) PySR evolves candidate equations over 8 objectives:
+   1-R², MAPE, RMSE_norm, endpoint(η=0)→1, endpoint(η=0.64)→0.35,
+   monotonicity, complexity, no-eta penalty.
 6) NSGA-III (Das-Dennis refs + fast non-dominated sort) selects the
    Pareto-diverse front; SHAP weights boost accuracy objectives for
    the most physically relevant features (Depth 47 %, Mass-loss ~20 %).
@@ -993,7 +993,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--maxsize",     type=int, default=25)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--ref-vectors", type=int, default=8,
-                   help="NSGA-III Das-Dennis partitions (default=8 → ~702 ref-points for 7 obj)")
+                   help="NSGA-III Das-Dennis partitions (default=8 → ~1287 ref-points for 8 obj)")
     p.add_argument(
         "--w-accuracy", type=float, default=0.70,
         help="Weight for accuracy objectives (R2, MAPE, RMSE). Default=0.70"
