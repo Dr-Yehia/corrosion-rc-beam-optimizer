@@ -445,7 +445,6 @@ def run_kan_symbolic(
                 pass
 
         # ── 4. Extract formula safely ──────────────────────────────────────
-        # Pass var_names directly so pykan uses feature names instead of x_0,x_1,...
         try:
             with torch.no_grad():
                 raw_formulas = model.symbolic_formula(var_names=top_feats)
@@ -456,22 +455,45 @@ def run_kan_symbolic(
             except IndexError as ie:
                 logger.warning(f"KAN symbolic_formula IndexError — skipping: {ie}")
                 return []
+
+        # pykan returns (formulas, coeffs) tuple OR [[formula]] OR [formula]
+        # Unwrap completely to get flat list of sympy-expression strings
+        if isinstance(raw_formulas, tuple):
+            raw_formulas = raw_formulas[0]
+
+        formula_strs: List[str] = []
+        def _flatten(obj) -> None:
+            if isinstance(obj, list):
+                for item in obj:
+                    _flatten(item)
+            else:
+                formula_strs.append(str(obj))
+        _flatten(raw_formulas)
+
         results: List[str] = []
-        for entry in (raw_formulas if isinstance(raw_formulas, list) else [raw_formulas]):
-            s = str(entry[0]) if isinstance(entry, (list, tuple)) else str(entry)
+        for s in formula_strs:
             if not s or s in ("nan", "0", "None", ""):
                 continue
             logger.debug(f"KAN raw formula: {s}")
-            # pykan uses x_0,x_1,... (0-indexed) in some versions, x_1,x_2,... in others
             for i, name in enumerate(top_feats, 0):
                 s = s.replace(f"x_{i}", name)
             for i, name in enumerate(top_feats, 1):
                 s = s.replace(f"x_{i}", name)
             if not any(name in s for name in top_feats):
-                logger.warning(f"KAN formula is constant (no feature variables) — skipping: {s}")
+                logger.warning(f"KAN formula constant — skipping: {s}")
                 continue
-            # KAN was trained on log(R) → wrap in exp() to get R back
-            results.append(f"exp({s})")
+            # Pre-validate: must parse in sympy before adding
+            s_wrapped = f"exp({s})"
+            try:
+                test_sp = safe_sympify(s_wrapped)
+                free = {str(sym) for sym in test_sp.free_symbols}
+                if not any(name in free for name in top_feats):
+                    logger.warning(f"KAN sympify gave no feature symbols — skipping")
+                    continue
+            except Exception as parse_err:
+                logger.warning(f"KAN formula failed sympify: {parse_err} — raw: {s_wrapped[:80]}")
+                continue
+            results.append(s_wrapped)
 
         logger.info(f"KAN produced {len(results)} symbolic candidate(s)")
         return results
