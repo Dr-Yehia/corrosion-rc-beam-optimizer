@@ -449,12 +449,17 @@ def run_kan_symbolic(
                 pass
 
         # ── 4. Extract formula safely ──────────────────────────────────────
+        # Pass var_names directly so pykan uses feature names instead of x_0,x_1,...
         try:
             with torch.no_grad():
-                raw_formulas = model.symbolic_formula()
-        except IndexError as ie:
-            logger.warning(f"KAN symbolic_formula IndexError (pykan bug) — skipping: {ie}")
-            return []
+                raw_formulas = model.symbolic_formula(var_names=top_feats)
+        except (IndexError, TypeError):
+            try:
+                with torch.no_grad():
+                    raw_formulas = model.symbolic_formula()
+            except IndexError as ie:
+                logger.warning(f"KAN symbolic_formula IndexError — skipping: {ie}")
+                return []
         results: List[str] = []
         for entry in (raw_formulas if isinstance(raw_formulas, list) else [raw_formulas]):
             s = str(entry[0]) if isinstance(entry, (list, tuple)) else str(entry)
