@@ -933,7 +933,7 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Stacking to PySR symbolic distillation with MOEA/D-style selection"
     )
-    p.add_argument("--niterations", type=int, default=50)   # TODO: restore to 2000 after testing
+    p.add_argument("--niterations", type=int, default=2000)
     p.add_argument("--populations", type=int, default=100)
     p.add_argument("--maxsize",     type=int, default=25)
     p.add_argument("--seed", type=int, default=42)
