@@ -454,6 +454,9 @@ def run_kan_symbolic(
                 continue
             for i, name in enumerate(top_feats, 1):
                 s = s.replace(f"x_{i}", name)
+            if not any(name in s for name in top_feats):
+                logger.warning(f"KAN formula is constant (no feature variables) — skipping: {s}")
+                continue
             results.append(s)
 
         logger.info(f"KAN produced {len(results)} symbolic candidate(s)")
