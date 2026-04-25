@@ -401,7 +401,7 @@ def run_kan_symbolic(
                    "test_input":  X_t, "test_label":  y_t}
 
         n_feat = X_kan.shape[1]
-        model  = KAN(width=[n_feat, 4, 1], grid=5, k=3, seed=random_state)
+        model  = KAN(width=[n_feat, 3, 1], grid=5, k=3, seed=random_state)
 
         # ── 2. Phase-A: deep training without regularization (300 steps) ──
         trained = False
@@ -422,8 +422,9 @@ def run_kan_symbolic(
             raise RuntimeError("KAN: no compatible train/fit API found in installed pykan")
 
         # ── 3. Prune then Phase-B: fine-tune on clean network (100 steps) ──
+        # threshold=0.001 keeps more edges — 0.03 was pruning too aggressively
         try:
-            model.prune(threshold=0.03)
+            model.prune(threshold=0.001)
         except TypeError:
             model.prune()
 
@@ -440,8 +441,9 @@ def run_kan_symbolic(
         # ── 4. Safe auto_symbolic (no log/x^a → prevents NaN) ─────────────
         # 5 elements only — pykan has off-by-one bug when lib size == n_features
         SAFE_LIB = ["x", "x^2", "sqrt", "exp", "tanh"]
+        # r2_threshold=0.20 — lower threshold keeps more edges as symbolic
         try:
-            model.auto_symbolic(lib=SAFE_LIB, r2_threshold=0.45)
+            model.auto_symbolic(lib=SAFE_LIB, r2_threshold=0.20)
         except (TypeError, IndexError):
             try:
                 model.auto_symbolic(lib=SAFE_LIB)
