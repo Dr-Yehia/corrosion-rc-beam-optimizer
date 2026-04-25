@@ -396,16 +396,21 @@ def run_kan_symbolic(
 
         torch.manual_seed(random_state)
         X_t = torch.tensor(X_kan.to_numpy(dtype=float), dtype=torch.float32)
-        y_t = torch.tensor(y_target, dtype=torch.float32).unsqueeze(1)
+
+        # Train in log-space: log(R) has zero mean and real variance,
+        # preventing KAN from collapsing to the trivial constant R≈1 solution.
+        y_log = np.log(np.maximum(y_target, 1e-3))
+        y_t   = torch.tensor(y_log, dtype=torch.float32).unsqueeze(1)
         dataset = {"train_input": X_t, "train_label": y_t,
                    "test_input":  X_t, "test_label":  y_t}
 
         n_feat = X_kan.shape[1]
         model  = KAN(width=[n_feat, 3, 1], grid=5, k=3, seed=random_state)
 
-        # ── 2. Phase-A: deep training without regularization (300 steps) ──
+        # ── 2. Phase-A: Adam (explores better than LBFGS for flat targets) ──
         trained = False
         for _call in [
+            lambda: model.fit(dataset,   opt="Adam",  steps=500, lr=0.01, verbose=False),
             lambda: model.fit(dataset,   opt="LBFGS", steps=300, lamb=0.0, verbose=False),
             lambda: model.fit(dataset,   opt="LBFGS", steps=300, verbose=False),
             lambda: model.fit(dataset,   steps=300,   verbose=False),
@@ -476,7 +481,8 @@ def run_kan_symbolic(
             if not any(name in s for name in top_feats):
                 logger.warning(f"KAN formula is constant (no feature variables) — skipping: {s}")
                 continue
-            results.append(s)
+            # KAN was trained on log(R) → wrap in exp() to get R back
+            results.append(f"exp({s})")
 
         logger.info(f"KAN produced {len(results)} symbolic candidate(s)")
         return results
