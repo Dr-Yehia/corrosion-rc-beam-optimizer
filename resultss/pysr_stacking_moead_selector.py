@@ -460,6 +460,10 @@ def run_kan_symbolic(
             s = str(entry[0]) if isinstance(entry, (list, tuple)) else str(entry)
             if not s or s in ("nan", "0", "None", ""):
                 continue
+            logger.debug(f"KAN raw formula: {s}")
+            # pykan uses x_0,x_1,... (0-indexed) in some versions, x_1,x_2,... in others
+            for i, name in enumerate(top_feats, 0):
+                s = s.replace(f"x_{i}", name)
             for i, name in enumerate(top_feats, 1):
                 s = s.replace(f"x_{i}", name)
             if not any(name in s for name in top_feats):
