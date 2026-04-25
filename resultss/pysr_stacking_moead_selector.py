@@ -407,10 +407,12 @@ def run_kan_symbolic(
         n_feat = X_kan.shape[1]
         model  = KAN(width=[n_feat, 3, 1], grid=5, k=3, seed=random_state)
 
-        # ── 2. Phase-A: Adam (explores better than LBFGS for flat targets) ──
+        # ── 2. Train with LBFGS, no regularization, no pruning ───────────────
+        # Adam in pykan applies internal regularization even with lamb=0,
+        # driving active neurons to 0 (dead network). Use LBFGS only.
         trained = False
         for _call in [
-            lambda: model.fit(dataset,   opt="Adam",  steps=500, lr=0.01, verbose=False),
+            lambda: model.fit(dataset,   opt="LBFGS", steps=500, lamb=0.0, verbose=False),
             lambda: model.fit(dataset,   opt="LBFGS", steps=300, lamb=0.0, verbose=False),
             lambda: model.fit(dataset,   opt="LBFGS", steps=300, verbose=False),
             lambda: model.fit(dataset,   steps=300,   verbose=False),
@@ -426,22 +428,7 @@ def run_kan_symbolic(
         if not trained:
             raise RuntimeError("KAN: no compatible train/fit API found in installed pykan")
 
-        # ── 3. Prune then Phase-B: fine-tune on clean network (100 steps) ──
-        # threshold=0.001 keeps more edges — 0.03 was pruning too aggressively
-        try:
-            model.prune(threshold=0.001)
-        except TypeError:
-            model.prune()
-
-        for _call in [
-            lambda: model.fit(dataset,   opt="LBFGS", steps=100, lamb=0.0, verbose=False),
-            lambda: model.fit(dataset,   steps=100,   verbose=False),
-            lambda: model.train(dataset, steps=100,   verbose=False),
-        ]:
-            try:
-                _call(); break
-            except (TypeError, AttributeError):
-                continue
+        # ── 3. Skip pruning — it kills neurons when network is not fully converged ──
 
         # ── 4. Safe auto_symbolic (no log/x^a → prevents NaN) ─────────────
         # 5 elements only — pykan has off-by-one bug when lib size == n_features
