@@ -405,7 +405,10 @@ def run_kan_symbolic(
                    "test_input":  X_t, "test_label":  y_t}
 
         n_feat = X_kan.shape[1]
-        model  = KAN(width=[n_feat, 3, 1], grid=5, k=3, seed=random_state)
+        # Single-layer additive KAN: log(R) = f1(η) + f2(d_mm) + ... + f6(csi)
+        # No hidden layer → no second-layer weights going to zero.
+        # auto_symbolic fits each of the 6 edges independently → guaranteed non-constant.
+        model  = KAN(width=[n_feat, 1], grid=5, k=3, seed=random_state)
 
         # ── 2. Train with LBFGS, no regularization, no pruning ───────────────
         # Adam in pykan applies internal regularization even with lamb=0,
@@ -431,11 +434,10 @@ def run_kan_symbolic(
         # ── 3. Skip pruning — it kills neurons when network is not fully converged ──
 
         # ── 4. Safe auto_symbolic (no log/x^a → prevents NaN) ─────────────
-        # 5 elements only — pykan has off-by-one bug when lib size == n_features
-        SAFE_LIB = ["x", "x^2", "sqrt", "exp", "tanh"]
-        # r2_threshold=0.20 — lower threshold keeps more edges as symbolic
+        # 4 elements — must be < n_features(6) to avoid pykan off-by-one bug
+        SAFE_LIB = ["x", "x^2", "sqrt", "tanh"]
         try:
-            model.auto_symbolic(lib=SAFE_LIB, r2_threshold=0.20)
+            model.auto_symbolic(lib=SAFE_LIB, r2_threshold=0.10)
         except (TypeError, IndexError):
             try:
                 model.auto_symbolic(lib=SAFE_LIB)
