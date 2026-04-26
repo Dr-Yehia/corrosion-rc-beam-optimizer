@@ -7,9 +7,9 @@ Pipeline:
 2) Load Stacking model → generate M_stack predictions.
 3) Distillation target: R = M_stack / M_ACI  (dimensionless ratio).
 4) Symbolic features: eta, rho, d_mm, b_mm, csi, ri  (SHAP-informed).
-5) PySR evolves candidate equations over 10 objectives:
+5) PySR evolves candidate equations over 11 objectives:
    1-R², MAPE, RMSE_norm, endpoint(η=0)→1, endpoint(η=0.64)→0.35,
-   monotonicity, complexity, no-eta penalty, no-d_mm penalty, sign penalty.
+   monotonicity, complexity, no-eta penalty, no-d_mm penalty, no-fc penalty, sign penalty.
 6) NSGA-III (Das-Dennis refs + fast non-dominated sort) selects the
    Pareto-diverse front; SHAP weights boost accuracy objectives for
    the most physically relevant features (Depth 47 %, Mass-loss ~20 %).
@@ -657,13 +657,14 @@ def evaluate_candidates(
         free_syms = {str(s) for s in expr_sp.free_symbols}
         has_eta = "eta" in free_syms
         has_d   = "d_mm" in free_syms
+        has_fc  = "fc"   in free_syms
 
         metrics = {
             "R2": round(r2, 4), "RMSE": round(rmse, 4),
             "MAE": round(mae, 4), "MAPE": round(mape, 2),
             "ratio_eta0":   round(float(r0),   4) if np.isfinite(r0)   else None,
             "ratio_eta064": round(float(r100),  4) if np.isfinite(r100) else None,
-            "has_d_mm": has_d, "sign_ok": sign_frac < 0.05,
+            "has_d_mm": has_d, "has_fc": has_fc, "sign_ok": sign_frac < 0.05,
         }
         objectives = {
             "obj_r2":     max(0.0, 1.0 - r2),
@@ -675,6 +676,7 @@ def evaluate_candidates(
             "obj_comp":   comp / 50.0,
             "obj_no_eta": 0.5 if not has_eta else 0.0,
             "obj_no_d":   0.5 if not has_d   else 0.0,   # penalize missing depth (47% SHAP)
+            "obj_no_fc":  0.5 if not has_fc  else 0.0,   # penalize missing concrete strength
             "obj_sign":   sign_frac,                      # penalize negative capacity ratios
         }
 
@@ -734,6 +736,7 @@ def load_shap_weights(shap_path: Path) -> Dict[str, float]:
             "obj_comp":   0.5,
             "obj_no_eta": 1.5,
             "obj_no_d":   2.5,   # heavy penalty: depth is #1 SHAP feature (47%)
+            "obj_no_fc":  2.0,   # penalize missing concrete strength (critical material property)
             "obj_sign":   1.5,   # penalize equations that predict negative capacity
         }
         logger.info(f"SHAP weights loaded — accuracy boost={boost:.3f} (depth={depth_imp:.2%}, eta={eta_imp:.2%})")
@@ -847,12 +850,13 @@ def choose_final(
         "obj_r2":     wa * 0.45,
         "obj_mape":   wa * 0.35,
         "obj_rmse":   wa * 0.20,
-        "obj_end0":   wp * 0.20,   # endpoint η=0 → 1.0
-        "obj_end100": wp * 0.20,   # endpoint η=0.64 → 0.35
-        "obj_mono":   wp * 0.15,   # monotonic decrease with corrosion
+        "obj_end0":   wp * 0.15,   # endpoint η=0 → 1.0
+        "obj_end100": wp * 0.15,   # endpoint η=0.64 → 0.35
+        "obj_mono":   wp * 0.10,   # monotonic decrease with corrosion
         "obj_comp":   wc * 1.00,
         "obj_no_eta": wp * 0.10,   # penalize missing mass-loss variable
         "obj_no_d":   wp * 0.25,   # penalize missing depth (47% SHAP — most critical)
+        "obj_no_fc":  wp * 0.15,   # penalize missing concrete strength
         "obj_sign":   wp * 0.10,   # penalize negative capacity ratio predictions
     }
     # Apply SHAP multipliers to final scoring weights
@@ -950,7 +954,8 @@ def save_outputs(
         "approach": "Stacking-to-PySR ratio distillation (Mstack/MACI) with NSGA-III + SHAP selection",
         "equation": best.equation,
         "has_d_mm": best.metrics.get("has_d_mm", None),
-        "sign_ok":  best.metrics.get("sign_ok", None),
+        "has_fc":   best.metrics.get("has_fc",   None),
+        "sign_ok":  best.metrics.get("sign_ok",  None),
         "R2":   round(r2, 4),
         "RMSE": round(rmse, 4),
         "MAE":  round(mae, 4),
