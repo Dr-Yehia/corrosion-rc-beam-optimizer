@@ -314,11 +314,12 @@ def run_pysr(
             },
             constraints={"sqrt": 8, "log": 8, "exp": 6, "square": 8, "cube": 8},
             model_selection="accuracy",
-            # Huber loss: robust to outliers, smooth near zero
+            # Relative Huber loss: directly minimises relative error (≈ MAPE)
+            # r_rel = (pred - target) / max(|target|, 0.05) → quadratic below 50%, linear above
             elementwise_loss=(
                 "loss(x, y) = begin\n"
-                "  r = x - y\n"
-                "  abs(r) < 1.0 ? 0.5*r^2 : abs(r) - 0.5\n"
+                "  r = (x - y) / max(abs(y), 0.05f0)\n"
+                "  abs(r) < 0.5f0 ? 0.5f0*r^2 : abs(r) - 0.25f0\n"
                 "end"
             ),
             random_state=random_state,
