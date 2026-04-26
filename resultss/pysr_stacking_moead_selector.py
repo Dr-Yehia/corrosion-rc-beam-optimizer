@@ -7,9 +7,9 @@ Pipeline:
 2) Load Stacking model → generate M_stack predictions.
 3) Distillation target: R = M_stack / M_ACI  (dimensionless ratio).
 4) Symbolic features: eta, rho, d_mm, b_mm, csi, ri  (SHAP-informed).
-5) PySR evolves candidate equations over 8 objectives:
+5) PySR evolves candidate equations over 10 objectives:
    1-R², MAPE, RMSE_norm, endpoint(η=0)→1, endpoint(η=0.64)→0.35,
-   monotonicity, complexity, no-eta penalty.
+   monotonicity, complexity, no-eta penalty, no-d_mm penalty, sign penalty.
 6) NSGA-III (Das-Dennis refs + fast non-dominated sort) selects the
    Pareto-diverse front; SHAP weights boost accuracy objectives for
    the most physically relevant features (Depth 47 %, Mass-loss ~20 %).
@@ -35,6 +35,7 @@ import numpy as np
 import pandas as pd
 from loguru import logger
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
 
 try:
     import sympy as sp
@@ -425,8 +426,8 @@ def run_kan_symbolic(
         # driving active neurons to 0 (dead network). Use LBFGS only.
         trained = False
         for _call in [
-            lambda: model.fit(dataset,   opt="LBFGS", steps=500, lamb=0.0, verbose=False),
-            lambda: model.fit(dataset,   opt="LBFGS", steps=300, lamb=0.0, verbose=False),
+            lambda: model.fit(dataset,   opt="LBFGS", steps=1000, lamb=0.0, verbose=False),
+            lambda: model.fit(dataset,   opt="LBFGS", steps=500,  lamb=0.0, verbose=False),
             lambda: model.fit(dataset,   opt="LBFGS", steps=300, verbose=False),
             lambda: model.fit(dataset,   steps=300,   verbose=False),
             lambda: model.fit(dataset),
@@ -444,8 +445,8 @@ def run_kan_symbolic(
         # ── 3. Skip pruning — it kills neurons when network is not fully converged ──
 
         # ── 4. Safe auto_symbolic (no log/x^a → prevents NaN) ─────────────
-        # 4 elements — must be < n_features(6) to avoid pykan off-by-one bug
-        SAFE_LIB = ["x", "x^2", "sqrt", "tanh"]
+        # 5 elements — must be < n_features(6) to avoid pykan off-by-one bug
+        SAFE_LIB = ["x", "x^2", "x^3", "sqrt", "tanh"]
         try:
             model.auto_symbolic(lib=SAFE_LIB, r2_threshold=0.10)
         except (TypeError, IndexError):
@@ -604,6 +605,8 @@ def evaluate_candidates(
 
     med    = {k: float(np.median(v)) for k, v in data_dict.items()}
     mean_y = float(np.mean(y_true))
+    # Dynamic MAPE floor: 5% of mean absolute y_true (scales with data magnitude)
+    eps_mape = max(float(np.mean(np.abs(y_true))) * 0.05, 1.0)
 
     for _, row in eq_df.iterrows():
         expr = _get_equation_string(row)
@@ -621,6 +624,10 @@ def evaluate_candidates(
         if log_pred.ndim != 1 or len(log_pred) != len(y_true):
             continue
 
+        # Sign violation: fraction of physically impossible negative capacity ratios
+        finite_mask = np.isfinite(log_pred)
+        sign_frac = float(np.mean(log_pred[finite_mask] < -0.01)) if finite_mask.any() else 1.0
+
         ratio_pred = np.nan_to_num(log_pred, nan=0.0, posinf=5.0, neginf=0.0)
         _maci = m_aci if m_aci is not None else np.ones(len(y_true))
         y_pred = np.maximum(ratio_pred * _maci, 0.0)   # ratio × M_ACI → kN·m
@@ -631,8 +638,8 @@ def evaluate_candidates(
         mape = float(
             np.mean(
                 np.clip(
-                    np.abs((y_true - y_pred) / np.maximum(np.abs(y_true), 1.0)),
-                    0.0, 10.0,
+                    np.abs((y_true - y_pred) / np.maximum(np.abs(y_true), eps_mape)),
+                    0.0, 5.0,
                 )
             ) * 100.0
         )
@@ -647,13 +654,16 @@ def evaluate_candidates(
 
         mono = monotonic_violation(expr_sp, med)
         comp = estimate_complexity(row, expr)
-        has_eta = "eta" in {str(s) for s in expr_sp.free_symbols}
+        free_syms = {str(s) for s in expr_sp.free_symbols}
+        has_eta = "eta" in free_syms
+        has_d   = "d_mm" in free_syms
 
         metrics = {
             "R2": round(r2, 4), "RMSE": round(rmse, 4),
             "MAE": round(mae, 4), "MAPE": round(mape, 2),
             "ratio_eta0":   round(float(r0),   4) if np.isfinite(r0)   else None,
             "ratio_eta064": round(float(r100),  4) if np.isfinite(r100) else None,
+            "has_d_mm": has_d, "sign_ok": sign_frac < 0.05,
         }
         objectives = {
             "obj_r2":     max(0.0, 1.0 - r2),
@@ -664,6 +674,8 @@ def evaluate_candidates(
             "obj_mono":   mono,
             "obj_comp":   comp / 50.0,
             "obj_no_eta": 0.5 if not has_eta else 0.0,
+            "obj_no_d":   0.5 if not has_d   else 0.0,   # penalize missing depth (47% SHAP)
+            "obj_sign":   sign_frac,                      # penalize negative capacity ratios
         }
 
         cands.append(
@@ -713,14 +725,16 @@ def load_shap_weights(shap_path: Path) -> Dict[str, float]:
                 eta_imp += imp
         boost = 1.0 + depth_imp + eta_imp          # ~1.6 for this dataset
         weights = {
-            "obj_r2":    boost,
-            "obj_mape":  boost * 0.8,
-            "obj_rmse":  boost * 0.6,
-            "obj_end0":  1.0,
+            "obj_r2":     boost,
+            "obj_mape":   boost * 0.8,
+            "obj_rmse":   boost * 0.6,
+            "obj_end0":   1.0,
             "obj_end100": 1.0,
-            "obj_mono":  1.2,
-            "obj_comp":  0.5,
+            "obj_mono":   1.2,
+            "obj_comp":   0.5,
             "obj_no_eta": 1.5,
+            "obj_no_d":   2.5,   # heavy penalty: depth is #1 SHAP feature (47%)
+            "obj_sign":   1.5,   # penalize equations that predict negative capacity
         }
         logger.info(f"SHAP weights loaded — accuracy boost={boost:.3f} (depth={depth_imp:.2%}, eta={eta_imp:.2%})")
         return weights
@@ -781,6 +795,12 @@ def nsga3_select(
     obj_names = list(cands[0].objectives.keys())
     n_obj = len(obj_names)
 
+    # Auto-scale n_partitions to keep reference points manageable (target ~700-2000 refs)
+    # For n_obj=10, n_partitions=8 → C(17,9)=24310 refs (too slow); n_partitions=4 → C(13,9)=715
+    if n_obj >= 9 and n_partitions > 4:
+        n_partitions = 4
+        logger.info(f"Auto-scaled n_partitions to 4 for {n_obj}-objective problem")
+
     # SHAP-weighted objectives before normalisation
     w_vec = np.array([
         (shap_obj_weights or {}).get(k, 1.0) for k in obj_names
@@ -827,11 +847,13 @@ def choose_final(
         "obj_r2":     wa * 0.45,
         "obj_mape":   wa * 0.35,
         "obj_rmse":   wa * 0.20,
-        "obj_end0":   wp * 0.30,
-        "obj_end100": wp * 0.30,
-        "obj_mono":   wp * 0.20,
+        "obj_end0":   wp * 0.20,   # endpoint η=0 → 1.0
+        "obj_end100": wp * 0.20,   # endpoint η=0.64 → 0.35
+        "obj_mono":   wp * 0.15,   # monotonic decrease with corrosion
         "obj_comp":   wc * 1.00,
-        "obj_no_eta": wp * 0.20,
+        "obj_no_eta": wp * 0.10,   # penalize missing mass-loss variable
+        "obj_no_d":   wp * 0.25,   # penalize missing depth (47% SHAP — most critical)
+        "obj_sign":   wp * 0.10,   # penalize negative capacity ratio predictions
     }
     # Apply SHAP multipliers to final scoring weights
     sw = shap_obj_weights or {}
@@ -857,6 +879,9 @@ def save_outputs(
     m_aci: np.ndarray,
     data_dict: Dict[str, np.ndarray],
     m_stack: np.ndarray | None = None,
+    y_true_test: np.ndarray | None = None,
+    m_aci_test: np.ndarray | None = None,
+    data_dict_test: Dict[str, np.ndarray] | None = None,
 ) -> None:
     best = cands[best_idx]
 
@@ -899,13 +924,41 @@ def save_outputs(
     )
 
     stack_r2 = float(r2_score(y_true, m_stack)) if m_stack is not None else None
+
+    # ── Test-set metrics (20% holdout — scientific validation) ────────────
+    test_r2 = test_rmse = test_mae = test_mape = None
+    if y_true_test is not None and data_dict_test is not None and m_aci_test is not None:
+        ratio_t = np.asarray(fn(*[data_dict_test[k] for k in data_dict.keys()]), dtype=float)
+        ratio_t = np.nan_to_num(ratio_t, nan=0.0, posinf=5.0, neginf=0.0)
+        y_pred_t = np.maximum(ratio_t * m_aci_test, 0.0)
+        test_r2   = float(r2_score(y_true_test, y_pred_t))
+        test_rmse = float(np.sqrt(mean_squared_error(y_true_test, y_pred_t)))
+        test_mae  = float(mean_absolute_error(y_true_test, y_pred_t))
+        eps_t     = max(float(np.mean(np.abs(y_true_test))) * 0.05, 1.0)
+        test_mape = float(
+            np.mean(np.clip(
+                np.abs((y_true_test - y_pred_t) / np.maximum(np.abs(y_true_test), eps_t)),
+                0.0, 5.0,
+            )) * 100.0
+        )
+        logger.info(
+            f"Test-set (20%): R²={test_r2:.4f}  RMSE={test_rmse:.4f}  "
+            f"MAE={test_mae:.4f}  MAPE={test_mape:.2f}%"
+        )
+
     out_metrics = {
         "approach": "Stacking-to-PySR ratio distillation (Mstack/MACI) with NSGA-III + SHAP selection",
         "equation": best.equation,
-        "R2": round(r2, 4),
+        "has_d_mm": best.metrics.get("has_d_mm", None),
+        "sign_ok":  best.metrics.get("sign_ok", None),
+        "R2":   round(r2, 4),
         "RMSE": round(rmse, 4),
-        "MAE": round(mae, 4),
+        "MAE":  round(mae, 4),
         "MAPE": round(mape, 2),
+        "test_R2":   round(test_r2,   4) if test_r2   is not None else None,
+        "test_RMSE": round(test_rmse, 4) if test_rmse is not None else None,
+        "test_MAE":  round(test_mae,  4) if test_mae  is not None else None,
+        "test_MAPE": round(test_mape, 2) if test_mape is not None else None,
         "complexity": round(best.complexity, 4),
         "selection_score": round(best.score, 6),
         "n_candidates": len(cands),
@@ -913,10 +966,15 @@ def save_outputs(
     }
     (MODELS_DIR / "pysr_stacking_metrics.json").write_text(json.dumps(out_metrics, indent=2))
 
-    stack_label = f"  Stacking R²={stack_r2:.4f}\n" if stack_r2 is not None else ""
+    stack_label  = f"#   Stacking R²={stack_r2:.4f}\n" if stack_r2 is not None else ""
+    test_label   = (
+        f"# Test  R²={test_r2:.4f}  RMSE={test_rmse:.4f}  MAE={test_mae:.4f}  MAPE={test_mape:.2f}%\n"
+        if test_r2 is not None else ""
+    )
     (EQ_DIR / "best_equation_stacking.txt").write_text(
         "# Best Equation from Stacking->PySR (ratio distillation)\n"
-        f"# Symbolic R²={r2:.4f}  RMSE={rmse:.4f}  MAE={mae:.4f}  MAPE={mape:.2f}%\n"
+        f"# Train R²={r2:.4f}  RMSE={rmse:.4f}  MAE={mae:.4f}  MAPE={mape:.2f}%\n"
+        f"{test_label}"
         f"{stack_label}"
         "# Features: eta=mass_loss/100, rho=reinf_ratio/100,\n"
         "#            d_mm=depth/300, b_mm=width/200,\n"
@@ -1024,9 +1082,23 @@ def main() -> None:
     y_target = np.maximum(m_stack, 0.0) / np.maximum(m_aci, 1e-9)   # dimensionless ratio R = Mstack/MACI
 
     X_sym, data_dict = build_symbolic_inputs(df)
-    X_sym_aug, y_target_aug = augment_with_anchor_samples(X_sym, y_target)
 
-    logger.info(f"Training set: {len(X_sym)} real + {len(X_sym_aug)-len(X_sym)} anchors")
+    # ── 20% holdout test set (scientific validation — never seen during training) ──
+    n = len(y_true)
+    train_idx, test_idx = train_test_split(np.arange(n), test_size=0.2, random_state=args.seed)
+    X_sym_tr    = X_sym.iloc[train_idx].reset_index(drop=True)
+    y_target_tr = y_target[train_idx]
+    y_true_test    = y_true[test_idx]
+    m_aci_test     = m_aci[test_idx]
+    data_dict_test = {k: v[test_idx] for k, v in data_dict.items()}
+
+    # Augment training split only — anchors never go into the test set
+    X_sym_aug, y_target_aug = augment_with_anchor_samples(X_sym_tr, y_target_tr)
+
+    logger.info(
+        f"Split: {len(train_idx)} train + {len(X_sym_aug)-len(train_idx)} anchors | "
+        f"{len(test_idx)} test (held-out)"
+    )
 
     _, eq_df = run_pysr(
         X_sym=X_sym_aug,
@@ -1037,10 +1109,11 @@ def main() -> None:
         random_state=args.seed,
     )
 
+    # Evaluate candidates on FULL data — more signal for Pareto selection
     cands = evaluate_candidates(eq_df, data_dict, y_true, y_target, m_aci)
 
-    # KAN candidates — merged into same pool, evaluated on same objectives
-    kan_exprs = run_kan_symbolic(X_sym, y_target, random_state=args.seed)
+    # KAN trains on train split only; candidates evaluated on full data
+    kan_exprs = run_kan_symbolic(X_sym_tr, y_target_tr, random_state=args.seed)
     if kan_exprs:
         kan_df    = pd.DataFrame([{"sympy_format": e, "complexity": 15.0} for e in kan_exprs])
         kan_cands = evaluate_candidates(kan_df, data_dict, y_true, y_target, m_aci)
@@ -1063,7 +1136,10 @@ def main() -> None:
         w_complexity=args.w_complexity,
         shap_obj_weights=shap_weights,
     )
-    save_outputs(cands, best_idx, y_true, m_aci, data_dict, m_stack=m_stack)
+    save_outputs(
+        cands, best_idx, y_true, m_aci, data_dict, m_stack=m_stack,
+        y_true_test=y_true_test, m_aci_test=m_aci_test, data_dict_test=data_dict_test,
+    )
 
     logger.success("Done. Best equation pipeline finished successfully.")
     import os; os._exit(0)  # kills Julia child process and exits cleanly
