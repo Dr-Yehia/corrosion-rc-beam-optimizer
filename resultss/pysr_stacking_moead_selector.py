@@ -313,8 +313,6 @@ def run_pysr(
             },
             constraints={"sqrt": 8, "log": 8, "exp": 6, "square": 8, "cube": 8},
             model_selection="accuracy",
-            # Boost eta (idx 0), csi (idx 7), ri (idx 8) — primary corrosion variables
-            variable_weights=np.array([3.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0]),
             # Huber loss: robust to outliers, smooth near zero
             elementwise_loss=(
                 "loss(x, y) = begin\n"
