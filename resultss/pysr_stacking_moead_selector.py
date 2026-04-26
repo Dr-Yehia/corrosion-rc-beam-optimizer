@@ -214,6 +214,11 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
     # Steel area As = n * π * (db/2)² — direct structural capacity driver
     As = n_bars * np.pi * (db_t / 2.0) ** 2
 
+    # Corroded steel area: the PRIMARY physical driver of capacity loss
+    # PySR would otherwise waste complexity discovering As×(1-η) itself
+    eta_frac  = eta / 100.0
+    As_corr   = As * (1.0 - eta_frac)          # mm² remaining after corrosion
+
     csi = df["corr_severity_idx"].to_numpy(dtype=float)
     ri  = df["reinf_index"].to_numpy(dtype=float)
 
@@ -222,15 +227,16 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
 
     X_sym = pd.DataFrame(
         {
-            "eta":  eta   / 100.0,
-            "rho":  rho_t / 100.0,
-            "d_mm": d     / 300.0,    # SHAP rank 1: Depth
-            "b_mm": b     / 200.0,    # SHAP rank 2: Width
-            "fc":   fc    /  40.0,    # concrete strength (MPa), norm ~40
-            "fy":   fy    / 500.0,    # steel yield (MPa), norm ~500
-            "As":   As    / 1500.0,   # steel area (mm²), norm ~1500
-            "csi":  csi   / max(csi_med, eps),
-            "ri":   ri    / max(ri_med,  eps),
+            "eta":     eta_frac,
+            "rho":     rho_t / 100.0,
+            "d_mm":    d     / 300.0,    # SHAP rank 1: Depth
+            "b_mm":    b     / 200.0,    # SHAP rank 2: Width
+            "fc":      fc    /  40.0,    # concrete strength (MPa), norm ~40
+            "fy":      fy    / 500.0,    # steel yield (MPa), norm ~500
+            "As":      As    / 1500.0,   # original steel area (mm²)
+            "As_corr": As_corr / 1500.0, # corroded steel area — key physics feature
+            "csi":     csi   / max(csi_med, eps),
+            "ri":      ri    / max(ri_med,  eps),
         }
     )
 
@@ -360,6 +366,7 @@ def _kan_top_features(X_sym: pd.DataFrame, k: int = 6) -> List[str]:
             "pten":    "rho",  "reinf ratio": "rho",
             "reinf_index": "ri", " ri":  "ri",
             "corr_severity": "csi", "csi": "csi",
+            "as_corr": "As_corr", "corroded": "As_corr",
             "as":      "As",
         }
         scored: dict[str, float] = {}
