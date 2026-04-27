@@ -589,9 +589,17 @@ def _get_equation_string(row: pd.Series) -> str:
     return ""
 
 
-def evaluate_endpoint_ratio(expr_sp, med: Dict[str, float], eta_value: float) -> float:
-    subs = dict(med)
+def _apply_eta_subs(subs: Dict[str, float], eta_value: float) -> Dict[str, float]:
+    """Update subs dict so As_corr is physically consistent with eta."""
     subs["eta"] = eta_value
+    # As_corr = As * (1 - eta) — must track eta when evaluating endpoints/monotonicity
+    if "As_corr" in subs and "As" in subs:
+        subs["As_corr"] = subs["As"] * max(0.0, 1.0 - eta_value)
+    return subs
+
+
+def evaluate_endpoint_ratio(expr_sp, med: Dict[str, float], eta_value: float) -> float:
+    subs = _apply_eta_subs(dict(med), eta_value)
     try:
         val = float(expr_sp.evalf(subs=subs))
     except Exception:
@@ -608,8 +616,7 @@ def monotonic_violation(expr_sp, med: Dict[str, float], n_grid: int = 60) -> flo
     eta_vals = np.linspace(0.0, 0.64, n_grid)  # limit to realistic data range
     vals = []
     for e in eta_vals:
-        subs = dict(med)
-        subs["eta"] = float(e)
+        subs = _apply_eta_subs(dict(med), float(e))
         try:
             v = float(expr_sp.evalf(subs=subs))
         except Exception:
