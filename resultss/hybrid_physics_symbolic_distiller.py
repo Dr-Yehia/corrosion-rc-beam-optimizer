@@ -2,25 +2,28 @@
 """
 Hybrid Physics-Constrained Symbolic Distiller.
 
-Goal:
-    Derive a closed-form, publication-grade corrosion correction equation:
+Purpose
+-------
+Derive a closed-form corrosion-capacity equation suitable for publication:
 
-        M_pred = M_ACI * R_c
+    M_pred = M_ACI * R_c
 
-    R_c is a mixture of physics-constrained experts:
+where R_c is a mixture of physics-constrained experts:
 
-        R_c = sum_k w_k(x) * (1 - eta)^alpha_k(x) * exp(-eta * beta_k(x))
+    R_c = sum_k w_k * (1 - eta)^alpha_k(x) * exp(-eta * beta_k(x))
 
-Design rules:
-    - Experimental data is the primary target.
-    - The Stacking model is only a teacher signal.
-    - ACI remains the mechanical backbone.
-    - All symbolic variables are dimensionless.
-    - eta appears only in the physical corrosion envelope.
-    - MAPE <= target_mape is a hard publication gate.
+Core principles
+---------------
+1. Experimental data is the primary target.
+2. The Stacking model is only a teacher signal.
+3. ACI remains the mechanical backbone.
+4. All symbolic variables are dimensionless.
+5. eta appears only in the physical corrosion envelope.
+6. Physics constraints are hard gates, not weak penalties.
+7. MAPE <= target_mape is a publication gate.
+8. Final model selection uses R-NSGA-III/NSGA-III-inspired many-objective selection.
 
-This file is intentionally conservative: it favors a defensible equation over a
-high-R2 but physically invalid symbolic artifact.
+This script favors a defensible equation over a high-R2 but physically invalid artifact.
 """
 
 from __future__ import annotations
@@ -29,7 +32,7 @@ import argparse
 import json
 import math
 import sys
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -58,6 +61,9 @@ LOGS = RESULTSS / "logs"
 for d in (MODELS, EQS, FIGS, LOGS):
     d.mkdir(parents=True, exist_ok=True)
 
+MEAN_Y = 1.0
+XGLOBAL: Dict[str, np.ndarray] = {}
+
 
 @dataclass
 class Term:
@@ -76,6 +82,11 @@ class CandidateResult:
     complexity: int
     score: float
     publishable: bool
+    teacher_weight: float
+    seed: int
+    selector: str = "weighted"
+    pareto_rank: int = 999
+    objectives: List[float] | None = None
 
 
 def setup_logger() -> None:
@@ -178,7 +189,7 @@ def prepare_data() -> Tuple[np.ndarray, np.ndarray, np.ndarray | None, Dict[str,
     maci = np.maximum(compute_aci_predictions(df)["MACI_pred"].to_numpy(float), 1e-9)
     mstack = get_stacking_predictions(df)
 
-    eta_pct = find_col(df, ["Mass Loss (Tensile bars), ηm (%)", "Mass Loss (Tensile bars), eta_m (%)", "Mass Loss", "eta_m", "eta"])
+    eta_pct = find_col(df, ["Mass Loss (Tensile bars), eta_m (%)", "Mass Loss (Tensile bars), ηm (%)", "Mass Loss", "eta_m", "eta"])
     rho_pct = find_col(df, ["Tension Reinforcement Ratio, pten (%)", "pten (%)", "rho_t", "rho"])
     d = find_col(df, ["Depth (mm)", "d (mm)", "depth"])
     b = find_col(df, ["Width (mm)", "b (mm)", "width"])
@@ -229,7 +240,6 @@ def make_terms(X: Dict[str, np.ndarray], y_ratio: np.ndarray, teacher_ratio: np.
     for i, a in enumerate(names):
         for b in names[i + 1 :]:
             raw.append(Term(f"{a}*{b}", X[a] * X[b]))
-
     target = y_ratio.copy()
     if teacher_ratio is not None:
         target = 0.75 * target + 0.25 * teacher_ratio
@@ -247,6 +257,10 @@ def make_terms(X: Dict[str, np.ndarray], y_ratio: np.ndarray, teacher_ratio: np.
 
 
 def design_matrix(terms: List[Term], idx: np.ndarray | None = None) -> np.ndarray:
+    if not terms:
+        if idx is None:
+            return np.ones((len(XGLOBAL["eta"]), 1), dtype=float)
+        return np.ones((len(idx), 1), dtype=float)
     if idx is None:
         cols = [np.ones_like(terms[0].values)] + [t.values for t in terms]
     else:
@@ -292,12 +306,10 @@ def fit_model(K: int, T: np.ndarray, eta: np.ndarray, y: np.ndarray, maci: np.nd
     bounds = [(-3.5, 3.5)] * n
     maxiter = {"fast": 120, "publish": 350, "explore": 650}.get(mode, 350)
     popsize = {"fast": 8, "publish": 12, "explore": 16}.get(mode, 12)
-
     def obj(th: np.ndarray) -> float:
         r = residual(th, K, T, eta, y, maci, teacher, teacher_w, 1e-3)
         return float(np.mean(np.minimum(r * r, 4.0)))
-
-    logger.info(f"Fit K={K}, params={n}, DE maxiter={maxiter}, popsize={popsize}")
+    logger.info(f"Fit K={K}, params={n}, teacher_w={teacher_w:.3f}, DE maxiter={maxiter}, popsize={popsize}")
     de = differential_evolution(obj, bounds, seed=seed, maxiter=maxiter, popsize=popsize, tol=1e-7, polish=False, workers=1)
     lo = np.array([b[0] for b in bounds], float); hi = np.array([b[1] for b in bounds], float)
     ls = least_squares(lambda th: residual(th, K, T, eta, y, maci, teacher, teacher_w, 1e-3), de.x, bounds=(lo, hi), loss="soft_l1", f_scale=0.20, max_nfev=30000)
@@ -318,18 +330,36 @@ def physics_checks(theta: np.ndarray, K: int, T_med: np.ndarray) -> Dict[str, ob
     }
 
 
-def score_candidate(m: Dict[str, float], tm: Dict[str, float], p: Dict[str, object], complexity: int, target_mape: float) -> Tuple[float, bool]:
-    physics_ok = bool(p["finite_grid"] and p["monotonic_decreasing"] and p["non_negative"] and abs(float(p["R_eta0"]) - 1.0) < 1e-8 and float(p["max_ratio_grid"]) <= 2.5)
-    publish = physics_ok and m["MAPE"] <= target_mape
-    score = 0.45 * (m["MAPE"] / 100.0) + 0.20 * max(0.0, 1.0 - m["R2"]) + 0.15 * (m["RMSE"] / 100.0) + 0.10 * (tm.get("MAPE", 50.0) / 100.0) + 0.10 * (complexity / 100.0)
-    if not physics_ok:
-        score += 10.0
-    if m["MAPE"] > target_mape:
-        score += (m["MAPE"] - target_mape) / 10.0
-    return float(score), bool(publish)
+def physics_ok(p: Dict[str, object]) -> bool:
+    return bool(p["finite_grid"] and p["monotonic_decreasing"] and p["non_negative"] and abs(float(p["R_eta0"]) - 1.0) < 1e-8 and float(p["max_ratio_grid"]) <= 2.5)
 
 
-def evaluate(theta: np.ndarray, K: int, terms: List[Term], y: np.ndarray, maci: np.ndarray, teacher: np.ndarray | None, target_mape: float) -> CandidateResult:
+def objective_vector(c: CandidateResult, target_mape: float) -> List[float]:
+    tmape = c.teacher_metrics.get("MAPE", 0.0)
+    phy = 0.0 if physics_ok(c.physics) else 1.0
+    gap = max(0.0, c.metrics["MAPE"] - target_mape) / max(target_mape, 1e-9)
+    return [
+        c.metrics["MAPE"] / max(target_mape, 1e-9),
+        max(0.0, 1.0 - c.metrics["R2"]),
+        c.metrics["RMSE"] / max(MEAN_Y, 1e-9),
+        tmape / 100.0,
+        c.complexity / 120.0,
+        phy,
+        gap,
+    ]
+
+
+def weighted_score(c: CandidateResult, target_mape: float) -> Tuple[float, bool]:
+    obj = objective_vector(c, target_mape)
+    pub = physics_ok(c.physics) and c.metrics["MAPE"] <= target_mape
+    w = np.array([0.36, 0.17, 0.13, 0.10, 0.06, 0.10, 0.08])
+    score = float(np.dot(w, np.asarray(obj, float)))
+    if not pub:
+        score += 0.50 * obj[-1] + 2.0 * obj[-2]
+    return score, pub
+
+
+def evaluate(theta: np.ndarray, K: int, terms: List[Term], y: np.ndarray, maci: np.ndarray, teacher: np.ndarray | None, target_mape: float, teacher_w: float, seed: int) -> CandidateResult:
     T = design_matrix(terms)
     eta = XGLOBAL["eta"]
     yhat = pred_moment(theta, K, T, eta, maci)
@@ -338,8 +368,99 @@ def evaluate(theta: np.ndarray, K: int, terms: List[Term], y: np.ndarray, maci: 
     T_med = np.array([1.0] + [float(np.median(t.values)) for t in terms])
     p = physics_checks(theta, K, T_med)
     complexity = K * (2 * len(terms) + 3) + len(terms)
-    sc, pub = score_candidate(m, tm, p, complexity, target_mape)
-    return CandidateResult(K, [t.name for t in terms], theta.tolist(), m, tm, p, complexity, sc, pub)
+    c = CandidateResult(K, [t.name for t in terms], theta.tolist(), m, tm, p, complexity, 0.0, False, teacher_w, seed)
+    c.objectives = objective_vector(c, target_mape)
+    c.score, c.publishable = weighted_score(c, target_mape)
+    return c
+
+
+def dominates(a: np.ndarray, b: np.ndarray) -> bool:
+    return bool(np.all(a <= b) and np.any(a < b))
+
+
+def nondominated_sort(obj: np.ndarray) -> List[List[int]]:
+    n = len(obj)
+    S = [[] for _ in range(n)]
+    ndom = np.zeros(n, dtype=int)
+    fronts = [[]]
+    for p in range(n):
+        for q in range(n):
+            if p == q:
+                continue
+            if dominates(obj[p], obj[q]):
+                S[p].append(q)
+            elif dominates(obj[q], obj[p]):
+                ndom[p] += 1
+        if ndom[p] == 0:
+            fronts[0].append(p)
+    i = 0
+    while fronts[i]:
+        nxt = []
+        for p in fronts[i]:
+            for q in S[p]:
+                ndom[q] -= 1
+                if ndom[q] == 0:
+                    nxt.append(q)
+        i += 1
+        fronts.append(nxt)
+    return [f for f in fronts if f]
+
+
+def normalize_obj(obj: np.ndarray) -> np.ndarray:
+    lo = obj.min(axis=0)
+    hi = obj.max(axis=0)
+    return (obj - lo) / np.where(hi - lo < 1e-12, 1.0, hi - lo)
+
+
+def simplex_dirs(n_obj: int, h: int = 2) -> np.ndarray:
+    out: List[List[int]] = []
+    def rec(left: int, dims: int, cur: List[int]) -> None:
+        if dims == 1:
+            out.append(cur + [left])
+        else:
+            for i in range(left + 1):
+                rec(left - i, dims - 1, cur + [i])
+    rec(h, n_obj, [])
+    return np.asarray(out, float) / max(h, 1)
+
+
+def rnsga3_select(candidates: List[CandidateResult], target_mape: float, selector: str) -> CandidateResult:
+    if not candidates:
+        raise RuntimeError("No candidates available for selection.")
+    publishable = [i for i, c in enumerate(candidates) if c.publishable]
+    physics_only = [i for i, c in enumerate(candidates) if physics_ok(c.physics)]
+    pool_idx = publishable or physics_only or list(range(len(candidates)))
+    pool = [candidates[i] for i in pool_idx]
+    obj = np.asarray([objective_vector(c, target_mape) for c in pool], dtype=float)
+    norm = normalize_obj(obj)
+    fronts = nondominated_sort(norm)
+    for rank, front in enumerate(fronts):
+        for j in front:
+            pool[j].pareto_rank = rank
+    first_front = fronts[0]
+    dirs = simplex_dirs(norm.shape[1], h=2)
+    weights = np.array([2.8, 1.3, 1.1, 0.8, 0.5, 3.0, 2.5], dtype=float)
+    aspiration = np.zeros(norm.shape[1], dtype=float)
+    best_local = first_front[0]
+    best_value = float("inf")
+    for j in first_front:
+        x = norm[j]
+        if selector == "nsga3":
+            niche = float(np.min(np.linalg.norm(dirs - x, axis=1)))
+            value = niche + 0.20 * float(np.dot(weights, x))
+        else:
+            asf = float(np.max(weights * np.maximum(x - aspiration, 0.0)))
+            niche = float(np.min(np.linalg.norm(dirs - x, axis=1)))
+            value = asf + 0.10 * niche
+        if value < best_value:
+            best_value = value
+            best_local = j
+    best = pool[best_local]
+    best.selector = selector
+    best.score = best_value
+    best.objectives = objective_vector(best, target_mape)
+    logger.info(f"{selector.upper()} selected: MAPE={best.metrics['MAPE']:.2f}% R2={best.metrics['R2']:.4f} rank={best.pareto_rank} publishable={best.publishable}")
+    return best
 
 
 def kfold_validate(K: int, terms: List[Term], y: np.ndarray, maci: np.ndarray, teacher: np.ndarray | None, seed: int, mode: str, teacher_w: float) -> Dict[str, object]:
@@ -360,49 +481,70 @@ def kfold_validate(K: int, terms: List[Term], y: np.ndarray, maci: np.ndarray, t
 
 def equation_text(theta: np.ndarray, K: int, terms: List[Term], med: Dict[str, float]) -> str:
     A, B, G = unpack(np.asarray(theta), K, len(terms))
-    lines = ["M_pred = M_ACI * R_c", "R_c = sum_k w_k * (1 - eta)^alpha_k * exp(-eta * beta_k)", "w_k = softmax(g_k)", "alpha_k = softplus(A_k)", "beta_k = softplus(B_k)", "softplus(z)=ln(1+exp(z))", ""]
+    lines = [
+        "M_pred = M_ACI * R_c",
+        "R_c = sum_k w_k * (1 - eta)^alpha_k * exp(-eta * beta_k)",
+        "w_k = softmax(g_k)",
+        "alpha_k = softplus(A_k)",
+        "beta_k = softplus(B_k)",
+        "softplus(z)=ln(1+exp(z))",
+        "",
+    ]
     names = ["1"] + [t.name for t in terms]
     for k in range(K):
-        def lin(coefs):
+        def lin(coefs: np.ndarray) -> str:
             return " + ".join([f"({coefs[i]:.8g})*{names[i]}" for i in range(len(names))])
-        lines += [f"A_{k+1} = {lin(A[k])}", f"B_{k+1} = {lin(B[k])}", f"g_{k+1} = {G[0,k]:.8g}", ""]
-    lines += ["Definitions:", "eta = mass_loss_percent / 100", f"rho_n = (rho_tension_percent/100) / {med['rho_med']:.10g}", f"lambda_n = (d/b) / {med['lambda_med']:.10g}", f"delta_n = (db_t/d) / {med['delta_med']:.10g}", f"phi_n = (fy/fc) / {med['phi_med']:.10g}", f"as_ratio_n = (As/(b*d)) / {med['as_ratio_med']:.10g}", f"csi_n = csi / {med['csi_med']:.10g}", f"ri_n = ri / {med['ri_med']:.10g}"]
+        lines += [f"A_{k+1} = {lin(A[k])}", f"B_{k+1} = {lin(B[k])}", f"g_{k+1} = {G[0, k]:.8g}", ""]
+    lines += [
+        "Definitions:",
+        "eta = mass_loss_percent / 100",
+        f"rho_n = (rho_tension_percent/100) / {med['rho_med']:.10g}",
+        f"lambda_n = (d/b) / {med['lambda_med']:.10g}",
+        f"delta_n = (db_t/d) / {med['delta_med']:.10g}",
+        f"phi_n = (fy/fc) / {med['phi_med']:.10g}",
+        f"as_ratio_n = (As/(b*d)) / {med['as_ratio_med']:.10g}",
+        f"csi_n = csi / {med['csi_med']:.10g}",
+        f"ri_n = ri / {med['ri_med']:.10g}",
+    ]
     return "\n".join(lines) + "\n"
 
 
-def save_outputs(best: CandidateResult, candidates: List[CandidateResult], kfold: Dict[str, object], med: Dict[str, float], target_mape: float) -> None:
-    EQS.mkdir(parents=True, exist_ok=True); MODELS.mkdir(parents=True, exist_ok=True)
-    (EQS / "hybrid_best_equation.txt").write_text(equation_text(np.asarray(best.theta), best.k, [Term(n, np.array([])) for n in best.terms], med))
+def serial_candidate(c: CandidateResult) -> Dict[str, object]:
+    return asdict(c)
+
+
+def save_outputs(best: CandidateResult, candidates: List[CandidateResult], kfold: Dict[str, object], med: Dict[str, float], target_mape: float, terms_all: List[Term]) -> None:
+    best_terms = [t for t in terms_all if t.name in best.terms]
+    (EQS / "hybrid_best_equation.txt").write_text(equation_text(np.asarray(best.theta), best.k, best_terms, med))
     payload = {
-        "approach": "Hybrid physics-constrained symbolic distillation",
+        "approach": "Hybrid physics-constrained symbolic distillation with R-NSGA-III selection",
         "equation_family": "M_pred = M_ACI * sum_k softmax(g_k) * (1-eta)^alpha_k * exp(-eta*beta_k)",
         "target_mape_percent": target_mape,
-        "best": best.__dict__,
+        "selection_method": best.selector,
+        "best": serial_candidate(best),
         "kfold_validation": kfold,
         "publication_gate": {
             "full_data_mape_le_target": best.metrics["MAPE"] <= target_mape,
             "kfold_mean_mape_le_target": kfold["mean"]["MAPE"] <= target_mape,
-            "physics_pass": bool(best.physics["monotonic_decreasing"] and best.physics["non_negative"]),
-            "publishable_candidate_found": bool(best.publishable and kfold["mean"]["MAPE"] <= target_mape),
+            "physics_pass": physics_ok(best.physics),
+            "publishable_candidate_found": bool(best.publishable and kfold["mean"]["MAPE"] <= target_mape and physics_ok(best.physics)),
         },
     }
     (MODELS / "hybrid_metrics.json").write_text(json.dumps(payload, indent=2))
-    ranked = sorted([c.__dict__ for c in candidates], key=lambda z: z["score"])
+    ranked = sorted([serial_candidate(c) for c in candidates], key=lambda z: (z.get("pareto_rank", 999), z["score"]))
     (MODELS / "hybrid_candidates_ranked.json").write_text(json.dumps(ranked, indent=2))
     logger.success(f"Equation -> {EQS / 'hybrid_best_equation.txt'}")
     logger.success(f"Metrics  -> {MODELS / 'hybrid_metrics.json'}")
     logger.success(f"Ranked   -> {MODELS / 'hybrid_candidates_ranked.json'}")
 
 
-XGLOBAL: Dict[str, np.ndarray] = {}
-
-
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--mode", choices=["fast", "publish", "explore"], default="publish")
+    p.add_argument("--selector", choices=["rnsga3", "nsga3", "score"], default="rnsga3")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--max-k", type=int, default=3)
-    p.add_argument("--top-terms", type=int, default=7)
+    p.add_argument("--top-terms", type=int, default=8)
     p.add_argument("--target-mape", type=float, default=15.0)
     p.add_argument("--teacher-weight", type=float, default=0.20)
     args = p.parse_args()
@@ -410,26 +552,40 @@ def main() -> None:
 
     y, maci, teacher, X, med = prepare_data()
     globals()["XGLOBAL"] = X
+    globals()["MEAN_Y"] = float(np.mean(np.abs(y)))
     y_ratio = y / np.maximum(maci, 1e-9)
     teacher_ratio = None if teacher is None else teacher / np.maximum(maci, 1e-9)
     terms_all = make_terms(X, y_ratio, teacher_ratio, args.top_terms)
 
-    candidates: List[CandidateResult] = []
-    term_counts = [min(4, len(terms_all)), min(6, len(terms_all)), len(terms_all)] if args.mode != "fast" else [min(4, len(terms_all))]
-    for K in range(1, args.max_k + 1):
-        for tc in sorted(set(term_counts)):
-            terms = terms_all[:tc]
-            T = design_matrix(terms)
-            th = fit_model(K, T, X["eta"], y, maci, teacher, args.seed + 101 * K + tc, args.mode, args.teacher_weight)
-            cand = evaluate(th, K, terms, y, maci, teacher, args.target_mape)
-            candidates.append(cand)
-            logger.info(f"Candidate K={K}, terms={tc}: MAPE={cand.metrics['MAPE']:.2f}% R2={cand.metrics['R2']:.4f} score={cand.score:.4f} publishable={cand.publishable}")
+    term_counts = [min(4, len(terms_all))] if args.mode == "fast" else sorted(set([min(4, len(terms_all)), min(6, len(terms_all)), min(8, len(terms_all)), len(terms_all)]))
+    teacher_weights = [args.teacher_weight]
+    if teacher is not None and args.mode != "fast":
+        teacher_weights = sorted(set([0.0, args.teacher_weight, min(0.45, args.teacher_weight * 2.0)]))
+    seeds = [args.seed] if args.mode != "explore" else [args.seed, args.seed + 313]
 
-    best = sorted(candidates, key=lambda c: c.score)[0]
+    candidates: List[CandidateResult] = []
+    for seed in seeds:
+        for tw in teacher_weights:
+            for K in range(1, args.max_k + 1):
+                for tc in term_counts:
+                    terms = terms_all[:tc]
+                    T = design_matrix(terms)
+                    th = fit_model(K, T, X["eta"], y, maci, teacher, seed + 101 * K + tc + int(1000 * tw), args.mode, tw)
+                    cand = evaluate(th, K, terms, y, maci, teacher, args.target_mape, tw, seed)
+                    candidates.append(cand)
+                    logger.info(f"Candidate K={K}, terms={tc}, tw={tw:.2f}: MAPE={cand.metrics['MAPE']:.2f}% R2={cand.metrics['R2']:.4f} weighted={cand.score:.4f} publishable={cand.publishable}")
+
+    if args.selector == "score":
+        best = sorted(candidates, key=lambda c: c.score)[0]
+        best.selector = "score"
+    else:
+        best = rnsga3_select(candidates, args.target_mape, args.selector)
+
     best_terms = [t for t in terms_all if t.name in best.terms]
-    kfold = kfold_validate(best.k, best_terms, y, maci, teacher, args.seed + 999, args.mode, args.teacher_weight)
-    save_outputs(best, candidates, kfold, med, args.target_mape)
-    if not (best.publishable and kfold["mean"]["MAPE"] <= args.target_mape):
+    kfold = kfold_validate(best.k, best_terms, y, maci, teacher, args.seed + 999, args.mode, best.teacher_weight)
+    save_outputs(best, candidates, kfold, med, args.target_mape, terms_all)
+
+    if not (best.publishable and kfold["mean"]["MAPE"] <= args.target_mape and physics_ok(best.physics)):
         logger.warning("No strict publication-grade equation found under the requested MAPE gate. Best candidate was saved for inspection.")
     else:
         logger.success("Publication gate passed under the requested MAPE target.")
