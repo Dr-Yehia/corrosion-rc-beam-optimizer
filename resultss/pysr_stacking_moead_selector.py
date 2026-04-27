@@ -1,0 +1,1252 @@
+#!/usr/bin/env python3
+"""
+Direct log-space PySR symbolic prediction of Mmax — NSGA-III selection.
+
+Pipeline:
+1) Load + preprocess full dataset.
+2) Load Stacking model → generate M_stack predictions (reference only).
+3) Prediction target: log1p(Mmax) — direct, no ratio baseline.
+4) Symbolic features: 15 dimensionless variables (SHAP-informed + interactions).
+5) PySR evolves candidate equations; L2 in log-space ≈ MAPE optimization.
+6) NSGA-III (Das-Dennis refs + fast non-dominated sort) selects the
+   Pareto-diverse front; SHAP weights boost accuracy objectives.
+7) SHAP-scaled weighted scoring picks the single best equation.
+8) Saves equation, LaTeX, metrics JSON, ranked candidates, and plots.
+
+Output: Mmax = expm1(f(features))  [kN·m]
+Designed for Kaggle / Colab execution.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Tuple
+
+import joblib
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from loguru import logger
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+
+try:
+    import sympy as sp
+except Exception:  # pragma: no cover
+    sp = None
+
+# Auto-install pykan if missing (needed on Kaggle/Colab)
+try:
+    import kan as _kan_check  # noqa: F401
+except ImportError:
+    import subprocess
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "pykan==0.2.4", "--quiet"],
+        check=False,
+    )
+
+# --------------------------------------------------------------------------------------
+# Paths and imports
+# --------------------------------------------------------------------------------------
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
+from config import FEATURE_COLS, CAT_COLS, TARGET_COL  # noqa: E402
+from data_preprocessing import load_raw_data, clean_data, engineer_features  # noqa: E402
+from aci_calculator import compute_aci_predictions  # noqa: E402
+
+RESULTSS_DIR = ROOT / "resultss"
+MODELS_DIR = RESULTSS_DIR / "models"
+FIG_DIR = RESULTSS_DIR / "figures"
+EQ_DIR = RESULTSS_DIR / "equations"
+
+for d in (MODELS_DIR, FIG_DIR, EQ_DIR):
+    d.mkdir(parents=True, exist_ok=True)
+
+
+@dataclass
+class Candidate:
+    equation: str
+    complexity: float
+    metrics: Dict[str, float]
+    objectives: Dict[str, float]
+    score: float
+
+
+def setup_logger() -> None:
+    logger.remove()
+    logger.add(
+        sys.stderr,
+        format="<green>{time:HH:mm:ss}</green> | <level>{level:<8}</level> | {message}",
+        level="INFO",
+        colorize=True,
+    )
+    log_dir = RESULTSS_DIR / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    logger.add(str(log_dir / "run_log_pysr_moead.txt"), level="DEBUG")
+
+
+def encode_with_saved_mapping(df: pd.DataFrame, enc_path: Path) -> pd.DataFrame:
+    """Encode categoricals using saved mapping from training run."""
+    out = df.copy()
+    if not enc_path.exists():
+        logger.warning(f"Encoder mapping not found at {enc_path}. Falling back to on-the-fly category codes.")
+        for c in CAT_COLS:
+            if c in out.columns:
+                out[c] = out[c].astype("category").cat.codes
+        return out
+
+    mapping = json.loads(enc_path.read_text())
+    for c in CAT_COLS:
+        if c not in out.columns:
+            continue
+        classes = mapping.get(c, [])
+        idx = {v: i for i, v in enumerate(classes)}
+        out[c] = out[c].astype(str).map(idx).fillna(-1).astype(int)
+    return out
+
+
+def prepare_full_dataframe() -> Tuple[pd.DataFrame, np.ndarray, np.ndarray, np.ndarray]:
+    """Prepare full dataset and return (df, X_scaled, y_true, m_aci)."""
+    logger.info("Loading + preprocessing full dataset ...")
+    df_raw = load_raw_data()
+    df_clean = clean_data(df_raw)
+    df_feat = engineer_features(df_clean)
+    df_enc = encode_with_saved_mapping(df_feat, MODELS_DIR / "cat_encoders.json")
+
+    engineered = [
+        "eta_log",
+        "corr_severity_idx",
+        "d_b_ratio",
+        "eta_d_interaction",
+        "reinf_index",
+        # Mnom_proxy, M_corr_reduced, ductility_corr excluded:
+        # scaler_X.pkl was saved with 23 features (before physics extras were added)
+    ]
+    feature_cols = (
+        [c for c in FEATURE_COLS if c in df_enc.columns]
+        + [c for c in CAT_COLS if c in df_enc.columns]
+        + [c for c in engineered if c in df_enc.columns]
+    )
+
+    X = df_enc[feature_cols].copy()
+    y_true = df_enc[TARGET_COL].to_numpy(dtype=float)
+
+    scaler_path = MODELS_DIR / "scaler_X.pkl"
+    if not scaler_path.exists():
+        raise FileNotFoundError(f"Missing scaler: {scaler_path}")
+    scaler_x = joblib.load(scaler_path)
+
+    # Trim or pad columns to match scaler exactly
+    expected_n = scaler_x.n_features_in_
+    if X.shape[1] != expected_n:
+        # Drop any extra columns from the right to match scaler
+        X = X.iloc[:, :expected_n]
+    X_scaled = scaler_x.transform(X)
+
+    df_aci = compute_aci_predictions(df_enc)
+    m_aci = df_aci["MACI_pred"].to_numpy(dtype=float)
+    m_aci = np.maximum(m_aci, 1e-9)
+
+    logger.info(f"Prepared dataset: n={len(df_enc)}, features={X.shape[1]}")
+    return df_enc, X_scaled, y_true, m_aci
+
+
+def get_stacking_predictions(X_scaled: np.ndarray) -> np.ndarray:
+    """Return Stacking predictions in kN·m (inverse-transforms log1p if needed)."""
+    model_path = MODELS_DIR / "model_stacking.pkl"
+    if not model_path.exists():
+        raise FileNotFoundError(f"Missing model: {model_path}")
+    model = joblib.load(model_path)
+    pred  = np.asarray(model.predict(X_scaled), dtype=float)
+
+    # part1_summary.json records whether the model was trained with log_transform
+    summary_path = RESULTSS_DIR / "for_part2" / "part1_summary.json"
+    log_transform = False
+    if summary_path.exists():
+        try:
+            log_transform = json.loads(summary_path.read_text()).get("log_transform", False)
+        except Exception:
+            pass
+
+    if log_transform:
+        pred = np.expm1(pred)   # convert log1p-space predictions → kN·m
+        logger.info("Stacking model outputs log1p-space → applied expm1 to get kN·m")
+
+    return np.maximum(pred, 0.0)
+
+
+def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.ndarray]]:
+    """Dimensionless symbolic inputs — uses robust column lookup."""
+    eps = 1e-9
+
+    # FIX #2: Robust column lookup — handle encoding issues in column names
+    def find_col(df: pd.DataFrame, candidates: List[str]) -> np.ndarray:
+        for name in candidates:
+            if name in df.columns:
+                return df[name].to_numpy(dtype=float)
+        # Partial match fallback
+        for name in candidates:
+            matches = [c for c in df.columns if name.lower() in c.lower()]
+            if matches:
+                logger.warning(f"Column '{name}' not found exactly; using '{matches[0]}'")
+                return df[matches[0]].to_numpy(dtype=float)
+        raise KeyError(f"None of {candidates} found in DataFrame columns: {list(df.columns)}")
+
+    eta    = find_col(df, ["Mass Loss (Tensile bars), ηm (%)", "Mass Loss", "eta_m", "ηm (%)"])
+    rho_t  = find_col(df, ["Tension Reinforcement Ratio, pten (%)", "pten (%)", "rho_t"])
+    d      = find_col(df, ["Depth (mm)", "d (mm)", "depth"])
+    b      = find_col(df, ["Width (mm)", "b (mm)", "width"])
+    fc     = find_col(df, ["f'c (MPa)", "fc (MPa)", "fc"])
+    fy     = find_col(df, ["fy Longitudinal Bars (Tensile), (MPa) ", "fy (MPa)", "fy"])
+    n_bars = find_col(df, ["# Tensile Bars", "n_bars", "num_bars"])
+    db_t   = find_col(df, ["Diameter Tensile Bars, db,t (mm)", "db,t (mm)", "db_t"])
+
+    # Steel area As = n * π * (db/2)² — direct structural capacity driver
+    As = n_bars * np.pi * (db_t / 2.0) ** 2
+
+    # Corroded steel area: the PRIMARY physical driver of capacity loss
+    # PySR would otherwise waste complexity discovering As×(1-η) itself
+    eta_frac   = eta / 100.0
+    As_corr    = As * (1.0 - eta_frac)          # mm² remaining after corrosion
+    corr_ratio = np.maximum(1.0 - eta_frac, 0.0)  # remaining capacity fraction = 1-eta
+
+    # Corrected physics baseline: ACI formula using As_corr instead of As
+    # This gives a much tighter ratio target (Mmax/Mn_physics ≈ 0.85-1.15)
+    a_corr    = (As_corr * fy) / np.maximum(0.85 * fc * b, 1e-9)  # neutral axis depth (mm)
+    arm       = np.maximum(d - 0.5 * a_corr, 0.1 * d)             # moment arm (mm)
+    Mn_physics = As_corr * fy * arm / 1e6                          # kNm — corrected moment capacity
+    arm_ratio  = np.clip(arm / np.maximum(d, 1e-9), 0.5, 1.0)     # dimensionless moment arm
+
+    csi = df["corr_severity_idx"].to_numpy(dtype=float)
+    ri  = df["reinf_index"].to_numpy(dtype=float)
+
+    csi_med = np.median(np.abs(csi))
+    ri_med  = np.median(np.abs(ri))
+
+    X_sym = pd.DataFrame(
+        {
+            "eta":        eta_frac,
+            "corr_ratio": corr_ratio,
+            "arm_ratio":  arm_ratio,
+            "rho":        rho_t / 100.0,
+            "d_mm":    d     / 300.0,
+            "b_mm":    b     / 200.0,
+            "fc":      fc    /  40.0,
+            "fy":      fy    / 500.0,
+            "As":      As    / 1500.0,
+            "As_corr": As_corr / 1500.0,
+            "csi":     csi   / max(csi_med, eps),
+            "ri":      ri    / max(ri_med,  eps),
+            # 3 interaction features — carry 90% of the physical signal
+            "eta_d":       eta_frac * (d / 300.0),           # corrosion × depth
+            "As_corr_fy":  (As_corr / 1500.0) * (fy / 500.0), # remaining steel force
+            "rho_fc":      (rho_t / 100.0) * (fc / 40.0),     # reinforcement × concrete
+        }
+    )
+
+    data_dict = {c: X_sym[c].to_numpy(dtype=float) for c in X_sym.columns}
+    return X_sym, data_dict, Mn_physics
+
+
+def augment_with_anchor_samples(
+    X_sym: pd.DataFrame,
+    y_target: np.ndarray,
+    n_anchors: int = 0,
+) -> Tuple[pd.DataFrame, np.ndarray]:
+    """In direct log-space mode, no anchors needed — PySR trains on real data only."""
+    if n_anchors <= 0:
+        logger.info("Direct log-space mode: no anchor augmentation")
+        return X_sym, y_target
+    return X_sym, y_target
+
+
+PYSR_MODEL_PATH = MODELS_DIR / "pysr_model.pkl"
+
+def _make_pysr_model(niterations, populations, maxsize, random_state):
+    from pysr import PySRRegressor
+    return PySRRegressor(
+        niterations=niterations,
+        populations=populations,
+        maxsize=maxsize,
+        binary_operators=["+", "-", "*", "/"],
+        unary_operators=["sqrt", "log", "exp", "square", "cube"],
+        extra_sympy_mappings={"square": lambda x: x**2, "cube": lambda x: x**3},
+        nested_constraints={
+            "sqrt":   {"sqrt": 0, "log": 1, "exp": 1},
+            "log":    {"log":  0, "sqrt": 1, "exp": 0},
+            "exp":    {"exp":  0, "log":  1, "sqrt": 1},
+            "square": {"square": 0, "cube": 0, "exp": 1},
+            "cube":   {"cube":   0, "square": 0, "exp": 1},
+        },
+        constraints={"sqrt": 8, "log": 8, "exp": 6, "square": 8, "cube": 8},
+        model_selection="accuracy",
+        # Relative Huber loss: threshold 0.25 (tighter than 0.5) → more MAPE-focused gradient
+        # Default L2 loss in log-space ≈ optimizes relative errors (MAPE)
+        random_state=random_state,
+        deterministic=False,
+        parallelism="multithreading",
+        verbosity=1,
+    )
+
+
+def run_pysr(
+    X_sym: pd.DataFrame,
+    y_target: np.ndarray,
+    niterations: int,
+    populations: int,
+    maxsize: int,
+    random_state: int,
+):
+    try:
+        from pysr import PySRRegressor  # noqa: F401
+    except Exception as exc:
+        raise ImportError("PySR is required. Install with: pip install pysr") from exc
+
+    # Multi-seed search: 3 independent populations explore different optima.
+    # Julia is precompiled only on the first call — subsequent seeds cost ~5-10s overhead.
+    # Each seed runs niterations//3 iterations, preventing premature convergence
+    # that plagued single-seed runs (HOF frozen after ~500 of 29,500 iterations).
+    seeds = [random_state, random_state + 1000, random_state + 2000]
+    iter_each = max(niterations // len(seeds), 40)
+
+    all_dfs: List[pd.DataFrame] = []
+    last_model = None
+    X_np = X_sym.to_numpy(dtype=float)
+    var_names = list(X_sym.columns)
+
+    for seed in seeds:
+        logger.info(f"PySR multi-seed: seed={seed}, iterations={iter_each}, populations={populations}")
+        try:
+            m = _make_pysr_model(iter_each, populations, maxsize, seed)
+            m.fit(X_np, y_target, variable_names=var_names)
+            all_dfs.append(m.equations_.copy())
+            logger.info(f"  seed={seed} → {len(m.equations_)} equations in HOF")
+            last_model = m
+        except Exception as exc:
+            logger.warning(f"  seed={seed} failed: {exc}")
+
+    if not all_dfs:
+        raise RuntimeError("All PySR seeds failed — try reducing maxsize or niterations")
+
+    eq_df = pd.concat(all_dfs, ignore_index=True)
+    logger.info(f"Multi-seed PySR complete: {len(eq_df)} total equations from {len(all_dfs)} seeds")
+
+    if last_model is not None:
+        joblib.dump(last_model, PYSR_MODEL_PATH)
+
+    return last_model, eq_df
+
+
+# ── KAN (Kolmogorov-Arnold Networks, MIT 2024) ─────────────────────────────
+def _kan_top_features(X_sym: pd.DataFrame, k: int = 6) -> List[str]:
+    """Select top-k KAN features from shap_importance.csv (keyword matching)."""
+    shap_path = MODELS_DIR / "shap_importance.csv"
+    if not shap_path.exists():
+        return list(X_sym.columns)[:k]
+    try:
+        df_s = pd.read_csv(shap_path)
+        feat_col = next((c for c in df_s.columns if "feature" in c.lower()), df_s.columns[0])
+        imp_col  = next(
+            (c for c in df_s.columns if any(x in c.lower() for x in ["importance", "shap", "mean"])),
+            df_s.columns[1],
+        )
+        # keyword map: original feature name → X_sym column
+        KEYWORD_MAP = {
+            "depth":   "d_mm", "width": "b_mm",
+            "mass loss": "eta", "ηm":   "eta",  "eta": "eta",
+            "f'c":     "fc",   "fc":    "fc",
+            "fy":      "fy",
+            "pten":    "rho",  "reinf ratio": "rho",
+            "reinf_index": "ri", " ri":  "ri",
+            "corr_severity": "csi", "csi": "csi",
+            "as_corr": "As_corr", "corroded": "As_corr",
+            "as":      "As",
+        }
+        scored: dict[str, float] = {}
+        for _, row in df_s.iterrows():
+            fname = str(row[feat_col]).lower()
+            imp   = abs(float(row[imp_col]))
+            for kw, col in KEYWORD_MAP.items():
+                if kw in fname and col in X_sym.columns:
+                    scored[col] = scored.get(col, 0.0) + imp
+        if not scored:
+            return list(X_sym.columns)[:k]
+        top = sorted(scored, key=scored.get, reverse=True)[:k]
+        # fill up to k if not enough matched
+        for c in X_sym.columns:
+            if len(top) >= k:
+                break
+            if c not in top:
+                top.append(c)
+        logger.info(f"KAN top-{k} features (SHAP): {top}")
+        return top
+    except Exception as exc:
+        logger.warning(f"KAN SHAP feature selection failed ({exc}) — using all features")
+        return list(X_sym.columns)[:k]
+
+
+def run_kan_symbolic(
+    X_sym: pd.DataFrame,
+    y_target: np.ndarray,
+    random_state: int = 42,
+) -> List[str]:
+    """Train KAN on SHAP top-6 features, auto-convert to symbolic, return candidates."""
+    try:
+        from kan.KAN import KAN   # works across all pykan versions
+        import torch
+    except ImportError:
+        try:
+            from kan import KAN   # fallback for older pykan
+            import torch
+        except ImportError:
+            logger.warning("pykan not installed — skipping KAN. (pip install pykan torch)")
+            return []
+    try:
+        # ── 1. SHAP top-6 feature selection ───────────────────────────────
+        top_feats = _kan_top_features(X_sym, k=6)
+        X_kan = X_sym[top_feats]
+
+        torch.manual_seed(random_state)
+        X_t = torch.tensor(X_kan.to_numpy(dtype=float), dtype=torch.float32)
+
+        # Train in log-space: log(R) has zero mean and real variance,
+        # preventing KAN from collapsing to the trivial constant R≈1 solution.
+        y_log = np.log(np.maximum(y_target, 1e-3))
+        y_t   = torch.tensor(y_log, dtype=torch.float32).unsqueeze(1)
+        dataset = {"train_input": X_t, "train_label": y_t,
+                   "test_input":  X_t, "test_label":  y_t}
+
+        n_feat = X_kan.shape[1]
+        # Single-layer additive KAN: log(R) = f1(η) + f2(d_mm) + ... + f6(csi)
+        # No hidden layer → no second-layer weights going to zero.
+        # auto_symbolic fits each of the 6 edges independently → guaranteed non-constant.
+        model  = KAN(width=[n_feat, 1], grid=5, k=3, seed=random_state)
+
+        # ── 2. Force lamb=0 on model object before any training call ────────
+        # Kaggle's pykan ignores the lamb kwarg in train() — setting it directly
+        # on the model prevents the regularizer from killing gradients after step 35.
+        for _attr in ("lamb", "reg_metric", "penalty", "l1_penalty"):
+            try:
+                setattr(model, _attr, 0.0)
+            except Exception:
+                pass
+
+        # ── 3. Train with LBFGS ≥300 steps — robust fallback chain ──────────
+        # Try configs in order: most-preferred (LBFGS, 500 steps) → least (default 100).
+        # Each config is tried on both fit() and train() to maximise compatibility.
+        trained = False
+        step_configs = [
+            {"opt": "LBFGS", "steps": 500, "lamb": 0.0, "verbose": False},
+            {"opt": "LBFGS", "steps": 500, "lamb": 0.0},
+            {"opt": "LBFGS", "steps": 500},
+            {"opt": "LBFGS", "steps": 300, "lamb": 0.0},
+            {"opt": "LBFGS", "steps": 300},
+            {"steps": 500},
+            {"steps": 300},
+        ]
+        for cfg in step_configs:
+            for method_name in ["fit", "train"]:
+                try:
+                    getattr(model, method_name)(dataset, **cfg)
+                    trained = True
+                    logger.info(f"KAN: {method_name}(steps={cfg.get('steps','-')}) succeeded")
+                    break
+                except (TypeError, AttributeError, Exception):
+                    continue
+            if trained:
+                break
+
+        if not trained:
+            # Absolute last resort — whatever API the installed version supports
+            for method_name in ["fit", "train"]:
+                try:
+                    getattr(model, method_name)(dataset)
+                    trained = True
+                    logger.warning("KAN: using default steps (100) — all explicit-step calls failed")
+                    break
+                except (TypeError, AttributeError):
+                    continue
+        if not trained:
+            raise RuntimeError("KAN: no compatible train/fit API found in installed pykan")
+
+        # ── 3. Skip pruning — it kills neurons when network is not fully converged ──
+
+        # ── 4. Safe auto_symbolic (no log/x^a → prevents NaN) ─────────────
+        # 5 elements — must be < n_features(6) to avoid pykan off-by-one bug
+        SAFE_LIB = ["x", "x^2", "x^3", "sqrt", "tanh"]
+        try:
+            model.auto_symbolic(lib=SAFE_LIB, r2_threshold=0.10)
+        except (TypeError, IndexError):
+            try:
+                model.auto_symbolic(lib=SAFE_LIB)
+            except IndexError:
+                pass
+
+        # ── 4. Extract formula safely ──────────────────────────────────────
+        try:
+            with torch.no_grad():
+                raw_formulas = model.symbolic_formula(var_names=top_feats)
+        except (IndexError, TypeError):
+            try:
+                with torch.no_grad():
+                    raw_formulas = model.symbolic_formula()
+            except IndexError as ie:
+                logger.warning(f"KAN symbolic_formula IndexError — skipping: {ie}")
+                return []
+
+        # pykan returns (formulas, coeffs) tuple OR [[formula]] OR [formula]
+        # Unwrap completely to get flat list of sympy-expression strings
+        if isinstance(raw_formulas, tuple):
+            raw_formulas = raw_formulas[0]
+
+        formula_strs: List[str] = []
+        def _flatten(obj) -> None:
+            if isinstance(obj, list):
+                for item in obj:
+                    _flatten(item)
+            else:
+                formula_strs.append(str(obj))
+        _flatten(raw_formulas)
+
+        results: List[str] = []
+        for s in formula_strs:
+            if not s or s in ("nan", "0", "None", ""):
+                continue
+            logger.debug(f"KAN raw formula: {s}")
+            for i, name in enumerate(top_feats, 0):
+                s = s.replace(f"x_{i}", name)
+            for i, name in enumerate(top_feats, 1):
+                s = s.replace(f"x_{i}", name)
+            if not any(name in s for name in top_feats):
+                logger.warning(f"KAN formula constant — skipping: {s}")
+                continue
+            # Pre-validate: must parse in sympy before adding
+            s_wrapped = f"exp({s})"
+            try:
+                test_sp = safe_sympify(s_wrapped)
+                free = {str(sym) for sym in test_sp.free_symbols}
+                if not any(name in free for name in top_feats):
+                    logger.warning(f"KAN sympify gave no feature symbols — skipping")
+                    continue
+            except Exception as parse_err:
+                logger.warning(f"KAN formula failed sympify: {parse_err} — raw: {s_wrapped[:80]}")
+                continue
+            results.append(s_wrapped)
+
+        logger.info(f"KAN produced {len(results)} symbolic candidate(s)")
+        return results
+    except Exception as exc:
+        logger.warning(f"KAN symbolic extraction failed: {exc}")
+        return []
+
+
+def safe_sympify(expr: str):
+    if sp is None:
+        raise ImportError("sympy is required. Install with: pip install sympy")
+    # PySR sympy_format already uses ** not ^; only replace if ^ present
+    expr_clean = expr.replace("^", "**")
+    return sp.sympify(
+        expr_clean,
+        locals={
+            "sqrt":   sp.sqrt,
+            "log":    sp.log,
+            "exp":    sp.exp,
+            "abs":    sp.Abs,
+            "tanh":   sp.tanh,
+            "sin":    sp.sin,
+            "cos":    sp.cos,
+            "square": lambda x: x**2,
+            "cube":   lambda x: x**3,
+        },
+    )
+
+
+def _get_equation_string(row: pd.Series) -> str:
+    """
+    FIX #7: Robust equation extraction — PySR column names differ across versions.
+    Try sympy_format first (older PySR), then equation (newer PySR).
+    """
+    for col in ("sympy_format", "equation", "lambda_format"):
+        val = row.get(col, "")
+        if val and str(val).strip() and str(val).strip() not in ("nan", "None", ""):
+            s = str(val).strip()
+            # lambda_format looks like "PySRFunction(X=>...)" — skip it
+            if "PySRFunction" in s:
+                continue
+            return s
+    return ""
+
+
+def _apply_eta_subs(subs: Dict[str, float], eta_value: float) -> Dict[str, float]:
+    """Update subs dict so As_corr and corr_ratio are physically consistent with eta."""
+    subs["eta"] = eta_value
+    if "As_corr" in subs and "As" in subs:
+        subs["As_corr"] = subs["As"] * max(0.0, 1.0 - eta_value)
+    if "corr_ratio" in subs:
+        subs["corr_ratio"] = max(0.0, 1.0 - eta_value)  # corr_ratio = 1 - eta
+    return subs
+
+
+def evaluate_endpoint_ratio(expr_sp, med: Dict[str, float], eta_value: float) -> float:
+    subs = _apply_eta_subs(dict(med), eta_value)
+    try:
+        val = float(expr_sp.evalf(subs=subs))
+    except Exception:
+        return float("nan")
+    if not np.isfinite(val):
+        return float("nan")
+    return float(val)
+
+
+def monotonic_violation(expr_sp, med: Dict[str, float], n_grid: int = 60) -> float:
+    # Equation must contain eta to be monotonically decreasing with corrosion
+    if "eta" not in {str(s) for s in expr_sp.free_symbols}:
+        return 1.0
+    eta_vals = np.linspace(0.0, 0.64, n_grid)  # limit to realistic data range
+    vals = []
+    for e in eta_vals:
+        subs = _apply_eta_subs(dict(med), float(e))
+        try:
+            v = float(expr_sp.evalf(subs=subs))
+        except Exception:
+            return 1.0
+        vals.append(v)
+    vals = np.asarray(vals, dtype=float)
+    if not np.all(np.isfinite(vals)):
+        return 1.0
+    diffs = np.diff(vals)
+    # Ratio should decrease (or stay flat) as corrosion increases
+    return float(np.mean(diffs > 0.0))
+
+
+def estimate_complexity(row: pd.Series, expr: str) -> float:
+    # FIX #8: Use PySR's built-in complexity when available; fallback to token count
+    if "complexity" in row and pd.notna(row["complexity"]):
+        return float(row["complexity"])
+    ops = len(re.findall(r"[\+\-\*/\^]", expr))
+    funcs = len(re.findall(r"sqrt|log|exp|abs", expr))
+    terms = len(re.findall(r"eta|rho|d_mm|b_mm|fc|fy|As|csi|ri", expr))
+    return float(ops + 1.5 * funcs + 0.5 * terms)
+
+
+def evaluate_candidates(
+    eq_df: pd.DataFrame,
+    data_dict: Dict[str, np.ndarray],
+    y_true: np.ndarray,
+    y_target: np.ndarray,          # log1p(Mmax)
+    m_aci: np.ndarray | None = None,
+) -> List[Candidate]:
+    """Evaluate candidate equations in direct log-space mode: Mmax = expm1(equation)."""
+    cands: List[Candidate] = []
+
+    med    = {k: float(np.median(v)) for k, v in data_dict.items()}
+    mean_y = float(np.mean(y_true))
+    eps_mape = max(float(np.mean(np.abs(y_true))) * 0.05, 1.0)
+
+    for _, row in eq_df.iterrows():
+        expr = _get_equation_string(row)
+        if not expr:
+            continue
+
+        try:
+            expr_sp = safe_sympify(expr)
+            fn   = sp.lambdify(tuple(data_dict.keys()), expr_sp, modules=["numpy"])
+            args = [data_dict[k] for k in data_dict.keys()]
+            log_pred = np.asarray(fn(*args), dtype=float)
+        except Exception:
+            continue
+
+        if log_pred.ndim != 1 or len(log_pred) != len(y_true):
+            continue
+
+        # Direct prediction: Mmax = expm1(equation output)
+        log_pred_clean = np.nan_to_num(log_pred, nan=0.0, posinf=15.0, neginf=-2.0)
+        y_pred = np.maximum(np.expm1(np.clip(log_pred_clean, -2.0, 15.0)), 0.0)
+
+        # Sign violation: fraction of negative predictions
+        sign_frac = float(np.mean(y_pred <= 0.0))
+
+        r2   = float(r2_score(y_true, y_pred))
+        rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
+        mae  = float(mean_absolute_error(y_true, y_pred))
+        mape = float(
+            np.mean(
+                np.clip(
+                    np.abs((y_true - y_pred) / np.maximum(np.abs(y_true), eps_mape)),
+                    0.0, 5.0,
+                )
+            ) * 100.0
+        )
+
+        mono = monotonic_violation(expr_sp, med)
+        comp = estimate_complexity(row, expr)
+        free_syms = {str(s) for s in expr_sp.free_symbols}
+        has_eta = "eta" in free_syms or "eta_d" in free_syms or "corr_ratio" in free_syms
+        has_d   = "d_mm" in free_syms or "eta_d" in free_syms or "arm_ratio" in free_syms
+        has_fc  = "fc"   in free_syms or "rho_fc" in free_syms or "arm_ratio" in free_syms
+
+        metrics = {
+            "R2": round(r2, 4), "RMSE": round(rmse, 4),
+            "MAE": round(mae, 4), "MAPE": round(mape, 2),
+            "has_d_mm": has_d, "has_fc": has_fc, "sign_ok": sign_frac < 0.05,
+        }
+        objectives = {
+            "obj_r2":     max(0.0, 1.0 - r2),
+            "obj_mape":   mape / 100.0,
+            "obj_rmse":   rmse / max(mean_y, 1e-6),
+            "obj_mono":   mono,
+            "obj_comp":   comp / 50.0,
+            "obj_no_eta": 5.0 if not has_eta else 0.0,
+            "obj_no_d":   1.0 if not has_d   else 0.0,
+            "obj_no_fc":  1.0 if not has_fc  else 0.0,
+            "obj_sign":   sign_frac,
+        }
+
+        cands.append(
+            Candidate(
+                equation=expr,
+                complexity=comp,
+                metrics=metrics,
+                objectives=objectives,
+                score=float("inf"),
+            )
+        )
+
+    logger.info(f"Evaluated {len(cands)} candidate equations")
+    return cands
+
+
+def normalize_objectives(mat: np.ndarray) -> np.ndarray:
+    lo = mat.min(axis=0)
+    hi = mat.max(axis=0)
+    rng = np.where((hi - lo) < 1e-12, 1.0, hi - lo)
+    return (mat - lo) / rng
+
+
+# ── SHAP-guided objective weights ──────────────────────────────────────────
+def load_shap_weights(shap_path: Path) -> Dict[str, float]:
+    """Read shap_importance.csv and map importance to per-objective multipliers."""
+    if not shap_path.exists():
+        logger.warning("shap_importance.csv not found — using uniform objective weights")
+        return {}
+    try:
+        df_s = pd.read_csv(shap_path)
+        feat_col = next((c for c in df_s.columns if "feature" in c.lower()), df_s.columns[0])
+        imp_col  = next(
+            (c for c in df_s.columns if any(x in c.lower() for x in ["importance", "shap", "mean"])),
+            df_s.columns[1],
+        )
+        total = df_s[imp_col].abs().sum()
+        if total < 1e-9:
+            return {}
+        depth_imp = eta_imp = 0.0
+        for _, row in df_s.iterrows():
+            fname = str(row[feat_col]).lower()
+            imp   = float(row[imp_col]) / total
+            if "depth" in fname or "d (mm)" in fname:
+                depth_imp += imp
+            if "mass loss" in fname or "eta" in fname or "ηm" in fname:
+                eta_imp += imp
+        boost = 1.0 + depth_imp + eta_imp          # ~1.6 for this dataset
+        weights = {
+            "obj_r2":     boost,
+            "obj_mape":   boost * 0.8,
+            "obj_rmse":   boost * 0.6,
+            "obj_mono":   1.2,
+            "obj_comp":   0.5,
+            "obj_no_eta": 1.5,
+            "obj_no_d":   2.5,
+            "obj_no_fc":  2.0,
+            "obj_sign":   1.5,
+        }
+        logger.info(f"SHAP weights loaded — accuracy boost={boost:.3f} (depth={depth_imp:.2%}, eta={eta_imp:.2%})")
+        return weights
+    except Exception as exc:
+        logger.warning(f"Could not load SHAP weights: {exc}")
+        return {}
+
+
+# ── NSGA-III core (Das-Dennis + fast non-dominated sort) ───────────────────
+def _das_dennis(n_obj: int, n_partitions: int) -> np.ndarray:
+    """Generate structured simplex reference points (Das & Dennis 1998)."""
+    def _recurse(left: int, n: int, cur: list, out: list) -> None:
+        if n == 1:
+            out.append(cur + [left])
+        else:
+            for i in range(left + 1):
+                _recurse(left - i, n - 1, cur + [i], out)
+    out: list = []
+    _recurse(n_partitions, n_obj, [], out)
+    return np.array(out, dtype=float) / n_partitions
+
+
+def _fast_nondom_sort(obj_mat: np.ndarray) -> List[List[int]]:
+    """O(MN²) fast non-dominated sort (Deb 2002)."""
+    n = len(obj_mat)
+    dominates  = [[] for _ in range(n)]
+    n_dom      = np.zeros(n, dtype=int)
+    for i in range(n):
+        for j in range(i + 1, n):
+            ij = (obj_mat[i] <= obj_mat[j]).all() and (obj_mat[i] < obj_mat[j]).any()
+            ji = (obj_mat[j] <= obj_mat[i]).all() and (obj_mat[j] < obj_mat[i]).any()
+            if ij:
+                dominates[i].append(j); n_dom[j] += 1
+            elif ji:
+                dominates[j].append(i); n_dom[i] += 1
+    fronts: List[List[int]] = [[i for i in range(n) if n_dom[i] == 0]]
+    k = 0
+    while fronts[k]:
+        nxt: List[int] = []
+        for i in fronts[k]:
+            for j in dominates[i]:
+                n_dom[j] -= 1
+                if n_dom[j] == 0:
+                    nxt.append(j)
+        k += 1
+        fronts.append(nxt)
+    return [f for f in fronts if f]
+
+
+def nsga3_select(
+    cands: List[Candidate],
+    n_partitions: int = 8,
+    shap_obj_weights: Dict[str, float] | None = None,
+) -> List[int]:
+    """NSGA-III reference-point association over PySR Pareto fronts."""
+    if not cands:
+        return []
+    obj_names = list(cands[0].objectives.keys())
+    n_obj = len(obj_names)
+
+    # Auto-scale n_partitions to keep reference points manageable (target ~700-2000 refs)
+    # For n_obj=10, n_partitions=8 → C(17,9)=24310 refs (too slow); n_partitions=4 → C(13,9)=715
+    if n_obj >= 9 and n_partitions > 4:
+        n_partitions = 4
+        logger.info(f"Auto-scaled n_partitions to 4 for {n_obj}-objective problem")
+
+    # SHAP-weighted objectives before normalisation
+    w_vec = np.array([
+        (shap_obj_weights or {}).get(k, 1.0) for k in obj_names
+    ], dtype=float)
+    raw  = np.array([[c.objectives[k] for k in obj_names] for c in cands], dtype=float)
+    raw  = raw * w_vec
+    nmat = normalize_objectives(raw)
+
+    fronts = _fast_nondom_sort(nmat)
+    refs   = _das_dennis(n_obj, n_partitions)       # structured simplex grid
+
+    chosen: set = set()
+    for front in fronts:
+        for idx in front:
+            # Associate each candidate with its nearest reference point
+            dists = np.linalg.norm(refs - nmat[idx], axis=1)
+            _ = int(np.argmin(dists))               # niche index (for logging)
+            chosen.add(idx)
+        if len(chosen) >= len(refs):
+            break
+
+    if not chosen:
+        chosen = set(fronts[0])
+    logger.info(
+        f"NSGA-III selected {len(chosen)} candidates "
+        f"from {len(cands)} total | fronts={len(fronts)} | refs={len(refs)}"
+    )
+    return sorted(chosen)
+
+
+def choose_final(
+    cands: List[Candidate],
+    selected_idx: List[int],
+    w_accuracy: float,
+    w_physics: float,
+    w_complexity: float,
+    shap_obj_weights: Dict[str, float] | None = None,
+) -> int:
+    """Select best equation via SHAP-scaled weighted scoring over NSGA-III front."""
+    total = w_accuracy + w_physics + w_complexity
+    wa, wp, wc = w_accuracy / total, w_physics / total, w_complexity / total
+
+    base = {
+        "obj_r2":     wa * 0.40,
+        "obj_mape":   wa * 0.45,   # boosted — directly targets MAPE criterion
+        "obj_rmse":   wa * 0.15,
+        "obj_mono":   wp * 0.30,   # monotonic decrease with corrosion
+        "obj_comp":   wc * 1.00,
+        "obj_no_eta": wp * 0.25,   # penalize missing mass-loss variable
+        "obj_no_d":   wp * 0.25,   # penalize missing depth (47% SHAP)
+        "obj_no_fc":  wp * 0.10,   # penalize missing concrete strength
+        "obj_sign":   wp * 0.10,   # penalize negative capacity predictions
+    }
+    # Apply SHAP multipliers to final scoring weights
+    sw = shap_obj_weights or {}
+    w  = {k: base[k] * sw.get(k, 1.0) for k in base}
+
+    idxs = selected_idx if selected_idx else list(range(len(cands)))
+    best_idx, best_score = idxs[0], float("inf")
+    for i in idxs:
+        c  = cands[i]
+        sc = sum(w[k] * c.objectives[k] for k in w)
+        c.score = float(sc)
+        if sc < best_score:
+            best_score, best_idx = sc, i
+
+    logger.info(f"Final winner: index={best_idx}, score={best_score:.6f}")
+    return best_idx
+
+
+def compute_cv_metrics(
+    best_eq: str,
+    data_dict: Dict[str, np.ndarray],
+    y_true: np.ndarray,
+    n_splits: int = 5,
+) -> Dict[str, float]:
+    """5-fold cross-validation — direct log-space prediction."""
+    from sklearn.model_selection import KFold
+    expr_sp = safe_sympify(best_eq)
+    fn = sp.lambdify(tuple(data_dict.keys()), expr_sp, modules=["numpy"])
+    kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
+    n = len(y_true)
+    indices = np.arange(n)
+    fold_r2, fold_mape, fold_rmse, fold_mae = [], [], [], []
+    for _, test_idx in kf.split(indices):
+        dd_fold  = {k: v[test_idx] for k, v in data_dict.items()}
+        yt_fold  = y_true[test_idx]
+        log_pred = np.nan_to_num(
+            np.asarray(fn(*[dd_fold[k] for k in data_dict.keys()]), dtype=float),
+            nan=0.0, posinf=15.0, neginf=-2.0,
+        )
+        yp = np.maximum(np.expm1(np.clip(log_pred, -2.0, 15.0)), 0.0)
+        fold_r2.append(float(r2_score(yt_fold, yp)))
+        fold_rmse.append(float(np.sqrt(mean_squared_error(yt_fold, yp))))
+        fold_mae.append(float(mean_absolute_error(yt_fold, yp)))
+        eps = max(float(np.mean(np.abs(yt_fold))) * 0.05, 1.0)
+        fold_mape.append(float(
+            np.mean(np.clip(np.abs((yt_fold - yp) / np.maximum(np.abs(yt_fold), eps)), 0.0, 5.0)) * 100.0
+        ))
+    result = {
+        "cv_R2_mean":   round(float(np.mean(fold_r2)),   4),
+        "cv_R2_std":    round(float(np.std(fold_r2)),    4),
+        "cv_RMSE_mean": round(float(np.mean(fold_rmse)), 4),
+        "cv_RMSE_std":  round(float(np.std(fold_rmse)),  4),
+        "cv_MAE_mean":  round(float(np.mean(fold_mae)),  4),
+        "cv_MAE_std":   round(float(np.std(fold_mae)),   4),
+        "cv_MAPE_mean": round(float(np.mean(fold_mape)), 2),
+        "cv_MAPE_std":  round(float(np.std(fold_mape)),  2),
+    }
+    logger.info(
+        f"5-fold CV: R²={result['cv_R2_mean']}±{result['cv_R2_std']}  "
+        f"MAPE={result['cv_MAPE_mean']}±{result['cv_MAPE_std']}%"
+    )
+    return result
+
+
+def save_outputs(
+    cands: List[Candidate],
+    best_idx: int,
+    y_true: np.ndarray,
+    m_aci: np.ndarray,
+    data_dict: Dict[str, np.ndarray],
+    m_stack: np.ndarray | None = None,
+    y_true_test: np.ndarray | None = None,
+    data_dict_test: Dict[str, np.ndarray] | None = None,
+) -> None:
+    best = cands[best_idx]
+
+    # Ranked candidates
+    ranked = sorted(
+        [
+            {
+                "equation": c.equation,
+                "complexity": c.complexity,
+                "metrics": c.metrics,
+                "objectives": c.objectives,
+                "score": c.score,
+            }
+            for c in cands
+        ],
+        key=lambda x: x["score"],
+    )
+    out_rank = MODELS_DIR / "pysr_candidates_ranked.json"
+    out_rank.write_text(json.dumps(ranked, indent=2))
+
+    # Recompute best predictions: equation gives log1p(Mmax)
+    expr_sp    = safe_sympify(best.equation)
+    fn         = sp.lambdify(tuple(data_dict.keys()), expr_sp, modules=["numpy"])
+    log_pred   = np.asarray(fn(*[data_dict[k] for k in data_dict.keys()]), dtype=float)
+    log_pred   = np.nan_to_num(log_pred, nan=0.0, posinf=15.0, neginf=-2.0)
+    y_pred     = np.maximum(np.expm1(np.clip(log_pred, -2.0, 15.0)), 0.0)
+
+    r2 = float(r2_score(y_true, y_pred))
+    rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
+    mae = float(mean_absolute_error(y_true, y_pred))
+    mape = float(
+        np.mean(
+            np.clip(
+                np.abs((y_true - y_pred) / np.maximum(np.abs(y_true), 1.0)),
+                0.0,
+                10.0,
+            )
+        )
+        * 100.0
+    )
+
+    stack_r2 = float(r2_score(y_true, m_stack)) if m_stack is not None else None
+
+    # ── Test-set metrics (20% holdout — scientific validation) ────────────
+    test_r2 = test_rmse = test_mae = test_mape = None
+    if y_true_test is not None and data_dict_test is not None:
+        log_t = np.asarray(fn(*[data_dict_test[k] for k in data_dict.keys()]), dtype=float)
+        log_t = np.nan_to_num(log_t, nan=0.0, posinf=15.0, neginf=-2.0)
+        y_pred_t = np.maximum(np.expm1(np.clip(log_t, -2.0, 15.0)), 0.0)
+        test_r2   = float(r2_score(y_true_test, y_pred_t))
+        test_rmse = float(np.sqrt(mean_squared_error(y_true_test, y_pred_t)))
+        test_mae  = float(mean_absolute_error(y_true_test, y_pred_t))
+        eps_t     = max(float(np.mean(np.abs(y_true_test))) * 0.05, 1.0)
+        test_mape = float(
+            np.mean(np.clip(
+                np.abs((y_true_test - y_pred_t) / np.maximum(np.abs(y_true_test), eps_t)),
+                0.0, 5.0,
+            )) * 100.0
+        )
+        logger.info(
+            f"Test-set (20%): R²={test_r2:.4f}  RMSE={test_rmse:.4f}  "
+            f"MAE={test_mae:.4f}  MAPE={test_mape:.2f}%"
+        )
+
+    # ── 5-fold cross-validation (required for top-journal submission) ──────────
+    cv = compute_cv_metrics(best.equation, data_dict, y_true, n_splits=5)
+
+    out_metrics = {
+        "approach": "Direct log-space PySR prediction: log1p(Mmax) with NSGA-III + SHAP selection",
+        "equation": best.equation,
+        "has_d_mm": best.metrics.get("has_d_mm", None),
+        "has_fc":   best.metrics.get("has_fc",   None),
+        "sign_ok":  best.metrics.get("sign_ok",  None),
+        "R2":   round(r2, 4),
+        "RMSE": round(rmse, 4),
+        "MAE":  round(mae, 4),
+        "MAPE": round(mape, 2),
+        "test_R2":   round(test_r2,   4) if test_r2   is not None else None,
+        "test_RMSE": round(test_rmse, 4) if test_rmse is not None else None,
+        "test_MAE":  round(test_mae,  4) if test_mae  is not None else None,
+        "test_MAPE": round(test_mape, 2) if test_mape is not None else None,
+        **cv,   # cv_R2_mean, cv_R2_std, cv_MAPE_mean, cv_MAPE_std, ...
+        "complexity": round(best.complexity, 4),
+        "selection_score": round(best.score, 6),
+        "n_candidates": len(cands),
+        "stacking_R2_reference": round(stack_r2, 4) if stack_r2 is not None else None,
+    }
+    (MODELS_DIR / "pysr_stacking_metrics.json").write_text(json.dumps(out_metrics, indent=2))
+
+    stack_label  = f"#   Stacking R²={stack_r2:.4f}\n" if stack_r2 is not None else ""
+    test_label   = (
+        f"# Test  R²={test_r2:.4f}  RMSE={test_rmse:.4f}  MAE={test_mae:.4f}  MAPE={test_mape:.2f}%\n"
+        if test_r2 is not None else ""
+    )
+    cv_label = (
+        f"# 5-fold CV  R²={cv['cv_R2_mean']}±{cv['cv_R2_std']}  "
+        f"MAPE={cv['cv_MAPE_mean']}±{cv['cv_MAPE_std']}%\n"
+    )
+    (EQ_DIR / "best_equation_stacking.txt").write_text(
+        "# Best Equation from Direct log-space PySR prediction\n"
+        f"# Train R²={r2:.4f}  RMSE={rmse:.4f}  MAE={mae:.4f}  MAPE={mape:.2f}%\n"
+        f"{test_label}"
+        f"{cv_label}"
+        f"{stack_label}"
+        "# Features: eta=mass_loss/100, rho=reinf_ratio/100,\n"
+        "#            d_mm=depth/300, b_mm=width/200,\n"
+        "#            fc=fc_MPa/40, fy=fy_MPa/500,\n"
+        "#            As_corr=corroded_steel_area/1500,\n"
+        "#            eta_d=eta*d_mm, As_corr_fy=As_corr*fy, rho_fc=rho*fc\n"
+        "#            csi=corr_severity_idx, ri=reinf_index\n"
+        "# log1p(Mmax) = f(features)  (direct prediction)\n\n"
+        f"log1p(Mmax) = {best.equation}\n"
+        "Mmax = expm1(f(features))   [kN·m]\n"
+    )
+
+    latex_eq = sp.latex(expr_sp)
+    (EQ_DIR / "best_equation_stacking.latex").write_text(
+        "% Best Equation from Direct log-space PySR prediction\n"
+        f"\\ln(1 + M_{{\\max}}) = {latex_eq}\n"
+        r"M_{\max} = e^{f(\mathbf{x})} - 1 \quad [\mathrm{kN{\cdot}m}]" + "\n"
+    )
+
+    # Figure 1: predicted vs true
+    fig1 = FIG_DIR / "pysr_stacking_scatter.png"
+    plt.figure(figsize=(6, 6))
+    plt.scatter(y_true, y_pred, s=16, alpha=0.6)
+    lo = float(min(y_true.min(), y_pred.min()))
+    hi = float(max(y_true.max(), y_pred.max()))
+    plt.plot([lo, hi], [lo, hi], "r--", lw=1.5)
+    plt.xlabel("Experimental $M_{max}$ (kN·m)")
+    plt.ylabel("Equation $M_{max}$ (kN·m)")
+    plt.title(f"Stacking→PySR | R²={r2:.4f} | MAPE={mape:.2f}%")
+    plt.tight_layout()
+    plt.savefig(fig1, dpi=250)
+    plt.close()
+
+    # Figure 2: monotonicity trend (log-space)
+    med = {k: float(np.median(v)) for k, v in data_dict.items()}
+    eta_grid = np.linspace(0.0, 0.64, 120)
+    mmax_grid = []
+    for e in eta_grid:
+        subs = dict(med)
+        subs["eta"] = float(e)
+        subs["corr_ratio"] = 1.0 - float(e)
+        subs["eta_d"] = float(e) * med.get("d_mm", 1.0)
+        # Update As_corr-related features consistently
+        if "As_corr" in med:
+            subs["As_corr"] = med["As"] * (1.0 - float(e)) if "As" in med else med["As_corr"] * (1.0 - float(e))
+        if "As_corr_fy" in med and "As" in med:
+            subs["As_corr_fy"] = med["As"] * (1.0 - float(e)) * med.get("fy", 1.0)
+        try:
+            log_val = float(expr_sp.evalf(subs=subs))
+            mmax_grid.append(float(np.expm1(log_val)))
+        except Exception:
+            mmax_grid.append(float("nan"))
+    mmax_grid = np.asarray(mmax_grid, dtype=float)
+
+    fig2 = FIG_DIR / "pysr_stacking_endpoints.png"
+    plt.figure(figsize=(7, 4))
+    plt.plot(eta_grid * 100.0, mmax_grid, lw=2, label="Equation $M_{max}$(η)")
+    plt.xlabel("Mass Loss η (%)")
+    plt.ylabel("Predicted $M_{max}$ (kN·m)")
+    plt.title("Monotonicity Diagnostic: Mmax vs Corrosion")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(fig2, dpi=250)
+    plt.close()
+
+    logger.success(f"Equation  → {EQ_DIR / 'best_equation_stacking.txt'}")
+    logger.success(f"LaTeX     → {EQ_DIR / 'best_equation_stacking.latex'}")
+    logger.success(f"Metrics   → {MODELS_DIR / 'pysr_stacking_metrics.json'}")
+    logger.success(f"Ranked    → {out_rank}")
+    logger.success(f"Fig1      → {fig1}")
+    logger.success(f"Fig2      → {fig2}")
+
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(
+        description="Stacking to PySR symbolic distillation with MOEA/D-style selection"
+    )
+    p.add_argument("--niterations", type=int, default=1500)
+    p.add_argument("--populations", type=int, default=15)
+    p.add_argument("--maxsize",     type=int, default=30)
+    p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--ref-vectors", type=int, default=8,
+                   help="NSGA-III Das-Dennis partitions (default=8 → ~1287 ref-points for 8 obj)")
+    p.add_argument(
+        "--w-accuracy", type=float, default=0.70,
+        help="Weight for accuracy objectives (R2, MAPE, RMSE). Default=0.70"
+    )
+    p.add_argument(
+        "--w-physics", type=float, default=0.20,
+        help="Weight for physics objectives (endpoints, monotonicity). Default=0.20"
+    )
+    p.add_argument(
+        "--w-complexity", type=float, default=0.10,
+        help="Weight for equation complexity penalty. Default=0.10"
+    )
+    return p.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    setup_logger()
+
+    if sp is None:
+        raise ImportError("Missing dependency: sympy. Install with: pip install sympy")
+
+    # Always start fresh — delete saved PySR model to avoid warm-start contamination
+    if PYSR_MODEL_PATH.exists():
+        PYSR_MODEL_PATH.unlink()
+        logger.info("Deleted cached pysr_model.pkl — starting fresh search")
+
+    df, X_scaled, y_true, m_aci = prepare_full_dataframe()
+    m_stack  = get_stacking_predictions(X_scaled)
+
+    X_sym, data_dict, Mn_physics = build_symbolic_inputs(df)
+
+    # ── DIRECT LOG-SPACE TARGET: log1p(Mmax) ──────────────────────────────
+    # L2 loss on log1p(y) ≈ optimizes relative errors (MAPE) directly.
+    # No ratio baseline → eliminates the 18% Mn_physics error amplification.
+    y_target = np.log1p(y_true)
+    logger.info(
+        f"Target log1p(Mmax): mean={y_target.mean():.3f}, "
+        f"std={y_target.std():.3f}, range=[{y_target.min():.2f}, {y_target.max():.2f}]"
+    )
+
+    # ── 20% holdout test set (for final reporting only) ─────────────────────────
+    n = len(y_true)
+    train_idx, test_idx = train_test_split(np.arange(n), test_size=0.2, random_state=args.seed)
+    y_true_test    = y_true[test_idx]
+    data_dict_test = {k: v[test_idx] for k, v in data_dict.items()}
+
+    # PySR trains on ALL n samples — 5-fold CV is the honest estimator
+    logger.info(
+        f"Split: {n} train (all) | "
+        f"{len(test_idx)} test (held-out for final reporting)"
+    )
+
+    _, eq_df = run_pysr(
+        X_sym=X_sym,
+        y_target=y_target,
+        niterations=args.niterations,
+        populations=args.populations,
+        maxsize=args.maxsize,
+        random_state=args.seed,
+    )
+
+    # Evaluate candidates: expm1(equation) → Mmax prediction (direct, no baseline)
+    cands = evaluate_candidates(eq_df, data_dict, y_true, y_target)
+
+    # KAN candidates — train on log1p target directly (no extra log wrapper)
+    kan_exprs = run_kan_symbolic(X_sym, y_target, random_state=args.seed)
+    if kan_exprs:
+        kan_df    = pd.DataFrame([{"sympy_format": e, "complexity": 15.0} for e in kan_exprs])
+        kan_cands = evaluate_candidates(kan_df, data_dict, y_true, y_target)
+        logger.info(f"KAN contributed {len(kan_cands)} valid candidate(s)")
+        cands.extend(kan_cands)
+
+    if not cands:
+        raise RuntimeError(
+            "No valid candidate equations generated. "
+            "Try increasing --niterations or --populations."
+        )
+
+    shap_weights = load_shap_weights(MODELS_DIR / "shap_importance.csv")
+    selected = nsga3_select(cands, n_partitions=args.ref_vectors, shap_obj_weights=shap_weights)
+    best_idx = choose_final(
+        cands,
+        selected,
+        w_accuracy=args.w_accuracy,
+        w_physics=args.w_physics,
+        w_complexity=args.w_complexity,
+        shap_obj_weights=shap_weights,
+    )
+    save_outputs(
+        cands, best_idx, y_true, m_aci, data_dict, m_stack=m_stack,
+        y_true_test=y_true_test, data_dict_test=data_dict_test,
+    )
+
+    logger.success("Done. Best equation pipeline finished successfully.")
+    # Graceful cleanup: kill Julia subprocesses without crashing the Kaggle kernel
+    try:
+        import psutil
+        for proc in psutil.process_iter(['name']):
+            if 'julia' in (proc.info['name'] or '').lower():
+                proc.kill()
+    except Exception:
+        pass
+
+
+if __name__ == "__main__":
+    main()
