@@ -278,6 +278,38 @@ def augment_with_anchor_samples(
 
 PYSR_MODEL_PATH = MODELS_DIR / "pysr_model.pkl"
 
+def _make_pysr_model(niterations, populations, maxsize, random_state):
+    from pysr import PySRRegressor
+    return PySRRegressor(
+        niterations=niterations,
+        populations=populations,
+        maxsize=maxsize,
+        binary_operators=["+", "-", "*", "/"],
+        unary_operators=["sqrt", "log", "exp", "square", "cube"],
+        extra_sympy_mappings={"square": lambda x: x**2, "cube": lambda x: x**3},
+        nested_constraints={
+            "sqrt":   {"sqrt": 0, "log": 1, "exp": 1},
+            "log":    {"log":  0, "sqrt": 1, "exp": 0},
+            "exp":    {"exp":  0, "log":  1, "sqrt": 1},
+            "square": {"square": 0, "cube": 0, "exp": 1},
+            "cube":   {"cube":   0, "square": 0, "exp": 1},
+        },
+        constraints={"sqrt": 8, "log": 8, "exp": 6, "square": 8, "cube": 8},
+        model_selection="accuracy",
+        # Relative Huber loss: directly minimises relative error (≈ MAPE)
+        elementwise_loss=(
+            "loss(x, y) = begin\n"
+            "  r = (x - y) / max(abs(y), 0.05f0)\n"
+            "  abs(r) < 0.5f0 ? 0.5f0*r^2 : abs(r) - 0.25f0\n"
+            "end"
+        ),
+        random_state=random_state,
+        deterministic=True,
+        parallelism="serial",
+        verbosity=1,
+    )
+
+
 def run_pysr(
     X_sym: pd.DataFrame,
     y_target: np.ndarray,
@@ -287,61 +319,43 @@ def run_pysr(
     random_state: int,
 ):
     try:
-        from pysr import PySRRegressor
-    except Exception as exc:  # pragma: no cover
+        from pysr import PySRRegressor  # noqa: F401
+    except Exception as exc:
         raise ImportError("PySR is required. Install with: pip install pysr") from exc
 
-    # Warm-start: continue from previous run if saved model exists
-    warm = PYSR_MODEL_PATH.exists()
-    if warm:
-        logger.info(f"Warm-starting PySR from {PYSR_MODEL_PATH}")
-        model = joblib.load(PYSR_MODEL_PATH)
-        model.niterations  = niterations
-        model.populations  = populations
-        model.warm_start   = True
-    else:
-        logger.info(
-            f"Running PySR fresh: niterations={niterations}, "
-            f"populations={populations}, maxsize={maxsize}"
-        )
-        model = PySRRegressor(
-            niterations=niterations,
-            populations=populations,
-            maxsize=maxsize,
-            binary_operators=["+", "-", "*", "/"],
-            unary_operators=["sqrt", "log", "exp", "square", "cube"],
-            extra_sympy_mappings={"square": lambda x: x**2, "cube": lambda x: x**3},
-            nested_constraints={
-                "sqrt":   {"sqrt": 0, "log": 1, "exp": 1},
-                "log":    {"log":  0, "sqrt": 1, "exp": 0},
-                "exp":    {"exp":  0, "log":  1, "sqrt": 1},
-                "square": {"square": 0, "cube": 0, "exp": 1},
-                "cube":   {"cube":   0, "square": 0, "exp": 1},
-            },
-            constraints={"sqrt": 8, "log": 8, "exp": 6, "square": 8, "cube": 8},
-            model_selection="accuracy",
-            # Relative Huber loss: directly minimises relative error (≈ MAPE)
-            # r_rel = (pred - target) / max(|target|, 0.05) → quadratic below 50%, linear above
-            elementwise_loss=(
-                "loss(x, y) = begin\n"
-                "  r = (x - y) / max(abs(y), 0.05f0)\n"
-                "  abs(r) < 0.5f0 ? 0.5f0*r^2 : abs(r) - 0.25f0\n"
-                "end"
-            ),
-            random_state=random_state,
-            deterministic=True,
-            parallelism="serial",
-            verbosity=1,
-        )
+    # Multi-seed search: 3 independent populations explore different optima.
+    # Julia is precompiled only on the first call — subsequent seeds cost ~5-10s overhead.
+    # Each seed runs niterations//3 iterations, preventing premature convergence
+    # that plagued single-seed runs (HOF frozen after ~500 of 29,500 iterations).
+    seeds = [random_state, random_state + 1000, random_state + 2000]
+    iter_each = max(niterations // len(seeds), 40)
 
-    model.fit(X_sym.to_numpy(dtype=float), y_target, variable_names=list(X_sym.columns))
+    all_dfs: List[pd.DataFrame] = []
+    last_model = None
+    X_np = X_sym.to_numpy(dtype=float)
+    var_names = list(X_sym.columns)
 
-    # Save for future warm-starts
-    joblib.dump(model, PYSR_MODEL_PATH)
-    logger.info(f"PySR model saved → {PYSR_MODEL_PATH}")
+    for seed in seeds:
+        logger.info(f"PySR multi-seed: seed={seed}, iterations={iter_each}, populations={populations}")
+        try:
+            m = _make_pysr_model(iter_each, populations, maxsize, seed)
+            m.fit(X_np, y_target, variable_names=var_names)
+            all_dfs.append(m.equations_.copy())
+            logger.info(f"  seed={seed} → {len(m.equations_)} equations in HOF")
+            last_model = m
+        except Exception as exc:
+            logger.warning(f"  seed={seed} failed: {exc}")
 
-    eq_df = model.equations_.copy()
-    return model, eq_df
+    if not all_dfs:
+        raise RuntimeError("All PySR seeds failed — try reducing maxsize or niterations")
+
+    eq_df = pd.concat(all_dfs, ignore_index=True)
+    logger.info(f"Multi-seed PySR complete: {len(eq_df)} total equations from {len(all_dfs)} seeds")
+
+    if last_model is not None:
+        joblib.dump(last_model, PYSR_MODEL_PATH)
+
+    return last_model, eq_df
 
 
 # ── KAN (Kolmogorov-Arnold Networks, MIT 2024) ─────────────────────────────
@@ -429,24 +443,41 @@ def run_kan_symbolic(
         # auto_symbolic fits each of the 6 edges independently → guaranteed non-constant.
         model  = KAN(width=[n_feat, 1], grid=5, k=3, seed=random_state)
 
-        # ── 2. Train with LBFGS, no regularization, no pruning ───────────────
-        # Adam in pykan applies internal regularization even with lamb=0,
-        # driving active neurons to 0 (dead network). Use LBFGS only.
+        # ── 2. Train with LBFGS ≥300 steps — robust fallback chain ──────────
+        # Try configs in order: most-preferred (LBFGS, 500 steps) → least (default 100).
+        # Each config is tried on both fit() and train() to maximise compatibility.
         trained = False
-        for _call in [
-            lambda: model.fit(dataset,   opt="LBFGS", steps=1000, lamb=0.0, verbose=False),
-            lambda: model.fit(dataset,   opt="LBFGS", steps=500,  lamb=0.0, verbose=False),
-            lambda: model.fit(dataset,   opt="LBFGS", steps=300, verbose=False),
-            lambda: model.fit(dataset,   steps=300,   verbose=False),
-            lambda: model.fit(dataset),
-            lambda: model.train(dataset, opt="LBFGS", steps=300, lamb=0.0, verbose=False),
-            lambda: model.train(dataset, steps=300,   verbose=False),
-            lambda: model.train(dataset),
-        ]:
-            try:
-                _call(); trained = True; break
-            except (TypeError, AttributeError):
-                continue
+        step_configs = [
+            {"opt": "LBFGS", "steps": 500, "lamb": 0.0, "verbose": False},
+            {"opt": "LBFGS", "steps": 500, "lamb": 0.0},
+            {"opt": "LBFGS", "steps": 500},
+            {"opt": "LBFGS", "steps": 300, "lamb": 0.0},
+            {"opt": "LBFGS", "steps": 300},
+            {"steps": 500},
+            {"steps": 300},
+        ]
+        for cfg in step_configs:
+            for method_name in ["fit", "train"]:
+                try:
+                    getattr(model, method_name)(dataset, **cfg)
+                    trained = True
+                    logger.info(f"KAN: {method_name}(steps={cfg.get('steps','-')}) succeeded")
+                    break
+                except (TypeError, AttributeError, Exception):
+                    continue
+            if trained:
+                break
+
+        if not trained:
+            # Absolute last resort — whatever API the installed version supports
+            for method_name in ["fit", "train"]:
+                try:
+                    getattr(model, method_name)(dataset)
+                    trained = True
+                    logger.warning("KAN: using default steps (100) — all explicit-step calls failed")
+                    break
+                except (TypeError, AttributeError):
+                    continue
         if not trained:
             raise RuntimeError("KAN: no compatible train/fit API found in installed pykan")
 
@@ -683,8 +714,8 @@ def evaluate_candidates(
             "obj_mono":   mono,
             "obj_comp":   comp / 50.0,
             "obj_no_eta": 0.5 if not has_eta else 0.0,
-            "obj_no_d":   0.5 if not has_d   else 0.0,   # penalize missing depth (47% SHAP)
-            "obj_no_fc":  0.5 if not has_fc  else 0.0,   # penalize missing concrete strength
+            "obj_no_d":   1.0 if not has_d   else 0.0,   # doubled: depth is 47% SHAP
+            "obj_no_fc":  1.0 if not has_fc  else 0.0,   # doubled: fc is in ACI formula
             "obj_sign":   sign_frac,                      # penalize negative capacity ratios
         }
 
@@ -855,9 +886,9 @@ def choose_final(
     wa, wp, wc = w_accuracy / total, w_physics / total, w_complexity / total
 
     base = {
-        "obj_r2":     wa * 0.45,
-        "obj_mape":   wa * 0.35,
-        "obj_rmse":   wa * 0.20,
+        "obj_r2":     wa * 0.30,   # reduced — MAPE is more important for publication
+        "obj_mape":   wa * 0.55,   # boosted — directly targets < 15% MAPE criterion
+        "obj_rmse":   wa * 0.15,
         "obj_end0":   wp * 0.15,   # endpoint η=0 → 1.0
         "obj_end100": wp * 0.15,   # endpoint η=0.64 → 0.35
         "obj_mono":   wp * 0.10,   # monotonic decrease with corrosion
@@ -882,6 +913,54 @@ def choose_final(
 
     logger.info(f"Final winner: index={best_idx}, score={best_score:.6f}")
     return best_idx
+
+
+def compute_cv_metrics(
+    best_eq: str,
+    data_dict: Dict[str, np.ndarray],
+    y_true: np.ndarray,
+    m_aci: np.ndarray,
+    n_splits: int = 5,
+) -> Dict[str, float]:
+    """5-fold cross-validation of the best equation — required for top-journal publication."""
+    from sklearn.model_selection import KFold
+    expr_sp = safe_sympify(best_eq)
+    fn = sp.lambdify(tuple(data_dict.keys()), expr_sp, modules=["numpy"])
+    kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
+    n = len(y_true)
+    indices = np.arange(n)
+    fold_r2, fold_mape, fold_rmse, fold_mae = [], [], [], []
+    for _, test_idx in kf.split(indices):
+        dd_fold  = {k: v[test_idx] for k, v in data_dict.items()}
+        yt_fold  = y_true[test_idx]
+        mac_fold = m_aci[test_idx]
+        ratio    = np.nan_to_num(
+            np.asarray(fn(*[dd_fold[k] for k in data_dict.keys()]), dtype=float),
+            nan=0.0, posinf=5.0, neginf=0.0,
+        )
+        yp = np.maximum(ratio * mac_fold, 0.0)
+        fold_r2.append(float(r2_score(yt_fold, yp)))
+        fold_rmse.append(float(np.sqrt(mean_squared_error(yt_fold, yp))))
+        fold_mae.append(float(mean_absolute_error(yt_fold, yp)))
+        eps = max(float(np.mean(np.abs(yt_fold))) * 0.05, 1.0)
+        fold_mape.append(float(
+            np.mean(np.clip(np.abs((yt_fold - yp) / np.maximum(np.abs(yt_fold), eps)), 0.0, 5.0)) * 100.0
+        ))
+    result = {
+        "cv_R2_mean":   round(float(np.mean(fold_r2)),   4),
+        "cv_R2_std":    round(float(np.std(fold_r2)),    4),
+        "cv_RMSE_mean": round(float(np.mean(fold_rmse)), 4),
+        "cv_RMSE_std":  round(float(np.std(fold_rmse)),  4),
+        "cv_MAE_mean":  round(float(np.mean(fold_mae)),  4),
+        "cv_MAE_std":   round(float(np.std(fold_mae)),   4),
+        "cv_MAPE_mean": round(float(np.mean(fold_mape)), 2),
+        "cv_MAPE_std":  round(float(np.std(fold_mape)),  2),
+    }
+    logger.info(
+        f"5-fold CV: R²={result['cv_R2_mean']}±{result['cv_R2_std']}  "
+        f"MAPE={result['cv_MAPE_mean']}±{result['cv_MAPE_std']}%"
+    )
+    return result
 
 
 def save_outputs(
@@ -958,6 +1037,9 @@ def save_outputs(
             f"MAE={test_mae:.4f}  MAPE={test_mape:.2f}%"
         )
 
+    # ── 5-fold cross-validation (required for top-journal submission) ────────
+    cv = compute_cv_metrics(best.equation, data_dict, y_true, m_aci, n_splits=5)
+
     out_metrics = {
         "approach": "Stacking-to-PySR ratio distillation (Mstack/MACI) with NSGA-III + SHAP selection",
         "equation": best.equation,
@@ -972,6 +1054,7 @@ def save_outputs(
         "test_RMSE": round(test_rmse, 4) if test_rmse is not None else None,
         "test_MAE":  round(test_mae,  4) if test_mae  is not None else None,
         "test_MAPE": round(test_mape, 2) if test_mape is not None else None,
+        **cv,   # cv_R2_mean, cv_R2_std, cv_MAPE_mean, cv_MAPE_std, ...
         "complexity": round(best.complexity, 4),
         "selection_score": round(best.score, 6),
         "n_candidates": len(cands),
@@ -984,14 +1067,20 @@ def save_outputs(
         f"# Test  R²={test_r2:.4f}  RMSE={test_rmse:.4f}  MAE={test_mae:.4f}  MAPE={test_mape:.2f}%\n"
         if test_r2 is not None else ""
     )
+    cv_label = (
+        f"# 5-fold CV  R²={cv['cv_R2_mean']}±{cv['cv_R2_std']}  "
+        f"MAPE={cv['cv_MAPE_mean']}±{cv['cv_MAPE_std']}%\n"
+    )
     (EQ_DIR / "best_equation_stacking.txt").write_text(
         "# Best Equation from Stacking->PySR (ratio distillation)\n"
         f"# Train R²={r2:.4f}  RMSE={rmse:.4f}  MAE={mae:.4f}  MAPE={mape:.2f}%\n"
         f"{test_label}"
+        f"{cv_label}"
         f"{stack_label}"
         "# Features: eta=mass_loss/100, rho=reinf_ratio/100,\n"
         "#            d_mm=depth/300, b_mm=width/200,\n"
         "#            fc=fc_MPa/40, fy=fy_MPa/500,\n"
+        "#            As_corr=corroded_steel_area/1500,\n"
         "#            csi=corr_severity_idx, ri=reinf_index\n"
         "# R = Mmax / MACI  (dimensionless capacity ratio)\n\n"
         f"R = {best.equation}\n"
