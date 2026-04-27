@@ -8,7 +8,7 @@ Pipeline:
 3) Distillation target: R = M_stack / M_ACI  (dimensionless ratio).
 4) Symbolic features: eta, rho, d_mm, b_mm, csi, ri  (SHAP-informed).
 5) PySR evolves candidate equations over 11 objectives:
-   1-R², MAPE, RMSE_norm, endpoint(η=0)→1, endpoint(η=0.64)→0.35,
+   1-R², MAPE, RMSE_norm, endpoint(η=0)→1, endpoint(η=0.64)→0.95,
    monotonicity, complexity, no-eta penalty, no-d_mm penalty, no-fc penalty, sign penalty.
 6) NSGA-III (Das-Dennis refs + fast non-dominated sort) selects the
    Pareto-diverse front; SHAP weights boost accuracy objectives for
@@ -715,9 +715,10 @@ def evaluate_candidates(
         r0   = evaluate_endpoint_ratio(expr_sp, med, 0.0)
         r100 = evaluate_endpoint_ratio(expr_sp, med, 0.64)
         # At eta=0: ratio should be ~1.0 (no corrosion = full capacity)
-        end0   = abs(r0 - 1.0)          if np.isfinite(r0)   else 1.0
-        # At eta=0.64: ratio should be < 0.5 (heavy corrosion = significant loss)
-        end100 = max(0.0, r100 - 0.5)   if np.isfinite(r100) else 1.0
+        end0   = abs(r0 - 1.0)           if np.isfinite(r0)   else 1.0
+        # At eta=0.64: ratio should be ~0.95 (Mn_physics already uses As_corr,
+        # so M_exp/Mn_physics stays near 1.0 at heavy corrosion)
+        end100 = abs(r100 - 0.95)        if np.isfinite(r100) else 1.0
 
         mono = monotonic_violation(expr_sp, med)
         comp = estimate_complexity(row, expr)
@@ -922,7 +923,7 @@ def choose_final(
         "obj_mape":   wa * 0.55,   # boosted — directly targets < 15% MAPE criterion
         "obj_rmse":   wa * 0.15,
         "obj_end0":   wp * 0.15,   # endpoint η=0 → 1.0
-        "obj_end100": wp * 0.15,   # endpoint η=0.64 → 0.35
+        "obj_end100": wp * 0.15,   # endpoint η=0.64 → 0.95
         "obj_mono":   wp * 0.10,   # monotonic decrease with corrosion
         "obj_comp":   wc * 1.00,
         "obj_no_eta": wp * 0.10,   # penalize missing mass-loss variable
