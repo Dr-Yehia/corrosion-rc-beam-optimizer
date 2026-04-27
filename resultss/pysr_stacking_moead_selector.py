@@ -271,17 +271,18 @@ def augment_with_anchor_samples(
     med_row["eta"] = 0.0
     anchors_X = pd.DataFrame([med_row] * n_anchors)
     anchors_y = np.full(n_anchors, anchor_target)
-    # High-eta anchors: enforce R(η=0.64) ≈ 0.35 (significant capacity loss at heavy corrosion)
+    # High-eta anchors: enforce R(η=0.64) ≈ 0.95 (Mn_physics already uses As_corr,
+    # so M_exp/Mn_physics stays near 1.0 even at heavy corrosion)
     n_high = n_anchors // 3
     high_row = dict(med_row)
     high_row["eta"] = 0.64
     anchors_high_X = pd.DataFrame([high_row] * n_high)
-    anchors_high_y = np.full(n_high, 0.35)
+    anchors_high_y = np.full(n_high, 0.95)
     X_aug = pd.concat([X_sym, anchors_X, anchors_high_X], ignore_index=True)
     y_aug = np.concatenate([y_target, anchors_y, anchors_high_y])
     logger.info(
         f"Anchors: {n_anchors} at eta=0 (target=1.0), "
-        f"{n_high} at eta=0.64 (target=0.35)"
+        f"{n_high} at eta=0.64 (target=0.95)"
     )
     return X_aug, y_aug
 
