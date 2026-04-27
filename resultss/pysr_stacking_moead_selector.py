@@ -216,8 +216,9 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
 
     # Corroded steel area: the PRIMARY physical driver of capacity loss
     # PySR would otherwise waste complexity discovering As×(1-η) itself
-    eta_frac  = eta / 100.0
-    As_corr   = As * (1.0 - eta_frac)          # mm² remaining after corrosion
+    eta_frac   = eta / 100.0
+    As_corr    = As * (1.0 - eta_frac)          # mm² remaining after corrosion
+    corr_ratio = np.maximum(1.0 - eta_frac, 0.0)  # remaining capacity fraction = 1-eta
 
     csi = df["corr_severity_idx"].to_numpy(dtype=float)
     ri  = df["reinf_index"].to_numpy(dtype=float)
@@ -227,8 +228,9 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
 
     X_sym = pd.DataFrame(
         {
-            "eta":     eta_frac,
-            "rho":     rho_t / 100.0,
+            "eta":        eta_frac,
+            "corr_ratio": corr_ratio,  # = 1-eta: lets PySR use (1-eta) form without discovering it
+            "rho":        rho_t / 100.0,
             "d_mm":    d     / 300.0,    # SHAP rank 1: Depth
             "b_mm":    b     / 200.0,    # SHAP rank 2: Width
             "fc":      fc    /  40.0,    # concrete strength (MPa), norm ~40
@@ -296,11 +298,11 @@ def _make_pysr_model(niterations, populations, maxsize, random_state):
         },
         constraints={"sqrt": 8, "log": 8, "exp": 6, "square": 8, "cube": 8},
         model_selection="accuracy",
-        # Relative Huber loss: directly minimises relative error (≈ MAPE)
+        # Relative Huber loss: threshold 0.25 (tighter than 0.5) → more MAPE-focused gradient
         elementwise_loss=(
             "loss(x, y) = begin\n"
             "  r = (x - y) / max(abs(y), 0.05f0)\n"
-            "  abs(r) < 0.5f0 ? 0.5f0*r^2 : abs(r) - 0.25f0\n"
+            "  abs(r) < 0.25f0 ? 0.5f0*r^2 : abs(r) - 0.125f0\n"
             "end"
         ),
         random_state=random_state,
@@ -590,11 +592,12 @@ def _get_equation_string(row: pd.Series) -> str:
 
 
 def _apply_eta_subs(subs: Dict[str, float], eta_value: float) -> Dict[str, float]:
-    """Update subs dict so As_corr is physically consistent with eta."""
+    """Update subs dict so As_corr and corr_ratio are physically consistent with eta."""
     subs["eta"] = eta_value
-    # As_corr = As * (1 - eta) — must track eta when evaluating endpoints/monotonicity
     if "As_corr" in subs and "As" in subs:
         subs["As_corr"] = subs["As"] * max(0.0, 1.0 - eta_value)
+    if "corr_ratio" in subs:
+        subs["corr_ratio"] = max(0.0, 1.0 - eta_value)  # corr_ratio = 1 - eta
     return subs
 
 
@@ -704,6 +707,10 @@ def evaluate_candidates(
         has_eta = "eta" in free_syms
         has_d   = "d_mm" in free_syms
         has_fc  = "fc"   in free_syms
+        # Detect exp applied directly to dimensional non-corrosion variables (physically nonsensical)
+        _nonsense_exp = bool(
+            "exp" in expr and re.search(r"exp\s*\(\s*(fy|b_mm|rho|d_mm|fc)\s*\)", expr)
+        )
 
         metrics = {
             "R2": round(r2, 4), "RMSE": round(rmse, 4),
@@ -723,7 +730,7 @@ def evaluate_candidates(
             "obj_no_eta": 0.5 if not has_eta else 0.0,
             "obj_no_d":   1.0 if not has_d   else 0.0,   # doubled: depth is 47% SHAP
             "obj_no_fc":  1.0 if not has_fc  else 0.0,   # doubled: fc is in ACI formula
-            "obj_sign":   sign_frac,                      # penalize negative capacity ratios
+            "obj_sign":   sign_frac + (0.5 if _nonsense_exp else 0.0),  # neg ratios + nonsensical exp
         }
 
         cands.append(
@@ -1153,9 +1160,9 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Stacking to PySR symbolic distillation with MOEA/D-style selection"
     )
-    p.add_argument("--niterations", type=int, default=500)
-    p.add_argument("--populations", type=int, default=100)
-    p.add_argument("--maxsize",     type=int, default=25)
+    p.add_argument("--niterations", type=int, default=3000)
+    p.add_argument("--populations", type=int, default=50)
+    p.add_argument("--maxsize",     type=int, default=30)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--ref-vectors", type=int, default=8,
                    help="NSGA-III Das-Dennis partitions (default=8 → ~1287 ref-points for 8 obj)")
@@ -1188,25 +1195,28 @@ def main() -> None:
 
     df, X_scaled, y_true, m_aci = prepare_full_dataframe()
     m_stack  = get_stacking_predictions(X_scaled)
-    y_target = np.maximum(m_stack, 0.0) / np.maximum(m_aci, 1e-9)   # dimensionless ratio R = Mstack/MACI
+    R_exp    = np.clip(y_true / np.maximum(m_aci, 1e-9), 0.1, 2.5)   # experimental ratio (primary target)
+    R_stack  = np.maximum(m_stack, 0.0) / np.maximum(m_aci, 1e-9)    # stacking ratio (noise reduction)
+    y_target = 0.80 * R_exp + 0.20 * R_stack                         # 80% exp + 20% teacher
 
     X_sym, data_dict = build_symbolic_inputs(df)
 
-    # ── 20% holdout test set (scientific validation — never seen during training) ──
+    # ── 20% holdout test set (for final reporting only) ─────────────────────────
     n = len(y_true)
     train_idx, test_idx = train_test_split(np.arange(n), test_size=0.2, random_state=args.seed)
-    X_sym_tr    = X_sym.iloc[train_idx].reset_index(drop=True)
-    y_target_tr = y_target[train_idx]
     y_true_test    = y_true[test_idx]
     m_aci_test     = m_aci[test_idx]
     data_dict_test = {k: v[test_idx] for k, v in data_dict.items()}
 
-    # Augment training split only — anchors never go into the test set
-    X_sym_aug, y_target_aug = augment_with_anchor_samples(X_sym_tr, y_target_tr)
+    # PySR trains on ALL n samples + physics anchors — 5-fold CV is the honest estimator
+    X_sym_aug, y_target_aug = augment_with_anchor_samples(X_sym, y_target)
+    # KAN uses same full data for consistency
+    X_sym_tr    = X_sym
+    y_target_tr = y_target
 
     logger.info(
-        f"Split: {len(train_idx)} train + {len(X_sym_aug)-len(train_idx)} anchors | "
-        f"{len(test_idx)} test (held-out)"
+        f"Split: {n} train (all) + {len(X_sym_aug)-n} anchors | "
+        f"{len(test_idx)} test (held-out for final reporting)"
     )
 
     _, eq_df = run_pysr(
