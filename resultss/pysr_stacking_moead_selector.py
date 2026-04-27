@@ -220,6 +220,13 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
     As_corr    = As * (1.0 - eta_frac)          # mm² remaining after corrosion
     corr_ratio = np.maximum(1.0 - eta_frac, 0.0)  # remaining capacity fraction = 1-eta
 
+    # Corrected physics baseline: ACI formula using As_corr instead of As
+    # This gives a much tighter ratio target (Mmax/Mn_physics ≈ 0.85-1.15)
+    a_corr    = (As_corr * fy) / np.maximum(0.85 * fc * b, 1e-9)  # neutral axis depth (mm)
+    arm       = np.maximum(d - 0.5 * a_corr, 0.1 * d)             # moment arm (mm)
+    Mn_physics = As_corr * fy * arm / 1e6                          # kNm — corrected moment capacity
+    arm_ratio  = np.clip(arm / np.maximum(d, 1e-9), 0.5, 1.0)     # dimensionless moment arm
+
     csi = df["corr_severity_idx"].to_numpy(dtype=float)
     ri  = df["reinf_index"].to_numpy(dtype=float)
 
@@ -230,6 +237,7 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
         {
             "eta":        eta_frac,
             "corr_ratio": corr_ratio,  # = 1-eta: lets PySR use (1-eta) form without discovering it
+            "arm_ratio":  arm_ratio,   # dimensionless moment arm — encodes d+fc+fy together
             "rho":        rho_t / 100.0,
             "d_mm":    d     / 300.0,    # SHAP rank 1: Depth
             "b_mm":    b     / 200.0,    # SHAP rank 2: Width
@@ -243,7 +251,7 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
     )
 
     data_dict = {c: X_sym[c].to_numpy(dtype=float) for c in X_sym.columns}
-    return X_sym, data_dict
+    return X_sym, data_dict, Mn_physics
 
 
 def augment_with_anchor_samples(
@@ -445,7 +453,16 @@ def run_kan_symbolic(
         # auto_symbolic fits each of the 6 edges independently → guaranteed non-constant.
         model  = KAN(width=[n_feat, 1], grid=5, k=3, seed=random_state)
 
-        # ── 2. Train with LBFGS ≥300 steps — robust fallback chain ──────────
+        # ── 2. Force lamb=0 on model object before any training call ────────
+        # Kaggle's pykan ignores the lamb kwarg in train() — setting it directly
+        # on the model prevents the regularizer from killing gradients after step 35.
+        for _attr in ("lamb", "reg_metric", "penalty", "l1_penalty"):
+            try:
+                setattr(model, _attr, 0.0)
+            except Exception:
+                pass
+
+        # ── 3. Train with LBFGS ≥300 steps — robust fallback chain ──────────
         # Try configs in order: most-preferred (LBFGS, 500 steps) → least (default 100).
         # Each config is tried on both fit() and train() to maximise compatibility.
         trained = False
@@ -1195,22 +1212,28 @@ def main() -> None:
 
     df, X_scaled, y_true, m_aci = prepare_full_dataframe()
     m_stack  = get_stacking_predictions(X_scaled)
-    R_exp    = np.clip(y_true / np.maximum(m_aci, 1e-9), 0.1, 2.5)   # experimental ratio (primary target)
-    R_stack  = np.maximum(m_stack, 0.0) / np.maximum(m_aci, 1e-9)    # stacking ratio (noise reduction)
-    y_target = 0.80 * R_exp + 0.20 * R_stack                         # 80% exp + 20% teacher
 
-    X_sym, data_dict = build_symbolic_inputs(df)
+    X_sym, data_dict, Mn_physics = build_symbolic_inputs(df)
+
+    # New target: Mmax / Mn_physics — range ~0.85-1.15 (much tighter than M/M_ACI)
+    # Mn_physics uses As_corr so corrosion is already encoded in the baseline
+    m_base   = np.maximum(Mn_physics, 1e-3)
+    y_target = np.clip(y_true / m_base, 0.3, 2.0)
+    logger.info(
+        f"Target ratio Mmax/Mn_physics: mean={y_target.mean():.3f}, "
+        f"std={y_target.std():.3f}, range=[{y_target.min():.2f}, {y_target.max():.2f}]"
+    )
 
     # ── 20% holdout test set (for final reporting only) ─────────────────────────
     n = len(y_true)
     train_idx, test_idx = train_test_split(np.arange(n), test_size=0.2, random_state=args.seed)
     y_true_test    = y_true[test_idx]
+    m_base_test    = m_base[test_idx]
     m_aci_test     = m_aci[test_idx]
     data_dict_test = {k: v[test_idx] for k, v in data_dict.items()}
 
     # PySR trains on ALL n samples + physics anchors — 5-fold CV is the honest estimator
     X_sym_aug, y_target_aug = augment_with_anchor_samples(X_sym, y_target)
-    # KAN uses same full data for consistency
     X_sym_tr    = X_sym
     y_target_tr = y_target
 
@@ -1228,14 +1251,13 @@ def main() -> None:
         random_state=args.seed,
     )
 
-    # Evaluate candidates on FULL data — more signal for Pareto selection
-    cands = evaluate_candidates(eq_df, data_dict, y_true, y_target, m_aci)
+    # Evaluate candidates: ratio * m_base → Mmax prediction
+    cands = evaluate_candidates(eq_df, data_dict, y_true, y_target, m_base)
 
-    # KAN trains on train split only; candidates evaluated on full data
     kan_exprs = run_kan_symbolic(X_sym_tr, y_target_tr, random_state=args.seed)
     if kan_exprs:
         kan_df    = pd.DataFrame([{"sympy_format": e, "complexity": 15.0} for e in kan_exprs])
-        kan_cands = evaluate_candidates(kan_df, data_dict, y_true, y_target, m_aci)
+        kan_cands = evaluate_candidates(kan_df, data_dict, y_true, y_target, m_base)
         logger.info(f"KAN contributed {len(kan_cands)} valid candidate(s)")
         cands.extend(kan_cands)
 
@@ -1256,8 +1278,8 @@ def main() -> None:
         shap_obj_weights=shap_weights,
     )
     save_outputs(
-        cands, best_idx, y_true, m_aci, data_dict, m_stack=m_stack,
-        y_true_test=y_true_test, m_aci_test=m_aci_test, data_dict_test=data_dict_test,
+        cands, best_idx, y_true, m_base, data_dict, m_stack=m_stack,
+        y_true_test=y_true_test, m_aci_test=m_base_test, data_dict_test=data_dict_test,
     )
 
     logger.success("Done. Best equation pipeline finished successfully.")
