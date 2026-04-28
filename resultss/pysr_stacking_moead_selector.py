@@ -214,18 +214,14 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
     # Steel area As = n * π * (db/2)² — direct structural capacity driver
     As = n_bars * np.pi * (db_t / 2.0) ** 2
 
-    # Corroded steel area: the PRIMARY physical driver of capacity loss
-    # PySR would otherwise waste complexity discovering As×(1-η) itself
-    eta_frac   = eta / 100.0
-    As_corr    = As * (1.0 - eta_frac)          # mm² remaining after corrosion
-    corr_ratio = np.maximum(1.0 - eta_frac, 0.0)  # remaining capacity fraction = 1-eta
+    eta_frac = np.clip(eta / 100.0, 0.0, 0.80)
+    As_corr  = As * np.maximum(1.0 - eta_frac, 0.0)
 
-    # Corrected physics baseline: ACI formula using As_corr instead of As
-    # This gives a much tighter ratio target (Mmax/Mn_physics ≈ 0.85-1.15)
-    a_corr    = (As_corr * fy) / np.maximum(0.85 * fc * b, 1e-9)  # neutral axis depth (mm)
-    arm       = np.maximum(d - 0.5 * a_corr, 0.1 * d)             # moment arm (mm)
-    Mn_physics = As_corr * fy * arm / 1e6                          # kNm — corrected moment capacity
-    arm_ratio  = np.clip(arm / np.maximum(d, 1e-9), 0.5, 1.0)     # dimensionless moment arm
+    # Physics baseline M0: ACI formula with corroded steel area
+    # Target z = log(M_exp/M0) is small (~±0.3) — PySR learns only the residual
+    a_corr = As_corr * fy / np.maximum(0.85 * fc * b, eps)
+    arm    = np.maximum(d - 0.5 * a_corr, 0.10 * d)
+    M0     = np.maximum(As_corr * fy * arm / 1e6, eps)
 
     csi = df["corr_severity_idx"].to_numpy(dtype=float)
     ri  = df["reinf_index"].to_numpy(dtype=float)
@@ -235,23 +231,23 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
 
     X_sym = pd.DataFrame(
         {
-            "eta":        eta_frac,
-            "corr_ratio": corr_ratio,  # = 1-eta: lets PySR use (1-eta) form without discovering it
-            "arm_ratio":  arm_ratio,   # dimensionless moment arm — encodes d+fc+fy together
-            "rho":        rho_t / 100.0,
-            "d_mm":    d     / 300.0,    # SHAP rank 1: Depth
-            "b_mm":    b     / 200.0,    # SHAP rank 2: Width
-            "fc":      fc    /  40.0,    # concrete strength (MPa), norm ~40
-            "fy":      fy    / 500.0,    # steel yield (MPa), norm ~500
-            "As":      As    / 1500.0,   # original steel area (mm²)
-            "As_corr": As_corr / 1500.0, # corroded steel area — key physics feature
-            "csi":     csi   / max(csi_med, eps),
-            "ri":      ri    / max(ri_med,  eps),
+            "eta":    eta_frac,
+            "cr":     np.maximum(1.0 - eta_frac, 0.0),        # 1-eta: remaining fraction
+            "rho":    rho_t / 100.0,
+            "d_b":    d / np.maximum(b, eps),                  # section aspect ratio
+            "a_d":    a_corr / np.maximum(d, eps),             # neutral-axis depth ratio
+            "fc":     fc / 40.0,
+            "fy":     fy / 500.0,
+            "fy_fc":  fy / np.maximum(fc, eps),
+            "rho_g":  As / np.maximum(b * d, eps) * 100.0,    # geometric rho (%)
+            "cr_rho": np.maximum(1.0 - eta_frac, 0.0) * rho_t / 100.0,
+            "csi":    csi / max(float(csi_med), eps),
+            "ri":     ri  / max(float(ri_med),  eps),
         }
     )
 
     data_dict = {c: X_sym[c].to_numpy(dtype=float) for c in X_sym.columns}
-    return X_sym, data_dict, Mn_physics
+    return X_sym, data_dict, M0
 
 
 def augment_with_anchor_samples(
@@ -265,25 +261,19 @@ def augment_with_anchor_samples(
     if near_zero.sum() < 3:
         logger.warning("Too few near-zero eta samples for anchoring; skipping augmentation")
         return X_sym, y_target
-    # R(η=0) = 1.0 by definition: no corrosion means full original capacity
-    anchor_target = 1.0
+    # z = log(M/M0) ≈ 0 at η≈0: M0 already captures full capacity with no corrosion
+    anchor_target = 0.0
     med_row = {c: float(np.median(X_sym[c])) for c in X_sym.columns}
     med_row["eta"] = 0.0
+    if "cr" in med_row:
+        med_row["cr"] = 1.0
+    if "cr_rho" in med_row:
+        med_row["cr_rho"] = med_row.get("rho", 0.02)
     anchors_X = pd.DataFrame([med_row] * n_anchors)
     anchors_y = np.full(n_anchors, anchor_target)
-    # High-eta anchors: enforce R(η=0.64) ≈ 0.95 (Mn_physics already uses As_corr,
-    # so M_exp/Mn_physics stays near 1.0 even at heavy corrosion)
-    n_high = n_anchors // 3
-    high_row = dict(med_row)
-    high_row["eta"] = 0.64
-    anchors_high_X = pd.DataFrame([high_row] * n_high)
-    anchors_high_y = np.full(n_high, 0.95)
-    X_aug = pd.concat([X_sym, anchors_X, anchors_high_X], ignore_index=True)
-    y_aug = np.concatenate([y_target, anchors_y, anchors_high_y])
-    logger.info(
-        f"Anchors: {n_anchors} at eta=0 (target=1.0), "
-        f"{n_high} at eta=0.64 (target=0.95)"
-    )
+    X_aug = pd.concat([X_sym, anchors_X], ignore_index=True)
+    y_aug = np.concatenate([y_target, anchors_y])
+    logger.info(f"Anchors: {n_anchors} at eta=0 (z_target=0.0)")
     return X_aug, y_aug
 
 
@@ -296,22 +286,20 @@ def _make_pysr_model(niterations, populations, maxsize, random_state):
         populations=populations,
         maxsize=maxsize,
         binary_operators=["+", "-", "*", "/"],
-        unary_operators=["sqrt", "log", "exp", "square", "cube"],
-        extra_sympy_mappings={"square": lambda x: x**2, "cube": lambda x: x**3},
+        unary_operators=["sqrt", "log", "square"],
+        extra_sympy_mappings={"square": lambda x: x**2},
         nested_constraints={
-            "sqrt":   {"sqrt": 0, "log": 1, "exp": 1},
-            "log":    {"log":  0, "sqrt": 1, "exp": 0},
-            "exp":    {"exp":  0, "log":  1, "sqrt": 1},
-            "square": {"square": 0, "cube": 0, "exp": 1},
-            "cube":   {"cube":   0, "square": 0, "exp": 1},
+            "sqrt":   {"sqrt": 0, "log": 1},
+            "log":    {"log":  0, "sqrt": 1},
+            "square": {"square": 0},
         },
-        constraints={"sqrt": 8, "log": 8, "exp": 6, "square": 8, "cube": 8},
+        constraints={"sqrt": 8, "log": 8, "square": 8},
         model_selection="accuracy",
-        # Relative Huber loss: threshold 0.25 (tighter than 0.5) → more MAPE-focused gradient
+        # Huber loss on z directly (z is near 0, no relative division needed)
         elementwise_loss=(
             "loss(x, y) = begin\n"
-            "  r = (x - y) / max(abs(y), 0.05f0)\n"
-            "  abs(r) < 0.25f0 ? 0.5f0*r^2 : abs(r) - 0.125f0\n"
+            "  r = x - y\n"
+            "  abs(r) < 0.10f0 ? 0.5f0*r^2 : 0.10f0*(abs(r) - 0.05f0)\n"
             "end"
         ),
         random_state=random_state,
@@ -610,12 +598,15 @@ def _get_equation_string(row: pd.Series) -> str:
 
 
 def _apply_eta_subs(subs: Dict[str, float], eta_value: float) -> Dict[str, float]:
-    """Update subs dict so As_corr and corr_ratio are physically consistent with eta."""
+    """Update subs dict so cr and related features are physically consistent with eta."""
     subs["eta"] = eta_value
-    if "As_corr" in subs and "As" in subs:
-        subs["As_corr"] = subs["As"] * max(0.0, 1.0 - eta_value)
+    cr_val = max(0.0, 1.0 - eta_value)
+    if "cr" in subs:
+        subs["cr"] = cr_val
     if "corr_ratio" in subs:
-        subs["corr_ratio"] = max(0.0, 1.0 - eta_value)  # corr_ratio = 1 - eta
+        subs["corr_ratio"] = cr_val
+    if "cr_rho" in subs:
+        subs["cr_rho"] = cr_val * subs.get("rho", 0.02)
     return subs
 
 
@@ -631,8 +622,8 @@ def evaluate_endpoint_ratio(expr_sp, med: Dict[str, float], eta_value: float) ->
 
 
 def monotonic_violation(expr_sp, med: Dict[str, float], n_grid: int = 60) -> float:
-    # Equation must contain eta to be monotonically decreasing with corrosion
-    if "eta" not in {str(s) for s in expr_sp.free_symbols}:
+    free_s = {str(s) for s in expr_sp.free_symbols}
+    if "eta" not in free_s and "cr" not in free_s:
         return 1.0
     eta_vals = np.linspace(0.0, 0.64, n_grid)  # limit to realistic data range
     vals = []
@@ -657,7 +648,7 @@ def estimate_complexity(row: pd.Series, expr: str) -> float:
         return float(row["complexity"])
     ops = len(re.findall(r"[\+\-\*/\^]", expr))
     funcs = len(re.findall(r"sqrt|log|exp|abs", expr))
-    terms = len(re.findall(r"eta|rho|d_mm|b_mm|fc|fy|As|csi|ri", expr))
+    terms = len(re.findall(r"eta|cr|rho|d_b|a_d|fc|fy|fy_fc|rho_g|csi|ri", expr))
     return float(ops + 1.5 * funcs + 0.5 * terms)
 
 
@@ -665,15 +656,13 @@ def evaluate_candidates(
     eq_df: pd.DataFrame,
     data_dict: Dict[str, np.ndarray],
     y_true: np.ndarray,
-    y_target: np.ndarray,          # M_stack/M_ACI ratio
-    m_aci: np.ndarray | None = None,
+    y_target: np.ndarray,          # z = log(M_exp/M0)
+    M0_eval: np.ndarray | None = None,
 ) -> List[Candidate]:
     cands: List[Candidate] = []
 
     med    = {k: float(np.median(v)) for k, v in data_dict.items()}
     mean_y = float(np.mean(y_true))
-    # Dynamic MAPE floor: 5% of mean absolute y_true (scales with data magnitude)
-    eps_mape = max(float(np.mean(np.abs(y_true))) * 0.05, 1.0)
 
     for _, row in eq_df.iterrows():
         expr = _get_equation_string(row)
@@ -691,52 +680,43 @@ def evaluate_candidates(
         if log_pred.ndim != 1 or len(log_pred) != len(y_true):
             continue
 
-        # Sign violation: fraction of physically impossible negative capacity ratios
         finite_mask = np.isfinite(log_pred)
-        sign_frac = float(np.mean(log_pred[finite_mask] < -0.01)) if finite_mask.any() else 1.0
+        z_pred = np.nan_to_num(log_pred, nan=0.0, posinf=1.0, neginf=-1.0)
+        z_pred = np.clip(z_pred, -1.0, 1.0)
+        _M0 = M0_eval if M0_eval is not None else np.ones(len(y_true))
+        y_pred = _M0 * np.exp(z_pred)   # M0 × exp(z) → kN·m
 
-        ratio_pred = np.nan_to_num(log_pred, nan=0.0, posinf=5.0, neginf=0.0)
-        _maci = m_aci if m_aci is not None else np.ones(len(y_true))
-        y_pred = np.maximum(ratio_pred * _maci, 0.0)   # ratio × M_ACI → kN·m
+        sign_frac = float(np.mean(y_pred <= 0.0))  # always 0 with M0*exp(z), kept for safety
 
         r2   = float(r2_score(y_true, y_pred))
         rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
         mae  = float(mean_absolute_error(y_true, y_pred))
         mape = float(
-            np.mean(
-                np.clip(
-                    np.abs((y_true - y_pred) / np.maximum(np.abs(y_true), eps_mape)),
-                    0.0, 5.0,
-                )
-            ) * 100.0
+            np.mean(np.abs((y_true - y_pred) / np.maximum(np.abs(y_true), 1e-9))) * 100.0
         )
 
-        # Endpoint physics in ratio space
-        r0   = evaluate_endpoint_ratio(expr_sp, med, 0.0)
-        r100 = evaluate_endpoint_ratio(expr_sp, med, 0.64)
-        # At eta=0: ratio should be ~1.0 (no corrosion = full capacity)
-        end0   = abs(r0 - 1.0)           if np.isfinite(r0)   else 1.0
-        # At eta=0.64: ratio should be ~0.95 (Mn_physics already uses As_corr,
-        # so M_exp/Mn_physics stays near 1.0 at heavy corrosion)
-        end100 = abs(r100 - 0.95)        if np.isfinite(r100) else 1.0
+        # Endpoint physics in z-space: z ≈ 0 at both endpoints since M0 handles corrosion
+        z0   = evaluate_endpoint_ratio(expr_sp, med, 0.0)
+        z100 = evaluate_endpoint_ratio(expr_sp, med, 0.64)
+        end0   = abs(z0   - 0.0) if np.isfinite(z0)   else 1.0
+        end100 = abs(z100 - 0.0) if np.isfinite(z100) else 1.0
 
         mono = monotonic_violation(expr_sp, med)
         comp = estimate_complexity(row, expr)
         free_syms = {str(s) for s in expr_sp.free_symbols}
-        has_eta = "eta" in free_syms
-        has_d   = "d_mm" in free_syms
-        has_fc  = "fc"   in free_syms
-        # Detect exp applied directly to dimensional non-corrosion variables (physically nonsensical)
+        has_eta = "eta" in free_syms or "cr" in free_syms
+        has_d   = "d_b" in free_syms or "a_d" in free_syms or "rho_g" in free_syms
+        has_fc  = "fc"  in free_syms or "fy_fc" in free_syms
         _nonsense_exp = bool(
-            "exp" in expr and re.search(r"exp\s*\(\s*(fy|b_mm|rho|d_mm|fc)\s*\)", expr)
+            "exp" in expr and re.search(r"exp\s*\(\s*(fy|rho|d_b|fc|fy_fc)\s*\)", expr)
         )
 
         metrics = {
             "R2": round(r2, 4), "RMSE": round(rmse, 4),
             "MAE": round(mae, 4), "MAPE": round(mape, 2),
-            "ratio_eta0":   round(float(r0),   4) if np.isfinite(r0)   else None,
-            "ratio_eta064": round(float(r100),  4) if np.isfinite(r100) else None,
-            "has_d_mm": has_d, "has_fc": has_fc, "sign_ok": sign_frac < 0.05,
+            "z_eta0":   round(float(z0),   4) if np.isfinite(z0)   else None,
+            "z_eta064": round(float(z100),  4) if np.isfinite(z100) else None,
+            "has_d": has_d, "has_fc": has_fc, "sign_ok": sign_frac < 0.05,
         }
         objectives = {
             "obj_r2":     max(0.0, 1.0 - r2),
@@ -747,9 +727,9 @@ def evaluate_candidates(
             "obj_mono":   mono,
             "obj_comp":   comp / 50.0,
             "obj_no_eta": 0.5 if not has_eta else 0.0,
-            "obj_no_d":   1.0 if not has_d   else 0.0,   # doubled: depth is 47% SHAP
-            "obj_no_fc":  1.0 if not has_fc  else 0.0,   # doubled: fc is in ACI formula
-            "obj_sign":   sign_frac + (0.5 if _nonsense_exp else 0.0),  # neg ratios + nonsensical exp
+            "obj_no_d":   1.0 if not has_d   else 0.0,
+            "obj_no_fc":  1.0 if not has_fc  else 0.0,
+            "obj_sign":   sign_frac + (0.5 if _nonsense_exp else 0.0),
         }
 
         cands.append(
@@ -952,7 +932,7 @@ def compute_cv_metrics(
     best_eq: str,
     data_dict: Dict[str, np.ndarray],
     y_true: np.ndarray,
-    m_aci: np.ndarray,
+    M0: np.ndarray,
     n_splits: int = 5,
 ) -> Dict[str, float]:
     """5-fold cross-validation of the best equation — required for top-journal publication."""
@@ -964,20 +944,20 @@ def compute_cv_metrics(
     indices = np.arange(n)
     fold_r2, fold_mape, fold_rmse, fold_mae = [], [], [], []
     for _, test_idx in kf.split(indices):
-        dd_fold  = {k: v[test_idx] for k, v in data_dict.items()}
-        yt_fold  = y_true[test_idx]
-        mac_fold = m_aci[test_idx]
-        ratio    = np.nan_to_num(
+        dd_fold = {k: v[test_idx] for k, v in data_dict.items()}
+        yt_fold = y_true[test_idx]
+        M0_fold = M0[test_idx]
+        z = np.nan_to_num(
             np.asarray(fn(*[dd_fold[k] for k in data_dict.keys()]), dtype=float),
-            nan=0.0, posinf=5.0, neginf=0.0,
+            nan=0.0, posinf=1.0, neginf=-1.0,
         )
-        yp = np.maximum(ratio * mac_fold, 0.0)
+        z = np.clip(z, -1.0, 1.0)
+        yp = M0_fold * np.exp(z)
         fold_r2.append(float(r2_score(yt_fold, yp)))
         fold_rmse.append(float(np.sqrt(mean_squared_error(yt_fold, yp))))
         fold_mae.append(float(mean_absolute_error(yt_fold, yp)))
-        eps = max(float(np.mean(np.abs(yt_fold))) * 0.05, 1.0)
         fold_mape.append(float(
-            np.mean(np.clip(np.abs((yt_fold - yp) / np.maximum(np.abs(yt_fold), eps)), 0.0, 5.0)) * 100.0
+            np.mean(np.abs((yt_fold - yp) / np.maximum(np.abs(yt_fold), 1e-9))) * 100.0
         ))
     result = {
         "cv_R2_mean":   round(float(np.mean(fold_r2)),   4),
@@ -1000,11 +980,11 @@ def save_outputs(
     cands: List[Candidate],
     best_idx: int,
     y_true: np.ndarray,
-    m_aci: np.ndarray,
+    M0: np.ndarray,
     data_dict: Dict[str, np.ndarray],
     m_stack: np.ndarray | None = None,
     y_true_test: np.ndarray | None = None,
-    m_aci_test: np.ndarray | None = None,
+    M0_test: np.ndarray | None = None,
     data_dict_test: Dict[str, np.ndarray] | None = None,
 ) -> None:
     best = cands[best_idx]
@@ -1026,44 +1006,33 @@ def save_outputs(
     out_rank = MODELS_DIR / "pysr_candidates_ranked.json"
     out_rank.write_text(json.dumps(ranked, indent=2))
 
-    # Recompute best predictions: equation gives ratio R, Mmax = R * M_ACI
-    expr_sp    = safe_sympify(best.equation)
-    fn         = sp.lambdify(tuple(data_dict.keys()), expr_sp, modules=["numpy"])
-    ratio_pred = np.asarray(fn(*[data_dict[k] for k in data_dict.keys()]), dtype=float)
-    ratio_pred = np.nan_to_num(ratio_pred, nan=0.0, posinf=5.0, neginf=0.0)
-    y_pred     = np.maximum(ratio_pred * m_aci, 0.0)
+    # Recompute best predictions: Mmax = M0 * exp(z)
+    expr_sp = safe_sympify(best.equation)
+    fn      = sp.lambdify(tuple(data_dict.keys()), expr_sp, modules=["numpy"])
+    z_pred  = np.asarray(fn(*[data_dict[k] for k in data_dict.keys()]), dtype=float)
+    z_pred  = np.clip(np.nan_to_num(z_pred, nan=0.0, posinf=1.0, neginf=-1.0), -1.0, 1.0)
+    y_pred  = M0 * np.exp(z_pred)
 
-    r2 = float(r2_score(y_true, y_pred))
+    r2   = float(r2_score(y_true, y_pred))
     rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
-    mae = float(mean_absolute_error(y_true, y_pred))
+    mae  = float(mean_absolute_error(y_true, y_pred))
     mape = float(
-        np.mean(
-            np.clip(
-                np.abs((y_true - y_pred) / np.maximum(np.abs(y_true), 1.0)),
-                0.0,
-                10.0,
-            )
-        )
-        * 100.0
+        np.mean(np.abs((y_true - y_pred) / np.maximum(np.abs(y_true), 1e-9))) * 100.0
     )
 
     stack_r2 = float(r2_score(y_true, m_stack)) if m_stack is not None else None
 
     # ── Test-set metrics (20% holdout — scientific validation) ────────────
     test_r2 = test_rmse = test_mae = test_mape = None
-    if y_true_test is not None and data_dict_test is not None and m_aci_test is not None:
-        ratio_t = np.asarray(fn(*[data_dict_test[k] for k in data_dict.keys()]), dtype=float)
-        ratio_t = np.nan_to_num(ratio_t, nan=0.0, posinf=5.0, neginf=0.0)
-        y_pred_t = np.maximum(ratio_t * m_aci_test, 0.0)
+    if y_true_test is not None and data_dict_test is not None and M0_test is not None:
+        z_t = np.asarray(fn(*[data_dict_test[k] for k in data_dict.keys()]), dtype=float)
+        z_t = np.clip(np.nan_to_num(z_t, nan=0.0, posinf=1.0, neginf=-1.0), -1.0, 1.0)
+        y_pred_t  = M0_test * np.exp(z_t)
         test_r2   = float(r2_score(y_true_test, y_pred_t))
         test_rmse = float(np.sqrt(mean_squared_error(y_true_test, y_pred_t)))
         test_mae  = float(mean_absolute_error(y_true_test, y_pred_t))
-        eps_t     = max(float(np.mean(np.abs(y_true_test))) * 0.05, 1.0)
         test_mape = float(
-            np.mean(np.clip(
-                np.abs((y_true_test - y_pred_t) / np.maximum(np.abs(y_true_test), eps_t)),
-                0.0, 5.0,
-            )) * 100.0
+            np.mean(np.abs((y_true_test - y_pred_t) / np.maximum(np.abs(y_true_test), 1e-9))) * 100.0
         )
         logger.info(
             f"Test-set (20%): R²={test_r2:.4f}  RMSE={test_rmse:.4f}  "
@@ -1071,7 +1040,7 @@ def save_outputs(
         )
 
     # ── 5-fold cross-validation (required for top-journal submission) ────────
-    cv = compute_cv_metrics(best.equation, data_dict, y_true, m_aci, n_splits=5)
+    cv = compute_cv_metrics(best.equation, data_dict, y_true, M0, n_splits=5)
 
     out_metrics = {
         "approach": "Stacking-to-PySR ratio distillation (Mstack/MACI) with NSGA-III + SHAP selection",
@@ -1105,26 +1074,28 @@ def save_outputs(
         f"MAPE={cv['cv_MAPE_mean']}±{cv['cv_MAPE_std']}%\n"
     )
     (EQ_DIR / "best_equation_stacking.txt").write_text(
-        "# Best Equation from Stacking->PySR (ratio distillation)\n"
-        f"# Train R²={r2:.4f}  RMSE={rmse:.4f}  MAE={mae:.4f}  MAPE={mape:.2f}%\n"
+        "# Best Equation from PySR log-space distillation: Mmax = M0 * exp(z)\n"
+        "# M0 = As_corr * fy * (d - a_corr/2) / 1e6  [kN·m]  (ACI with corroded area)\n"
+        f"# TrainVal R²={r2:.4f}  RMSE={rmse:.4f}  MAE={mae:.4f}  MAPE={mape:.2f}%\n"
         f"{test_label}"
         f"{cv_label}"
         f"{stack_label}"
-        "# Features: eta=mass_loss/100, rho=reinf_ratio/100,\n"
-        "#            d_mm=depth/300, b_mm=width/200,\n"
-        "#            fc=fc_MPa/40, fy=fy_MPa/500,\n"
-        "#            As_corr=corroded_steel_area/1500,\n"
+        "# Features: eta=mass_loss/100, cr=1-eta,\n"
+        "#            rho=rho_t/100, d_b=d/b, a_d=a_corr/d,\n"
+        "#            fc=fc_MPa/40, fy=fy_MPa/500, fy_fc=fy/fc,\n"
+        "#            rho_g=As/(b*d)*100, cr_rho=cr*rho,\n"
         "#            csi=corr_severity_idx, ri=reinf_index\n"
-        "# R = Mmax / MACI  (dimensionless capacity ratio)\n\n"
-        f"R = {best.equation}\n"
-        "Mmax = R * MACI   [kN·m]\n"
+        "# z = log-correction to physics baseline\n\n"
+        f"z = {best.equation}\n"
+        "Mmax = M0 * exp(z)   [kN·m]\n"
     )
 
     latex_eq = sp.latex(expr_sp)
     (EQ_DIR / "best_equation_stacking.latex").write_text(
-        "% Best Equation from Stacking->PySR (ratio distillation: R = Mmax/MACI)\n"
-        f"R = {latex_eq}\n"
-        r"M_{\max} = R \cdot M_{\mathrm{ACI}} \quad [\mathrm{kN{\cdot}m}]" + "\n"
+        "% Best Equation from PySR log-space distillation\n"
+        f"z = {latex_eq}\n"
+        r"M_{\max} = M_0 \cdot e^{z} \quad [\mathrm{kN{\cdot}m}]" + "\n"
+        r"M_0 = \frac{A_{s,c} f_y (d - a_c/2)}{10^6}, \quad a_c = \frac{A_{s,c} f_y}{0.85 f'_c b}" + "\n"
     )
 
     # Figure 1: predicted vs true
@@ -1135,33 +1106,31 @@ def save_outputs(
     hi = float(max(y_true.max(), y_pred.max()))
     plt.plot([lo, hi], [lo, hi], "r--", lw=1.5)
     plt.xlabel("Experimental $M_{max}$ (kN·m)")
-    plt.ylabel("Equation $M_{max}$ (kN·m)")
-    plt.title(f"Stacking→PySR | R²={r2:.4f} | MAPE={mape:.2f}%")
+    plt.ylabel("Equation $M_{max} = M_0 e^z$ (kN·m)")
+    plt.title(f"PySR log-space | R²={r2:.4f} | MAPE={mape:.2f}%")
     plt.tight_layout()
     plt.savefig(fig1, dpi=250)
     plt.close()
 
-    # Figure 2: endpoint + monotonicity trend
+    # Figure 2: z(η) trend — should be near 0 and monotonically non-increasing
     med = {k: float(np.median(v)) for k, v in data_dict.items()}
-    eta_grid = np.linspace(0.0, 1.0, 120)
-    ratio_grid = []
+    eta_grid = np.linspace(0.0, 0.70, 120)
+    z_grid = []
     for e in eta_grid:
-        subs = dict(med)
-        subs["eta"] = float(e)
+        subs = _apply_eta_subs(dict(med), float(e))
         try:
-            ratio_grid.append(float(expr_sp.evalf(subs=subs)))
+            z_grid.append(float(expr_sp.evalf(subs=subs)))
         except Exception:
-            ratio_grid.append(float("nan"))
-    ratio_grid = np.asarray(ratio_grid, dtype=float)
+            z_grid.append(float("nan"))
+    z_grid = np.asarray(z_grid, dtype=float)
 
     fig2 = FIG_DIR / "pysr_stacking_endpoints.png"
     plt.figure(figsize=(7, 4))
-    plt.plot(eta_grid * 100.0, ratio_grid, lw=2, label="Equation ratio R(η)")
-    plt.axhline(1.0, color="g", ls="--", lw=1, label="Target @0% = 1.0")
-    plt.axhline(0.0, color="r", ls="--", lw=1, label="Target @100% = 0.0")
+    plt.plot(eta_grid * 100.0, z_grid, lw=2, label="z(η) correction")
+    plt.axhline(0.0, color="g", ls="--", lw=1, label="z = 0 (no correction)")
     plt.xlabel("Mass Loss η (%)")
-    plt.ylabel("Ratio R = M / M_ACI")
-    plt.title("Endpoint + Monotonicity Diagnostic")
+    plt.ylabel("z = log(M / M₀)")
+    plt.title("Log-correction z(η) Diagnostic")
     plt.legend()
     plt.tight_layout()
     plt.savefig(fig2, dpi=250)
@@ -1179,9 +1148,9 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Stacking to PySR symbolic distillation with MOEA/D-style selection"
     )
-    p.add_argument("--niterations", type=int, default=3000)
-    p.add_argument("--populations", type=int, default=50)
-    p.add_argument("--maxsize",     type=int, default=30)
+    p.add_argument("--niterations", type=int, default=6000)
+    p.add_argument("--populations", type=int, default=40)
+    p.add_argument("--maxsize",     type=int, default=18)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--ref-vectors", type=int, default=8,
                    help="NSGA-III Das-Dennis partitions (default=8 → ~1287 ref-points for 8 obj)")
@@ -1213,35 +1182,43 @@ def main() -> None:
         logger.info("Deleted cached pysr_model.pkl — starting fresh search")
 
     df, X_scaled, y_true, m_aci = prepare_full_dataframe()
-    m_stack  = get_stacking_predictions(X_scaled)
+    m_stack = get_stacking_predictions(X_scaled)
 
-    X_sym, data_dict, Mn_physics = build_symbolic_inputs(df)
+    X_sym, data_dict, M0_raw = build_symbolic_inputs(df)
+    M0 = np.maximum(M0_raw, 1e-9)
 
-    # New target: Mmax / Mn_physics — range ~0.85-1.15 (much tighter than M/M_ACI)
-    # Mn_physics uses As_corr so corrosion is already encoded in the baseline
-    m_base   = np.maximum(Mn_physics, 1e-3)
-    y_target = np.clip(y_true / m_base, 0.3, 2.0)
+    # Target: z = log(M_exp / M0) — small residual (~±0.3) that PySR learns
+    z_true = np.log(np.maximum(y_true, 1e-9) / M0)
+    y_target = np.clip(z_true, -1.0, 1.0)
     logger.info(
-        f"Target ratio Mmax/Mn_physics: mean={y_target.mean():.3f}, "
-        f"std={y_target.std():.3f}, range=[{y_target.min():.2f}, {y_target.max():.2f}]"
+        f"Log-space target z=log(M_exp/M0): mean={y_target.mean():.3f}, "
+        f"std={y_target.std():.3f}, range=[{y_target.min():.3f}, {y_target.max():.3f}]"
     )
 
-    # ── 20% holdout test set (for final reporting only) ─────────────────────────
+    # ── 3-way split: 60% train / 20% val / 20% test ─────────────────────────
     n = len(y_true)
-    train_idx, test_idx = train_test_split(np.arange(n), test_size=0.2, random_state=args.seed)
-    y_true_test    = y_true[test_idx]
-    m_base_test    = m_base[test_idx]
-    m_aci_test     = m_aci[test_idx]
-    data_dict_test = {k: v[test_idx] for k, v in data_dict.items()}
+    trainval_idx, test_idx = train_test_split(np.arange(n), test_size=0.20, random_state=args.seed)
+    train_idx, val_idx     = train_test_split(trainval_idx, test_size=0.25, random_state=args.seed)
 
-    # PySR trains on ALL n samples + physics anchors — 5-fold CV is the honest estimator
-    X_sym_aug, y_target_aug = augment_with_anchor_samples(X_sym, y_target)
-    X_sym_tr    = X_sym
-    y_target_tr = y_target
+    # PySR trains on 60% train only + physics anchors
+    X_sym_train    = X_sym.iloc[train_idx].reset_index(drop=True)
+    y_target_train = y_target[train_idx]
+    X_sym_aug, y_target_aug = augment_with_anchor_samples(X_sym_train, y_target_train)
+
+    # Validation set for equation selection (never seen by PySR)
+    data_dict_val = {k: v[val_idx] for k, v in data_dict.items()}
+    y_true_val    = y_true[val_idx]
+    M0_val        = M0[val_idx]
+    z_true_val    = y_target[val_idx]
+
+    # Test set: only touched for final reporting
+    data_dict_test = {k: v[test_idx] for k, v in data_dict.items()}
+    y_true_test    = y_true[test_idx]
+    M0_test        = M0[test_idx]
 
     logger.info(
-        f"Split: {n} train (all) + {len(X_sym_aug)-n} anchors | "
-        f"{len(test_idx)} test (held-out for final reporting)"
+        f"Split: {len(train_idx)} train + {len(X_sym_aug)-len(train_idx)} anchors | "
+        f"{len(val_idx)} val (selection) | {len(test_idx)} test (final report)"
     )
 
     _, eq_df = run_pysr(
@@ -1253,15 +1230,11 @@ def main() -> None:
         random_state=args.seed,
     )
 
-    # Evaluate candidates: ratio * m_base → Mmax prediction
-    cands = evaluate_candidates(eq_df, data_dict, y_true, y_target, m_base)
+    # Select equation using VALIDATION set only — no leakage
+    cands = evaluate_candidates(eq_df, data_dict_val, y_true_val, z_true_val, M0_val)
 
-    kan_exprs = run_kan_symbolic(X_sym_tr, y_target_tr, random_state=args.seed)
-    if kan_exprs:
-        kan_df    = pd.DataFrame([{"sympy_format": e, "complexity": 15.0} for e in kan_exprs])
-        kan_cands = evaluate_candidates(kan_df, data_dict, y_true, y_target, m_base)
-        logger.info(f"KAN contributed {len(kan_cands)} valid candidate(s)")
-        cands.extend(kan_cands)
+    # KAN disabled: inconsistent output format with z-space pipeline
+    kan_exprs: List[str] = []
 
     if not cands:
         raise RuntimeError(
@@ -1279,9 +1252,14 @@ def main() -> None:
         w_complexity=args.w_complexity,
         shap_obj_weights=shap_weights,
     )
+
+    # Pass trainval (80%) for CV, test (20%) for final holdout report
+    data_dict_trainval = {k: v[trainval_idx] for k, v in data_dict.items()}
     save_outputs(
-        cands, best_idx, y_true, m_base, data_dict, m_stack=m_stack,
-        y_true_test=y_true_test, m_aci_test=m_base_test, data_dict_test=data_dict_test,
+        cands, best_idx,
+        y_true[trainval_idx], M0[trainval_idx], data_dict_trainval,
+        m_stack=m_stack[trainval_idx],
+        y_true_test=y_true_test, M0_test=M0_test, data_dict_test=data_dict_test,
     )
 
     logger.success("Done. Best equation pipeline finished successfully.")
