@@ -431,8 +431,7 @@ def run_kan_symbolic(
 
         # Train in log-space: log(R) has zero mean and real variance,
         # preventing KAN from collapsing to the trivial constant R≈1 solution.
-        y_log = np.log(np.maximum(y_target, 1e-3))
-        y_t   = torch.tensor(y_log, dtype=torch.float32).unsqueeze(1)
+        y_t   = torch.tensor(y_target, dtype=torch.float32).unsqueeze(1)
         dataset = {"train_input": X_t, "train_label": y_t,
                    "test_input":  X_t, "test_label":  y_t}
 
@@ -1203,7 +1202,9 @@ def main() -> None:
     # PySR trains on 60% train only + physics anchors
     X_sym_train    = X_sym.iloc[train_idx].reset_index(drop=True)
     y_target_train = y_target[train_idx]
-    X_sym_aug, y_target_aug = augment_with_anchor_samples(X_sym_train, y_target_train)
+    # Anchors disabled: M0 already encodes corrosion physics; anchor a_d would need
+    # full recomputation per-eta which is not done in augment_with_anchor_samples.
+    X_sym_aug, y_target_aug = X_sym_train, y_target_train
 
     # Validation set for equation selection (never seen by PySR)
     data_dict_val = {k: v[val_idx] for k, v in data_dict.items()}
