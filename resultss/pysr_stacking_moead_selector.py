@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """
-SHAP-guided PySR symbolic distillation of the Stacking ensemble — NSGA-III selection.
+Physics-Guided Residual Symbolic Regression (PG-RSR) — NSGA-III selection.
 
 Pipeline:
 1) Load + preprocess full dataset.
-2) Load Stacking model → generate M_stack predictions.
-3) Distillation target: R = M_stack / M_ACI  (dimensionless ratio).
-4) Symbolic features: eta, rho, d_mm, b_mm, csi, ri  (SHAP-informed).
-5) PySR evolves candidate equations over 11 objectives:
-   1-R², MAPE, RMSE_norm, endpoint(η=0)→1, endpoint(η=0.64)→0.95,
-   monotonicity, complexity, no-eta penalty, no-d_mm penalty, no-fc penalty, sign penalty.
-6) NSGA-III (Das-Dennis refs + fast non-dominated sort) selects the
-   Pareto-diverse front; SHAP weights boost accuracy objectives for
-   the most physically relevant features (Depth 47 %, Mass-loss ~20 %).
-7) SHAP-scaled weighted scoring picks the single best equation.
+2) Compute physics baseline M0 = As_c fy (d - ac/2) / 1e6  [kN·m]
+   where As_c = As(1-η),  ac = As_c fy / (0.85 fc b).
+3) Target: z = log(M_exp / M0)  — small log-residual (~±0.3).
+4) PySR learns z using dimensionless features:
+   eta, cr, rho, d_b, a_d, fc, fy, fy_fc, rho_g, cr_rho, csi, ri.
+5) Final prediction: M_pred = M0 · exp(z_pred).
+6) NSGA-III (Das-Dennis + fast non-dominated sort) selects Pareto front.
+7) Equation selected on VALIDATION set only — test untouched until end.
 8) Saves equation, LaTeX, metrics JSON, ranked candidates, and plots.
 
+Published form:  M_max = M0 · exp(f)
+where f is the symbolic correction discovered by PySR.
 Designed for Kaggle / Colab execution.
 """
 
@@ -295,11 +295,12 @@ def _make_pysr_model(niterations, populations, maxsize, random_state):
         },
         constraints={"sqrt": 8, "log": 8, "square": 8},
         model_selection="accuracy",
-        # Huber loss on z directly (z is near 0, no relative division needed)
+        # Huber on relative error: |exp(z_pred - z_true) - 1| ≈ MAPE directly
         elementwise_loss=(
             "loss(x, y) = begin\n"
-            "  r = x - y\n"
-            "  abs(r) < 0.10f0 ? 0.5f0*r^2 : 0.10f0*(abs(r) - 0.05f0)\n"
+            "  r = exp(x - y) - 1.0f0\n"
+            "  ar = abs(r)\n"
+            "  ar < 0.10f0 ? 0.5f0*r^2/0.10f0 : ar - 0.05f0\n"
             "end"
         ),
         random_state=random_state,
@@ -539,18 +540,17 @@ def run_kan_symbolic(
             if not any(name in s for name in top_feats):
                 logger.warning(f"KAN formula constant — skipping: {s}")
                 continue
-            # Pre-validate: must parse in sympy before adding
-            s_wrapped = f"exp({s})"
+            # KAN output is z directly (no exp wrapping — outer formula is M0*exp(z))
             try:
-                test_sp = safe_sympify(s_wrapped)
+                test_sp = safe_sympify(s)
                 free = {str(sym) for sym in test_sp.free_symbols}
                 if not any(name in free for name in top_feats):
                     logger.warning(f"KAN sympify gave no feature symbols — skipping")
                     continue
             except Exception as parse_err:
-                logger.warning(f"KAN formula failed sympify: {parse_err} — raw: {s_wrapped[:80]}")
+                logger.warning(f"KAN formula failed sympify: {parse_err} — raw: {s[:80]}")
                 continue
-            results.append(s_wrapped)
+            results.append(s)
 
         logger.info(f"KAN produced {len(results)} symbolic candidate(s)")
         return results
@@ -621,23 +621,34 @@ def evaluate_endpoint_ratio(expr_sp, med: Dict[str, float], eta_value: float) ->
 
 
 def monotonic_violation(expr_sp, med: Dict[str, float], n_grid: int = 60) -> float:
+    # Check that M_pred(η) = M0(η) * exp(z(η)) decreases with η — not z alone
+    # z is a correction term; it needn't be monotone by itself.
     free_s = {str(s) for s in expr_sp.free_symbols}
     if "eta" not in free_s and "cr" not in free_s:
         return 1.0
-    eta_vals = np.linspace(0.0, 0.64, n_grid)  # limit to realistic data range
-    vals = []
+    eta_vals = np.linspace(0.0, 0.64, n_grid)
+    cr_med   = max(float(med.get("cr",  0.80)), 1e-9)
+    a_d_med  = max(float(med.get("a_d", 0.10)), 1e-9)
+
+    log_M_pred = []
     for e in eta_vals:
         subs = _apply_eta_subs(dict(med), float(e))
         try:
-            v = float(expr_sp.evalf(subs=subs))
+            z_val = float(expr_sp.evalf(subs=subs))
         except Exception:
             return 1.0
-        vals.append(v)
-    vals = np.asarray(vals, dtype=float)
+        # Approximate log(M0(η)) using dimensionless ratios at median geometry
+        cr_i   = max(1.0 - e, 1e-9)
+        a_d_i  = a_d_med * cr_i / cr_med
+        arm_i  = max(1.0 - 0.5 * a_d_i, 0.10)
+        arm_med = max(1.0 - 0.5 * a_d_med, 0.10)
+        log_M0_rel = np.log(cr_i / cr_med) + np.log(arm_i / arm_med)
+        log_M_pred.append(log_M0_rel + z_val)
+
+    vals = np.asarray(log_M_pred, dtype=float)
     if not np.all(np.isfinite(vals)):
         return 1.0
     diffs = np.diff(vals)
-    # Ratio should decrease (or stay flat) as corrosion increases
     return float(np.mean(diffs > 0.0))
 
 
