@@ -1052,12 +1052,33 @@ def save_outputs(
     # ── 5-fold cross-validation (required for top-journal submission) ────────
     cv = compute_cv_metrics(best.equation, data_dict, y_true, M0, n_splits=5)
 
+    # ── Publication gate ────────────────────────────────────────────────────
+    _val_mape  = best.metrics.get("MAPE", float("inf"))   # validation MAPE (selection set)
+    _test_mape = test_mape if test_mape is not None else float("inf")
+    _test_r2   = test_r2   if test_r2   is not None else -float("inf")
+    _accepted  = (
+        _val_mape  < 10.0
+        and _test_mape < 10.0
+        and _test_r2   > 0.95
+        and best.complexity <= 18.0
+        and best.metrics.get("sign_ok", False)
+    )
+    if not _accepted:
+        logger.warning(
+            f"Publication gate NOT passed: "
+            f"val_MAPE={_val_mape:.2f}% | test_MAPE={_test_mape:.2f}% | "
+            f"test_R²={_test_r2:.4f} | complexity={best.complexity:.0f}"
+        )
+    else:
+        logger.success("Publication gate PASSED: val_MAPE<10%, test_MAPE<10%, R²>0.95, complexity≤18")
+
     out_metrics = {
-        "approach": "Stacking-to-PySR ratio distillation (Mstack/MACI) with NSGA-III + SHAP selection",
+        "approach": "PG-RSR: Physics-Guided Residual Symbolic Regression — M_pred = M0 * exp(z)",
         "equation": best.equation,
-        "has_d_mm": best.metrics.get("has_d_mm", None),
-        "has_fc":   best.metrics.get("has_fc",   None),
-        "sign_ok":  best.metrics.get("sign_ok",  None),
+        "published_form": "Mmax = M0 * exp(z)  where M0 = As_c*fy*(d - ac/2)/1e6",
+        "has_d": best.metrics.get("has_d", None),
+        "has_fc": best.metrics.get("has_fc", None),
+        "sign_ok": best.metrics.get("sign_ok", None),
         "R2":   round(r2, 4),
         "RMSE": round(rmse, 4),
         "MAE":  round(mae, 4),
@@ -1066,11 +1087,13 @@ def save_outputs(
         "test_RMSE": round(test_rmse, 4) if test_rmse is not None else None,
         "test_MAE":  round(test_mae,  4) if test_mae  is not None else None,
         "test_MAPE": round(test_mape, 2) if test_mape is not None else None,
-        **cv,   # cv_R2_mean, cv_R2_std, cv_MAPE_mean, cv_MAPE_std, ...
+        **cv,
         "complexity": round(best.complexity, 4),
         "selection_score": round(best.score, 6),
         "n_candidates": len(cands),
         "stacking_R2_reference": round(stack_r2, 4) if stack_r2 is not None else None,
+        "accepted_for_publication": _accepted,
+        "acceptance_rule": "val_MAPE<10% and test_MAPE<10% and test_R2>0.95 and complexity<=18 and sign_ok",
     }
     (MODELS_DIR / "pysr_stacking_metrics.json").write_text(json.dumps(out_metrics, indent=2))
 
