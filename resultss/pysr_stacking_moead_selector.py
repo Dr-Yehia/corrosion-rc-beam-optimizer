@@ -260,10 +260,14 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
 
     # Add optional physics features if present in dataset
     extra_feats: dict = {}
+    cover_d = None
+    sv_d    = None
     if cover_raw is not None:
-        extra_feats["cover_d"] = cover_raw / np.maximum(d, eps)
+        cover_d = cover_raw / np.maximum(d, eps)
+        extra_feats["cover_d"] = cover_d
     if s_stir_raw is not None:
-        extra_feats["sv_d"] = s_stir_raw / np.maximum(d, eps)
+        sv_d = s_stir_raw / np.maximum(d, eps)
+        extra_feats["sv_d"] = sv_d
     if d_stir_raw is not None and s_stir_raw is not None:
         As_stir = np.pi * (d_stir_raw / 2.0) ** 2
         extra_feats["rho_s"] = 2.0 * As_stir / np.maximum(s_stir_raw * b, eps) * 100.0
@@ -277,7 +281,24 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
     if extra_feats:
         logger.info(f"Added {len(extra_feats)} extra physics features: {list(extra_feats.keys())}")
 
-    X_sym = pd.DataFrame({**base_feats, **extra_feats})
+    # Pre-computed interaction features — free complexity budget for deeper relationships.
+    # PySR discovering eta² costs 3 nodes; providing eta_sq costs 1 node → saves 2 units each.
+    rho_norm = base_feats["rho"]
+    fy_norm  = base_feats["fy"]
+    inter_feats: dict = {
+        "eta_sq":   eta_frac ** 2,
+        "eta_fy":   eta_frac * fy_norm,
+        "eta_rho":  eta_frac * rho_norm,
+        "log_fy":   np.log(np.maximum(fy_norm, 1e-9)),
+    }
+    if cover_d is not None:
+        inter_feats["eta_cover"] = eta_frac * cover_d
+        inter_feats["cover_sq"]  = cover_d ** 2
+    if sv_d is not None and "rho_s" in extra_feats:
+        inter_feats["sv_rho"] = sv_d * extra_feats["rho_s"]
+    logger.info(f"Added {len(inter_feats)} pre-computed interaction features: {list(inter_feats.keys())}")
+
+    X_sym = pd.DataFrame({**base_feats, **extra_feats, **inter_feats})
 
     data_dict = {c: X_sym[c].to_numpy(dtype=float) for c in X_sym.columns}
     return X_sym, data_dict, M0
@@ -1276,7 +1297,7 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("--niterations", type=int, default=6000)
     p.add_argument("--populations", type=int, default=40)
-    p.add_argument("--maxsize",     type=int, default=25)
+    p.add_argument("--maxsize",     type=int, default=35)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--ref-vectors", type=int, default=8,
                    help="NSGA-III Das-Dennis partitions (default=8 → ~1287 ref-points for 8 obj)")
