@@ -1276,7 +1276,7 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("--niterations", type=int, default=6000)
     p.add_argument("--populations", type=int, default=40)
-    p.add_argument("--maxsize",     type=int, default=18)
+    p.add_argument("--maxsize",     type=int, default=25)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--ref-vectors", type=int, default=8,
                    help="NSGA-III Das-Dennis partitions (default=8 → ~1287 ref-points for 8 obj)")
