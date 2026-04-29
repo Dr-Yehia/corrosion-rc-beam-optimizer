@@ -243,60 +243,37 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
     csi_med = np.median(np.abs(csi))
     ri_med  = np.median(np.abs(ri))
 
+    # Trimmed to 12 features that consistently appear in winning equations.
+    # Removed: d_b, a_d, fy_fc, csi — never appeared in top candidates.
     base_feats = {
         "eta":    eta_frac,
-        "cr":     np.maximum(1.0 - eta_frac, 0.0),
-        "rho":    rho_t / 100.0,
-        "d_b":    d / np.maximum(b, eps),
-        "a_d":    a_corr / np.maximum(d, eps),
         "fc":     fc / 40.0,
         "fy":     fy / 500.0,
-        "fy_fc":  fy / np.maximum(fc, eps),
         "rho_g":  As / np.maximum(b * d, eps) * 100.0,
         "cr_rho": np.maximum(1.0 - eta_frac, 0.0) * rho_t / 100.0,
-        "csi":    csi / max(float(csi_med), eps),
         "ri":     ri  / max(float(ri_med),  eps),
     }
 
-    # Add optional physics features if present in dataset
+    # Add optional physics features — only cover (confirmed in winner)
     extra_feats: dict = {}
     cover_d = None
-    sv_d    = None
     if cover_raw is not None:
         cover_d = cover_raw / np.maximum(d, eps)
         extra_feats["cover_d"] = cover_d
-    if s_stir_raw is not None:
-        sv_d = s_stir_raw / np.maximum(d, eps)
-        extra_feats["sv_d"] = sv_d
-    if d_stir_raw is not None and s_stir_raw is not None:
-        As_stir = np.pi * (d_stir_raw / 2.0) ** 2
-        extra_feats["rho_s"] = 2.0 * As_stir / np.maximum(s_stir_raw * b, eps) * 100.0
-    if fy_s_raw is not None:
-        extra_feats["fys_n"] = fy_s_raw / 500.0
-    if a_sv_raw is not None:
-        extra_feats["av_d"] = a_sv_raw / np.maximum(d, eps)
-    if wc_raw is not None:
-        extra_feats["wc"] = wc_raw
-
-    if extra_feats:
-        logger.info(f"Added {len(extra_feats)} extra physics features: {list(extra_feats.keys())}")
+        logger.info("Added extra physics feature: cover_d")
 
     # Pre-computed interaction features — free complexity budget for deeper relationships.
-    # PySR discovering eta² costs 3 nodes; providing eta_sq costs 1 node → saves 2 units each.
-    rho_norm = base_feats["rho"]
-    fy_norm  = base_feats["fy"]
+    fy_norm = base_feats["fy"]
     inter_feats: dict = {
-        "eta_sq":   eta_frac ** 2,
-        "eta_fy":   eta_frac * fy_norm,
-        "eta_rho":  eta_frac * rho_norm,
-        "log_fy":   np.log(np.maximum(fy_norm, 1e-9)),
+        "eta_sq":  eta_frac ** 2,
+        "eta_fy":  eta_frac * fy_norm,
+        "log_fy":  np.log(np.maximum(fy_norm, 1e-9)),
     }
     if cover_d is not None:
         inter_feats["eta_cover"] = eta_frac * cover_d
         inter_feats["cover_sq"]  = cover_d ** 2
-    if sv_d is not None and "rho_s" in extra_feats:
-        inter_feats["sv_rho"] = sv_d * extra_feats["rho_s"]
-    logger.info(f"Added {len(inter_feats)} pre-computed interaction features: {list(inter_feats.keys())}")
+    logger.info(f"Final feature set ({len(base_feats)+len(extra_feats)+len(inter_feats)} total): "
+                f"{list(base_feats)+list(extra_feats)+list(inter_feats)}")
 
     X_sym = pd.DataFrame({**base_feats, **extra_feats, **inter_feats})
 
@@ -340,14 +317,22 @@ def _make_pysr_model(niterations, populations, maxsize, random_state):
         populations=populations,
         maxsize=maxsize,
         binary_operators=["+", "-", "*", "/"],
-        unary_operators=["sqrt", "log", "square"],
-        extra_sympy_mappings={"square": lambda x: x**2},
-        nested_constraints={
-            "sqrt":   {"sqrt": 0, "log": 1},
-            "log":    {"log":  0, "sqrt": 1},
-            "square": {"square": 0},
+        unary_operators=[
+            "safe_sqrt(x::T) where T = sqrt(abs(x))",
+            "safe_log(x::T) where T = log(abs(x) + T(1e-6))",
+            "square",
+        ],
+        extra_sympy_mappings={
+            "safe_sqrt": lambda x: sp.sqrt(sp.Abs(x)),
+            "safe_log":  lambda x: sp.log(sp.Abs(x) + 1e-6),
+            "square":    lambda x: x**2,
         },
-        constraints={"sqrt": 8, "log": 8, "square": 8},
+        nested_constraints={
+            "safe_sqrt": {"safe_sqrt": 0, "safe_log": 1},
+            "safe_log":  {"safe_log":  0, "safe_sqrt": 1},
+            "square":    {"square": 0},
+        },
+        constraints={"safe_sqrt": 8, "safe_log": 8, "square": 8},
         model_selection="accuracy",
         # Huber on relative error: |exp(z_pred - z_true) - 1| ≈ MAPE directly
         elementwise_loss=(
