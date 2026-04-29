@@ -211,6 +211,20 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
     n_bars = find_col(df, ["# Tensile Bars", "n_bars", "num_bars"])
     db_t   = find_col(df, ["Diameter Tensile Bars, db,t (mm)", "db,t (mm)", "db_t"])
 
+    # --- Optional features (wrapped — may be absent in some datasets) ---
+    def try_col(candidates):
+        try:
+            return find_col(df, candidates)
+        except KeyError:
+            return None
+
+    cover_raw  = try_col(["Bottom Cover to Ctr of Tension Bar (mm)", "Bottom Cover", "cover"])
+    s_stir_raw = try_col(["Stirrup Spacing, s (mm) ", "Stirrup Spacing", "sv", "s_mm"])
+    d_stir_raw = try_col(["Stirrup Diameter, ds (mm)", "Stirrup Diameter", "ds"])
+    fy_s_raw   = try_col(["fy,s Stirrup Bars", "fy_s", "fys"])
+    a_sv_raw   = try_col(["Shear Span, x (mm)", "Shear Span", "shear_span", "x_mm"])
+    wc_raw     = try_col(["W/C Ratio", "wc", "w_c"])
+
     # Steel area As = n * π * (db/2)² — direct structural capacity driver
     As = n_bars * np.pi * (db_t / 2.0) ** 2
 
@@ -229,22 +243,41 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
     csi_med = np.median(np.abs(csi))
     ri_med  = np.median(np.abs(ri))
 
-    X_sym = pd.DataFrame(
-        {
-            "eta":    eta_frac,
-            "cr":     np.maximum(1.0 - eta_frac, 0.0),        # 1-eta: remaining fraction
-            "rho":    rho_t / 100.0,
-            "d_b":    d / np.maximum(b, eps),                  # section aspect ratio
-            "a_d":    a_corr / np.maximum(d, eps),             # neutral-axis depth ratio
-            "fc":     fc / 40.0,
-            "fy":     fy / 500.0,
-            "fy_fc":  fy / np.maximum(fc, eps),
-            "rho_g":  As / np.maximum(b * d, eps) * 100.0,    # geometric rho (%)
-            "cr_rho": np.maximum(1.0 - eta_frac, 0.0) * rho_t / 100.0,
-            "csi":    csi / max(float(csi_med), eps),
-            "ri":     ri  / max(float(ri_med),  eps),
-        }
-    )
+    base_feats = {
+        "eta":    eta_frac,
+        "cr":     np.maximum(1.0 - eta_frac, 0.0),
+        "rho":    rho_t / 100.0,
+        "d_b":    d / np.maximum(b, eps),
+        "a_d":    a_corr / np.maximum(d, eps),
+        "fc":     fc / 40.0,
+        "fy":     fy / 500.0,
+        "fy_fc":  fy / np.maximum(fc, eps),
+        "rho_g":  As / np.maximum(b * d, eps) * 100.0,
+        "cr_rho": np.maximum(1.0 - eta_frac, 0.0) * rho_t / 100.0,
+        "csi":    csi / max(float(csi_med), eps),
+        "ri":     ri  / max(float(ri_med),  eps),
+    }
+
+    # Add optional physics features if present in dataset
+    extra_feats: dict = {}
+    if cover_raw is not None:
+        extra_feats["cover_d"] = cover_raw / np.maximum(d, eps)
+    if s_stir_raw is not None:
+        extra_feats["sv_d"] = s_stir_raw / np.maximum(d, eps)
+    if d_stir_raw is not None and s_stir_raw is not None:
+        As_stir = np.pi * (d_stir_raw / 2.0) ** 2
+        extra_feats["rho_s"] = 2.0 * As_stir / np.maximum(s_stir_raw * b, eps) * 100.0
+    if fy_s_raw is not None:
+        extra_feats["fys_n"] = fy_s_raw / 500.0
+    if a_sv_raw is not None:
+        extra_feats["av_d"] = a_sv_raw / np.maximum(d, eps)
+    if wc_raw is not None:
+        extra_feats["wc"] = wc_raw
+
+    if extra_feats:
+        logger.info(f"Added {len(extra_feats)} extra physics features: {list(extra_feats.keys())}")
+
+    X_sym = pd.DataFrame({**base_feats, **extra_feats})
 
     data_dict = {c: X_sym[c].to_numpy(dtype=float) for c in X_sym.columns}
     return X_sym, data_dict, M0
@@ -1177,6 +1210,66 @@ def save_outputs(
     logger.success(f"Fig2      → {fig2}")
 
 
+def _refit_constants(
+    eq_str: str,
+    data_dict: Dict[str, np.ndarray],
+    y_true: np.ndarray,
+    M0: np.ndarray,
+) -> str:
+    """Refit numeric constants in a PySR equation to minimize MAPE directly."""
+    from scipy.optimize import minimize
+
+    try:
+        expr_sp = safe_sympify(eq_str)
+        consts = sorted(
+            [a for a in expr_sp.atoms(sp.Number) if abs(float(a)) > 1e-12],
+            key=lambda x: float(x),
+        )
+        if not consts:
+            logger.info("Constant refitting: no numeric constants found — skipping")
+            return eq_str
+
+        symbols_c = [sp.Symbol(f"__c{i}") for i in range(len(consts))]
+        expr_sub = expr_sp
+        for orig, sym in zip(consts, symbols_c):
+            expr_sub = expr_sub.subs(orig, sym)
+
+        feat_keys = list(data_dict.keys())
+        all_syms  = feat_keys + [str(s) for s in symbols_c]
+        fn = sp.lambdify(all_syms, expr_sub, modules=["numpy"])
+        feat_vals = [data_dict[k] for k in feat_keys]
+
+        x0 = np.array([float(c) for c in consts])
+
+        def mape_loss(x):
+            try:
+                z = np.asarray(fn(*feat_vals, *x), dtype=float)
+                z = np.clip(np.nan_to_num(z, nan=0.0, posinf=1.0, neginf=-1.0), -1.0, 1.0)
+                yp = M0 * np.exp(z)
+                return float(np.mean(np.abs((y_true - yp) / np.maximum(y_true, 1e-9))))
+            except Exception:
+                return 1.0
+
+        mape_before = mape_loss(x0) * 100
+        res = minimize(mape_loss, x0, method="Nelder-Mead",
+                       options={"maxiter": 8000, "xatol": 1e-6, "fatol": 1e-6})
+        mape_after = res.fun * 100
+
+        expr_opt = expr_sub
+        for sym, val in zip(symbols_c, res.x):
+            expr_opt = expr_opt.subs(sym, sp.Float(round(float(val), 6)))
+
+        eq_refitted = str(expr_opt)
+        logger.info(
+            f"Constant refitting: MAPE {mape_before:.2f}% → {mape_after:.2f}% "
+            f"({len(consts)} constants optimized)"
+        )
+        return eq_refitted
+    except Exception as exc:
+        logger.warning(f"Constant refitting failed: {exc} — using original equation")
+        return eq_str
+
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Stacking to PySR symbolic distillation with MOEA/D-style selection"
@@ -1218,20 +1311,31 @@ def main() -> None:
     m_stack = get_stacking_predictions(X_scaled)
 
     X_sym, data_dict, M0_raw = build_symbolic_inputs(df)
-    M0 = np.maximum(M0_raw, 1e-9)
-
-    # Target: z = log(M_exp / M0) — small residual (~±0.3) that PySR learns
-    z_true = np.log(np.maximum(y_true, 1e-9) / M0)
-    y_target = np.clip(z_true, -1.0, 1.0)
-    logger.info(
-        f"Log-space target z=log(M_exp/M0): mean={y_target.mean():.3f}, "
-        f"std={y_target.std():.3f}, range=[{y_target.min():.3f}, {y_target.max():.3f}]"
-    )
+    M0_uncalib = np.maximum(M0_raw, 1e-9)
 
     # ── 3-way split: 60% train / 20% val / 20% test ─────────────────────────
     n = len(y_true)
     trainval_idx, test_idx = train_test_split(np.arange(n), test_size=0.20, random_state=args.seed)
     train_idx, val_idx     = train_test_split(trainval_idx, test_size=0.25, random_state=args.seed)
+
+    # M0 calibration: remove ACI systematic bias using train data only
+    _log_ratios = np.log(np.maximum(y_true[train_idx], 1e-9) / M0_uncalib[train_idx])
+    k_calib = float(np.exp(np.median(_log_ratios)))
+    k_calib = float(np.clip(k_calib, 0.5, 2.0))
+    M0 = M0_uncalib * k_calib
+    logger.info(
+        f"M0 calibration: k={k_calib:.4f} "
+        f"(M0 MAPE before={np.mean(np.abs((y_true - M0_uncalib)/np.maximum(y_true,1e-9)))*100:.1f}%, "
+        f"after={np.mean(np.abs((y_true - M0)/np.maximum(y_true,1e-9)))*100:.1f}%)"
+    )
+
+    # Target: z = log(M_exp / M0_calibrated)
+    z_true = np.log(np.maximum(y_true, 1e-9) / M0)
+    y_target = np.clip(z_true, -1.0, 1.0)
+    logger.info(
+        f"Log-space target z=log(M_exp/M0_calib): mean={y_target.mean():.3f}, "
+        f"std={y_target.std():.3f}, range=[{y_target.min():.3f}, {y_target.max():.3f}]"
+    )
 
     # PySR trains on 60% train only + physics anchors
     X_sym_train    = X_sym.iloc[train_idx].reset_index(drop=True)
@@ -1288,8 +1392,24 @@ def main() -> None:
         shap_obj_weights=shap_weights,
     )
 
-    # Pass trainval (80%) for CV, test (20%) for final holdout report
+    # ── Scipy constant refitting: optimize numeric constants for MAPE ────────
     data_dict_trainval = {k: v[trainval_idx] for k, v in data_dict.items()}
+    best_eq_refitted = _refit_constants(
+        cands[best_idx].equation,
+        data_dict_trainval,
+        y_true[trainval_idx],
+        M0[trainval_idx],
+    )
+    if best_eq_refitted != cands[best_idx].equation:
+        cands[best_idx] = Candidate(
+            equation=best_eq_refitted,
+            complexity=cands[best_idx].complexity,
+            metrics=cands[best_idx].metrics,
+            objectives=cands[best_idx].objectives,
+            score=cands[best_idx].score,
+        )
+
+    # Pass trainval (80%) for CV, test (20%) for final holdout report
     save_outputs(
         cands, best_idx,
         y_true[trainval_idx], M0[trainval_idx], data_dict_trainval,
