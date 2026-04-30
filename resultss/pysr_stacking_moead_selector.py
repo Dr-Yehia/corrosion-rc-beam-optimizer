@@ -1054,7 +1054,7 @@ def save_outputs(
     y_true_test: np.ndarray | None = None,
     M0_test: np.ndarray | None = None,
     data_dict_test: Dict[str, np.ndarray] | None = None,
-) -> None:
+) -> bool:
     best = cands[best_idx]
 
     # Ranked candidates
@@ -1236,6 +1236,8 @@ def save_outputs(
     logger.success(f"Fig1      → {fig1}")
     logger.success(f"Fig2      → {fig2}")
 
+    return _accepted
+
 
 def _refit_constants(
     eq_str: str,
@@ -1333,8 +1335,10 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def main() -> None:
+def main(seed_override: int | None = None) -> bool:
     args = parse_args()
+    if seed_override is not None:
+        args.seed = seed_override
     setup_logger()
 
     if sp is None:
@@ -1448,7 +1452,7 @@ def main() -> None:
         )
 
     # Pass trainval (80%) for CV, test (20%) for final holdout report
-    save_outputs(
+    _accepted = save_outputs(
         cands, best_idx,
         y_true[trainval_idx], M0[trainval_idx], data_dict_trainval,
         m_stack=m_stack[trainval_idx],
@@ -1456,8 +1460,42 @@ def main() -> None:
     )
 
     logger.success("Done. Best equation pipeline finished successfully.")
-    import os; os._exit(0)  # kills Julia child process and exits cleanly
+    return _accepted
 
 
 if __name__ == "__main__":
-    main()
+    import time as _time
+
+    # Parse base seed from CLI (used as RNG seed for generating per-restart seeds)
+    import argparse as _ap
+    _p = _ap.ArgumentParser(add_help=False)
+    _p.add_argument("--seed", type=int, default=42)
+    _known, _ = _p.parse_known_args()
+    _rng = np.random.default_rng(_known.seed)
+
+    _attempt = 0
+    while True:
+        _attempt += 1
+        _seed = int(_rng.integers(1, 99999))
+        logger.info(f"\n{'='*60}")
+        logger.info(f"RESTART #{_attempt}  |  seed={_seed}")
+        logger.info(f"{'='*60}\n")
+
+        try:
+            _accepted = main(seed_override=_seed)
+        except Exception as _exc:
+            logger.error(f"Restart #{_attempt} crashed: {_exc}")
+            _accepted = False
+
+        if _accepted:
+            logger.success(
+                f"TARGET REACHED after {_attempt} restart(s)!  "
+                f"seed={_seed} — exiting."
+            )
+            break
+
+        logger.info(f"Restart #{_attempt} did not reach target. Trying again ...")
+        _time.sleep(1)
+
+    import os
+    os._exit(0)  # kills Julia child process and exits cleanly
