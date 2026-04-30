@@ -258,13 +258,21 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
         "ri":     ri  / max(float(ri_med),  eps),
     }
 
-    # Add optional physics features — cover confirmed in winning equations
+    # Add optional physics features — cover and sv_d confirmed in winning equations
     extra_feats: dict = {}
     cover_d = None
+    sv_d    = None
     if cover_raw is not None:
         cover_d = cover_raw / np.maximum(d, eps)
         extra_feats["cover_d"] = cover_d
-        logger.info("Added extra physics feature: cover_d")
+    if s_stir_raw is not None:
+        sv_d = s_stir_raw / np.maximum(d, eps)
+        extra_feats["sv_d"] = sv_d
+    if d_stir_raw is not None and s_stir_raw is not None:
+        As_stir = np.pi * (d_stir_raw / 2.0) ** 2
+        extra_feats["rho_s"] = 2.0 * As_stir / np.maximum(s_stir_raw * b, eps) * 100.0
+    if extra_feats:
+        logger.info(f"Added {len(extra_feats)} extra physics features: {list(extra_feats.keys())}")
 
     # Pre-computed interaction features — free complexity budget for deeper relationships.
     fy_norm  = base_feats["fy"]
@@ -278,6 +286,8 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
     if cover_d is not None:
         inter_feats["eta_cover"] = eta_frac * cover_d
         inter_feats["cover_sq"]  = cover_d ** 2
+    if sv_d is not None and "rho_s" in extra_feats:
+        inter_feats["sv_rho"] = sv_d * extra_feats["rho_s"]
     logger.info(f"Final feature set ({len(base_feats)+len(extra_feats)+len(inter_feats)} total): "
                 f"{list(base_feats)+list(extra_feats)+list(inter_feats)}")
 
