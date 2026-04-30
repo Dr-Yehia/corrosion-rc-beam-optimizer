@@ -243,13 +243,12 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
     csi_med = np.median(np.abs(csi))
     ri_med  = np.median(np.abs(ri))
 
-    # Full base features — restoring all original 12 that gave 15.98% MAPE
+    # Full base features — a_d and d_b removed: a_d dominated HOF at complexity=3
+    # causing local optimum trap. All other original features retained.
     base_feats = {
         "eta":    eta_frac,
         "cr":     np.maximum(1.0 - eta_frac, 0.0),
         "rho":    rho_t / 100.0,
-        "d_b":    d / np.maximum(b, eps),
-        "a_d":    a_corr / np.maximum(d, eps),
         "fc":     fc / 40.0,
         "fy":     fy / 500.0,
         "fy_fc":  fy / np.maximum(fc, eps),
