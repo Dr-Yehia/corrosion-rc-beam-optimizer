@@ -1314,7 +1314,7 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Stacking to PySR symbolic distillation with MOEA/D-style selection"
     )
-    p.add_argument("--niterations", type=int, default=6000)
+    p.add_argument("--niterations", type=int, default=500)
     p.add_argument("--populations", type=int, default=40)
     p.add_argument("--maxsize",     type=int, default=35)
     p.add_argument("--seed", type=int, default=42)
@@ -1466,19 +1466,21 @@ def main(seed_override: int | None = None) -> bool:
 if __name__ == "__main__":
     import time as _time
 
-    # Parse base seed from CLI (used as RNG seed for generating per-restart seeds)
+    # Parse base seed and max_restarts from CLI
     import argparse as _ap
     _p = _ap.ArgumentParser(add_help=False)
-    _p.add_argument("--seed", type=int, default=42)
+    _p.add_argument("--seed",         type=int, default=42)
+    _p.add_argument("--max_restarts", type=int, default=5)
     _known, _ = _p.parse_known_args()
-    _rng = np.random.default_rng(_known.seed)
+    _rng          = np.random.default_rng(_known.seed)
+    _max_restarts = _known.max_restarts
 
     _attempt = 0
     while True:
         _attempt += 1
         _seed = int(_rng.integers(1, 99999))
         logger.info(f"\n{'='*60}")
-        logger.info(f"RESTART #{_attempt}  |  seed={_seed}")
+        logger.info(f"RESTART #{_attempt}/{_max_restarts}  |  seed={_seed}")
         logger.info(f"{'='*60}\n")
 
         try:
@@ -1491,6 +1493,13 @@ if __name__ == "__main__":
             logger.success(
                 f"TARGET REACHED after {_attempt} restart(s)!  "
                 f"seed={_seed} — exiting."
+            )
+            break
+
+        if _attempt >= _max_restarts:
+            logger.warning(
+                f"Reached max_restarts={_max_restarts} without passing gate. "
+                f"Increase --max_restarts or --niterations and try again."
             )
             break
 
