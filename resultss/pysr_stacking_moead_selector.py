@@ -1332,6 +1332,8 @@ def parse_args() -> argparse.Namespace:
         "--w-complexity", type=float, default=0.10,
         help="Weight for equation complexity penalty. Default=0.10"
     )
+    p.add_argument("--max_restarts", type=int, default=5,
+                   help="Max restart attempts in the outer loop (default=5)")
     return p.parse_args()
 
 
