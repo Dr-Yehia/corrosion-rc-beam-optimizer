@@ -1268,8 +1268,19 @@ def _refit_constants(
                 return 1.0
 
         mape_before = mape_loss(x0) * 100
-        res = minimize(mape_loss, x0, method="Nelder-Mead",
-                       options={"maxiter": 8000, "xatol": 1e-6, "fatol": 1e-6})
+
+        # Global optimizer: differential_evolution explores full bounds space,
+        # then polish=True runs L-BFGS-B for fine-tuning — far better than Nelder-Mead.
+        from scipy.optimize import differential_evolution
+        bounds = [
+            (-abs(v) * 15, abs(v) * 15) if abs(v) > 1e-6 else (-2.0, 2.0)
+            for v in x0
+        ]
+        res = differential_evolution(
+            mape_loss, bounds,
+            maxiter=800, tol=1e-6,
+            seed=42, polish=True, workers=1,
+        )
         mape_after = res.fun * 100
 
         expr_opt = expr_sub
