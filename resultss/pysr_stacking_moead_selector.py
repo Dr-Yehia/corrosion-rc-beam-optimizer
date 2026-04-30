@@ -243,18 +243,23 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
     csi_med = np.median(np.abs(csi))
     ri_med  = np.median(np.abs(ri))
 
-    # Trimmed to 12 features that consistently appear in winning equations.
-    # Removed: d_b, a_d, fy_fc, csi — never appeared in top candidates.
+    # Full base features — restoring all original 12 that gave 15.98% MAPE
     base_feats = {
         "eta":    eta_frac,
+        "cr":     np.maximum(1.0 - eta_frac, 0.0),
+        "rho":    rho_t / 100.0,
+        "d_b":    d / np.maximum(b, eps),
+        "a_d":    a_corr / np.maximum(d, eps),
         "fc":     fc / 40.0,
         "fy":     fy / 500.0,
+        "fy_fc":  fy / np.maximum(fc, eps),
         "rho_g":  As / np.maximum(b * d, eps) * 100.0,
         "cr_rho": np.maximum(1.0 - eta_frac, 0.0) * rho_t / 100.0,
+        "csi":    csi / max(float(csi_med), eps),
         "ri":     ri  / max(float(ri_med),  eps),
     }
 
-    # Add optional physics features — only cover (confirmed in winner)
+    # Add optional physics features — cover confirmed in winning equations
     extra_feats: dict = {}
     cover_d = None
     if cover_raw is not None:
@@ -263,10 +268,12 @@ def build_symbolic_inputs(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, np.
         logger.info("Added extra physics feature: cover_d")
 
     # Pre-computed interaction features — free complexity budget for deeper relationships.
-    fy_norm = base_feats["fy"]
+    fy_norm  = base_feats["fy"]
+    rho_norm = base_feats["rho"]
     inter_feats: dict = {
         "eta_sq":  eta_frac ** 2,
         "eta_fy":  eta_frac * fy_norm,
+        "eta_rho": eta_frac * rho_norm,
         "log_fy":  np.log(np.maximum(fy_norm, 1e-9)),
     }
     if cover_d is not None:
@@ -647,9 +654,7 @@ def _apply_eta_subs(subs: Dict[str, float], eta_value: float) -> Dict[str, float
     if "corr_ratio" in subs:
         subs["corr_ratio"] = cr_val
     if "cr_rho" in subs:
-        # cr_rho = cr * rho_t/100; approximate by scaling current cr_rho by cr_val
-        old_cr = max(1.0 - subs.get("eta", eta_value), 1e-9)
-        subs["cr_rho"] = subs["cr_rho"] * (cr_val / old_cr) if old_cr > 1e-9 else cr_val * 0.02
+        subs["cr_rho"] = cr_val * subs.get("rho", 0.02)
     return subs
 
 
@@ -1288,7 +1293,7 @@ def parse_args() -> argparse.Namespace:
         description="Stacking to PySR symbolic distillation with MOEA/D-style selection"
     )
     p.add_argument("--niterations", type=int, default=6000)
-    p.add_argument("--populations", type=int, default=40)
+    p.add_argument("--populations", type=int, default=15)
     p.add_argument("--maxsize",     type=int, default=35)
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--ref-vectors", type=int, default=8,
