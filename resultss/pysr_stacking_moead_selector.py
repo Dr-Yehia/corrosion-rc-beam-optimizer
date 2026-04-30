@@ -333,22 +333,14 @@ def _make_pysr_model(niterations, populations, maxsize, random_state):
         populations=populations,
         maxsize=maxsize,
         binary_operators=["+", "-", "*", "/"],
-        unary_operators=[
-            "safe_sqrt(x::T) where T = sqrt(abs(x))",
-            "safe_log(x::T) where T = log(abs(x) + T(1e-6))",
-            "square",
-        ],
-        extra_sympy_mappings={
-            "safe_sqrt": lambda x: sp.sqrt(sp.Abs(x)),
-            "safe_log":  lambda x: sp.log(sp.Abs(x) + 1e-6),
-            "square":    lambda x: x**2,
-        },
+        unary_operators=["sqrt", "log", "square"],
+        extra_sympy_mappings={"square": lambda x: x**2},
         nested_constraints={
-            "safe_sqrt": {"safe_sqrt": 0, "safe_log": 1},
-            "safe_log":  {"safe_log":  0, "safe_sqrt": 1},
-            "square":    {"square": 0},
+            "sqrt":   {"sqrt": 0, "log": 1},
+            "log":    {"log":  0, "sqrt": 1},
+            "square": {"square": 0},
         },
-        constraints={"safe_sqrt": 8, "safe_log": 8, "square": 8},
+        constraints={"sqrt": 8, "log": 8, "square": 8},
         model_selection="accuracy",
         # Huber on relative error: |exp(z_pred - z_true) - 1| ≈ MAPE directly
         elementwise_loss=(
@@ -631,9 +623,6 @@ def safe_sympify(expr: str):
             "cos":       sp.cos,
             "square":    lambda x: x**2,
             "cube":      lambda x: x**3,
-            # Safe operators used by PySR unary_operators
-            "safe_sqrt": lambda x: sp.sqrt(sp.Abs(x)),
-            "safe_log":  lambda x: sp.log(sp.Abs(x) + sp.Float(1e-6)),
         },
     )
 
@@ -1281,17 +1270,9 @@ def _refit_constants(
 
         mape_before = mape_loss(x0) * 100
 
-        # Global optimizer: differential_evolution explores full bounds space,
-        # then polish=True runs L-BFGS-B for fine-tuning — far better than Nelder-Mead.
-        from scipy.optimize import differential_evolution
-        bounds = [
-            (-abs(v) * 15, abs(v) * 15) if abs(v) > 1e-6 else (-2.0, 2.0)
-            for v in x0
-        ]
-        res = differential_evolution(
-            mape_loss, bounds,
-            maxiter=800, tol=1e-6,
-            seed=42, polish=True, workers=1,
+        res = minimize(
+            mape_loss, x0, method="Nelder-Mead",
+            options={"maxiter": 8000, "xatol": 1e-6, "fatol": 1e-6},
         )
         mape_after = res.fun * 100
 
@@ -1314,7 +1295,7 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Stacking to PySR symbolic distillation with MOEA/D-style selection"
     )
-    p.add_argument("--niterations", type=int, default=500)
+    p.add_argument("--niterations", type=int, default=1500)
     p.add_argument("--populations", type=int, default=40)
     p.add_argument("--maxsize",     type=int, default=35)
     p.add_argument("--seed", type=int, default=42)
