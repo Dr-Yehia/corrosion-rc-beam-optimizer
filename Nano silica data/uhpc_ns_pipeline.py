@@ -5,8 +5,9 @@ UHPC Multi-Property ML Pipeline — Nano Silica Focus
 Targets : CS_28d | Flexural | Tensile | E_Modulus | Porosity
 Inputs  : Mix-design features only (no result-column leakage)
 HPO     : Optuna TPE 5-fold CV  |  Stack: Ridge meta
-Gates   : per-property R² threshold  (auto-retry at 2.5× trials)
-Output  : outputs/<property>/metrics.json + scatter + shap + ns_curve
+Outputs : scatter | SHAP bar+summary | NS curve | Taylor diagram
+          SHAP NS×SF interaction | Sensitivity analysis
+          metrics.json (per property) + all_metrics.json
 
 Title   : Machine Learning-Based Multi-Property Prediction of UHPC
           with Focus on Nano Silica Effect: Insights from a Global
@@ -16,6 +17,7 @@ from __future__ import annotations
 import io, json, warnings
 from pathlib import Path
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 import numpy as np
 import optuna
 import pandas as pd
@@ -35,7 +37,7 @@ from xgboost import XGBRegressor
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 warnings.filterwarnings("ignore")
 
-# ── Global config ─────────────────────────────────────────────────────────────
+# ── Config ────────────────────────────────────────────────────────────────────
 SEED         = 42
 TEST_SIZE    = 0.20
 TRIALS_BASE  = 50
@@ -56,43 +58,34 @@ LOCAL_PATHS = [
     f"/kaggle/working/{EXCEL_FILE}",
 ]
 
-# ── Multi-target definitions ────────────────────────────────────────────────
 MULTI_TARGETS = [
-    {"kw": ["28-day", "28day", "cs28", "fc28"],
-     "name": "CS_28d",    "unit": "MPa", "gate": 0.982, "min_n": 200},
-    {"kw": ["peakstrength", "mormpа", "mor(", " mor"],
-     "name": "Flexural",  "unit": "MPa", "gate": 0.960, "min_n": 100},
-    {"kw": ["splittensile"],
-     "name": "Tensile",   "unit": "MPa", "gate": 0.930, "min_n":  80},
-    {"kw": ["elasticmodulus", "elasticmod"],
-     "name": "E_Modulus", "unit": "GPa", "gate": 0.930, "min_n":  80},
-    {"kw": ["porosity"],
-     "name": "Porosity",  "unit": "%",   "gate": 0.920, "min_n":  80},
+    {"kw": ["28-day","28day","cs28","fc28"],        "name":"CS_28d",    "unit":"MPa","gate":0.982,"min_n":200},
+    {"kw": ["peakstrength","mor("," mor"],           "name":"Flexural",  "unit":"MPa","gate":0.960,"min_n":100},
+    {"kw": ["splittensile"],                         "name":"Tensile",   "unit":"MPa","gate":0.930,"min_n": 80},
+    {"kw": ["elasticmodulus","elasticmod"],          "name":"E_Modulus", "unit":"GPa","gate":0.930,"min_n": 80},
+    {"kw": ["porosity"],                             "name":"Porosity",  "unit":"% ","gate":0.920,"min_n": 80},
 ]
 
-NS_KW = ["nano silica", "nanosio2", "nano-sio2", "nsio2", "nano-si", "nanosilica"]
+NS_KW  = ["nano silica","nanosio2","nano-sio2","nsio2","nanosilica"]
+SF_KW  = ["silica fume","silicafume","sf("," sf"]
 
-# Result columns — NEVER use as features (prevent leakage)
 _RESULT_KW = [
     "1-day","3-day","7-day","14-day","21day","28-day","56-day","90-day",
     "elasticmodulus","splittensile","directtensile","tensileelastic",
     "straincapacity","peaktensilestrain","lop(","mor("," mor","peakstrength",
     "residualstrength","toughness","aircontent","airvoid","porosity",
     "waterabsorption","shrinkage","cycles","totalcharge","surfaceresistivity",
-    "crackingstrength","first-cracking","firstcracking",
+    "crackingstrength","firstcracking",
 ]
-
-_HEADER_KW = ["cement","water","silica","fly","slag","sand","aggregate",
-              "fiber","sp","superplast","nano","strength","28","mpa","ns"]
+_HEADER_KW = ["cement","water","silica","fly","slag","sand",
+              "fiber","superplast","nano","strength","28","mpa","ns"]
 
 CV = KFold(n_splits=5, shuffle=True, random_state=SEED)
 
 # ── Utilities ────────────────────────────────────────────────────────────────
 def _c(s): return str(s).lower().replace(" ","").replace(",","").replace("'","").replace("-","")
-
-def _mape(y, yp): return float(np.mean(np.abs((y-yp)/np.maximum(np.abs(y),1e-9)))*100)
-def _a20(y, yp):
-    r = yp/np.maximum(y,1e-9); return float(np.mean((r>=0.8)&(r<=1.2)))
+def _mape(y,yp): return float(np.mean(np.abs((y-yp)/np.maximum(np.abs(y),1e-9)))*100)
+def _a20(y,yp): r=yp/np.maximum(y,1e-9); return float(np.mean((r>=0.8)&(r<=1.2)))
 
 def _report(y, yp, label=""):
     m = dict(R2=round(r2_score(y,yp),4),
@@ -110,9 +103,7 @@ def _find_col(df, keywords):
             if _c(kw) in cl: return orig
     return None
 
-def _is_result_col(col):
-    cc = _c(col)
-    return any(_c(kw) in cc for kw in _RESULT_KW)
+def _is_result(col): return any(_c(kw) in _c(col) for kw in _RESULT_KW)
 
 # ── Excel loading ────────────────────────────────────────────────────────────────
 def _read_sheet(xf, sheet):
@@ -123,7 +114,8 @@ def _read_sheet(xf, sheet):
     for h in range(min(5, len(raw))):
         vals = raw.iloc[h].astype(str).str.lower().tolist()
         sc   = sum(1 for v in vals for kw in _HEADER_KW if kw in v)
-        sc  -= int(sum(1 for v in vals if v.replace(".","").replace("-","").isdigit())/max(len(vals),1)*10)
+        sc  -= int(sum(1 for v in vals
+                       if v.replace(".","").replace("-","").isdigit())/max(len(vals),1)*10)
         if sc > best_sc: best_sc, best_h = sc, h
     try:
         df = xf.parse(sheet, header=best_h)
@@ -147,18 +139,14 @@ def load_data():
             for sheet in xf.sheet_names:
                 df = _read_sheet(xf, sheet)
                 if df is not None:
-                    print(f"  OK [{label}] sheet='{sheet}'")
-                    return df
+                    print(f"  OK [{label}] sheet='{sheet}'"); return df
         except Exception as e: print(f"  Failed [{label}]: {e}")
     raise FileNotFoundError(f"Cannot load '{EXCEL_FILE}'.")
 
-# ── Feature preparation ──────────────────────────────────────────────────────────
 def get_mix_features(df):
-    """Return only mix-design input columns (exclude all result columns)."""
-    num_cols = df.select_dtypes(include=[np.number]).columns
-    return [c for c in num_cols if not _is_result_col(c)]
+    return [c for c in df.select_dtypes(include=[np.number]).columns if not _is_result(c)]
 
-# ── Optuna model factories ───────────────────────────────────────────────────────────
+# ── Optuna models ──────────────────────────────────────────────────────────────────
 MAKERS = {
     "CatBoost": lambda t: CatBoostRegressor(
         iterations=t.suggest_int("n",300,1200),
@@ -203,13 +191,13 @@ def _tune(name, maker, X, y, n_trials):
     print(f"  {name:10s}  CV R²={st.best_value:.4f}")
     return best
 
-# ── Single-property pipeline ──────────────────────────────────────────────────────
+# ── Pipeline ─────────────────────────────────────────────────────────────────────────
 def _pipeline(X_raw, y_raw, n_trials):
     q = pd.qcut(y_raw, q=min(5,len(y_raw)//20), labels=False, duplicates="drop")
     Xtr_r,Xte_r,ytr_r,yte_r = train_test_split(
         X_raw, y_raw, test_size=TEST_SIZE, random_state=SEED, stratify=q)
-    imp  = KNNImputer(n_neighbors=KNN_K)
-    Xtr_i,Xte_i = imp.fit_transform(Xtr_r), imp.transform(Xte_r)
+    imp = KNNImputer(n_neighbors=KNN_K)
+    Xtr_i, Xte_i = imp.fit_transform(Xtr_r), imp.transform(Xte_r)
     log_y = bool(pd.Series(ytr_r).skew() > 0.5)
     ytr   = np.log1p(ytr_r) if log_y else ytr_r.copy()
     if log_y: print("  Log1p applied")
@@ -230,34 +218,49 @@ def _pipeline(X_raw, y_raw, n_trials):
     return dict(models=models, results=results, Xtr=Xtr, Xte=Xte,
                 Xtr_raw=Xtr_r, yte_r=yte_r, imp=imp, sc=sc, log_y=log_y)
 
-# ── SHAP ────────────────────────────────────────────────────────────────────────────
-def _shap(model, Xte, feats, ns_col, prop_name, out):
+# ── Figure 1: Scatter (Predicted vs Actual) ─────────────────────────────────
+def _scatter(yte, yp, best_name, r2, mape, prop, unit, out):
+    lo = min(yte.min(),yp.min()); hi = max(yte.max(),yp.max())
+    plt.figure(figsize=(6,6))
+    plt.scatter(yte, yp, s=18, alpha=0.55, edgecolors="none", c="steelblue")
+    plt.plot([lo,hi],[lo,hi],"r--",lw=1.5, label="y=x")
+    # ±20% bands
+    plt.plot([lo,hi],[lo*1.2,hi*1.2],"g:",lw=1, alpha=0.6)
+    plt.plot([lo,hi],[lo*0.8,hi*0.8],"g:",lw=1, alpha=0.6, label="±20%")
+    plt.xlabel(f"Experimental {prop} ({unit})")
+    plt.ylabel(f"Predicted {prop} ({unit})")
+    plt.title(f"{best_name} — {prop}  R²={r2:.4f}  MAPE={mape:.2f}%")
+    plt.legend(); plt.tight_layout()
+    plt.savefig(out/"scatter.png", dpi=200); plt.close()
+
+# ── Figure 2+3: SHAP bar + summary ──────────────────────────────────────────
+def _shap_plots(model, Xte, feats, ns_col, prop, out):
     try:    sv = shap.TreeExplainer(model).shap_values(Xte)
-    except: sv = shap.KernelExplainer(model.predict, shap.sample(Xte,80)).shap_values(Xte)
+    except: sv = shap.KernelExplainer(model.predict,shap.sample(Xte,80)).shap_values(Xte)
     df_s = (pd.DataFrame({"feature":feats,"shap":np.abs(sv).mean(0)})
             .sort_values("shap",ascending=False).reset_index(drop=True))
     ns_rank = None
     if ns_col and ns_col in df_s.feature.values:
         ns_rank = int(df_s[df_s.feature==ns_col].index[0])+1
-        print(f"  NS rank #{ns_rank}")
+        print(f"  NS SHAP rank: #{ns_rank}")
     top    = df_s.head(12)
     colors = ["#FF8C00" if f==ns_col else "#4682B4" for f in top.feature[::-1]]
     fig,ax = plt.subplots(figsize=(9,6))
     ax.barh(top.feature[::-1], top.shap[::-1], color=colors)
     ax.set_xlabel("Mean |SHAP Value|")
-    ax.set_title(f"{prop_name} — Feature Importance  (orange=NS rank #{ns_rank})")
-    plt.tight_layout(); plt.savefig(out/"shap_bar.png",dpi=150); plt.close()
+    ax.set_title(f"{prop} — SHAP Importance  (orange = Nano Silica, rank #{ns_rank})")
+    plt.tight_layout(); plt.savefig(out/"shap_bar.png",dpi=200); plt.close()
     plt.figure()
     shap.summary_plot(sv, Xte, feature_names=feats, show=False, max_display=15)
-    plt.tight_layout(); plt.savefig(out/"shap_summary.png",dpi=150,bbox_inches="tight")
+    plt.tight_layout(); plt.savefig(out/"shap_summary.png",dpi=200,bbox_inches="tight")
     plt.close()
-    return ns_rank
+    return sv, df_s, ns_rank
 
-# ── NS Curve ───────────────────────────────────────────────────────────────────────
-def _ns_curve(model, Xtr_raw, ns_i, imp, sc, log_y, prop_name, unit, out):
+# ── Figure 4: NS Dosage-Response Curve ──────────────────────────────────────
+def _ns_curve(model, Xtr_raw, ns_i, imp, sc, log_y, prop, unit, out):
     if ns_i is None: return None
-    med  = np.nanmedian(Xtr_raw, axis=0)
-    rng  = np.linspace(0, 200, 200)
+    med = np.nanmedian(Xtr_raw, axis=0)
+    rng = np.linspace(0, 200, 200)
     pred = []
     for v in rng:
         x = med.copy(); x[ns_i] = v
@@ -265,125 +268,222 @@ def _ns_curve(model, Xtr_raw, ns_i, imp, sc, log_y, prop_name, unit, out):
         pred.append(float(np.expm1(p) if log_y else p))
     pred   = np.array(pred)
     opt_ns = float(rng[np.argmax(pred)])
-    print(f"  Optimal NS: {opt_ns:.1f} kg/m³  →  {pred.max():.1f} {unit}")
+    print(f"  Optimal NS: {opt_ns:.1f} kg/m³ → {pred.max():.2f} {unit}")
     fig,ax = plt.subplots(figsize=(8,5))
     ax.plot(rng, pred, "b-", lw=2.5)
-    ax.axvline(opt_ns, color="r", ls="--",
+    ax.axvline(opt_ns,color="r",ls="--",
                label=f"Optimal={opt_ns:.1f} kg/m³  ({pred.max():.1f} {unit})")
     ax.fill_between(rng, pred.min(), pred, alpha=0.08, color="blue")
     ax.set_xlabel("Nano Silica (kg/m³)")
-    ax.set_ylabel(f"{prop_name} ({unit})")
-    ax.set_title(f"NS Dosage-Response — {prop_name}  (others at train median)")
+    ax.set_ylabel(f"{prop} ({unit})")
+    ax.set_title(f"NS Dosage-Response — {prop}  (others at train median)")
     ax.legend(); ax.grid(alpha=0.3)
-    plt.tight_layout(); plt.savefig(out/"ns_curve.png",dpi=150); plt.close()
+    plt.tight_layout(); plt.savefig(out/"ns_curve.png",dpi=200); plt.close()
     return opt_ns
 
-# ── Scatter ───────────────────────────────────────────────────────────────────────────
-def _scatter(yte, ypred, best_name, best_r2, best_mape, prop_name, unit, out):
-    lo = min(yte.min(), ypred.min()); hi = max(yte.max(), ypred.max())
-    plt.figure(figsize=(6,6))
-    plt.scatter(yte, ypred, s=18, alpha=0.55, edgecolors="none")
-    plt.plot([lo,hi],[lo,hi],"r--",lw=1.5)
-    plt.xlabel(f"Experimental {prop_name} ({unit})")
-    plt.ylabel(f"Predicted {prop_name} ({unit})")
-    plt.title(f"{best_name}  R²={best_r2:.4f}  MAPE={best_mape:.2f}%")
-    plt.tight_layout(); plt.savefig(out/"scatter.png",dpi=150); plt.close()
+# ── Figure 5: Taylor Diagram ────────────────────────────────────────────────────
+def _taylor(yte, model_preds: dict, prop, out):
+    """
+    Taylor Diagram: R (correlation) on angle, normalised σ on radius.
+    Reference point = observations (R=1, σ=1).
+    """
+    std_ref = np.std(yte)
+    fig = plt.figure(figsize=(7,6))
+    ax  = fig.add_subplot(111, polar=True)
+    ax.set_thetamax(90)
+    ax.set_thetagrids(range(0,91,15),
+                      [f"{np.cos(np.deg2rad(a)):.2f}" for a in range(0,91,15)],
+                      fontsize=8)
+    ax.set_ylabel(""); ax.set_xlabel("")
+    ax.set_title(f"Taylor Diagram — {prop}", pad=20)
+    # Reference
+    ax.plot(0, 1, "k*", ms=14, label="Reference (Observed)", zorder=5)
+    colors = ["#e41a1c","#377eb8","#4daf4a","#984ea3","#ff7f00","#a65628"]
+    for i,(name,yp) in enumerate(model_preds.items()):
+        r   = float(np.corrcoef(yte, yp)[0,1])
+        std = np.std(yp) / std_ref
+        theta = np.arccos(r)
+        ax.plot(theta, std, "o", ms=9, color=colors[i%len(colors)], label=name)
+    # RMSE arcs
+    for rmse_norm in [0.5,1.0,1.5]:
+        t = np.linspace(0, np.pi/2, 200)
+        r_arc = np.sqrt(1 + rmse_norm**2 - 2*rmse_norm*np.cos(t))
+        ax.plot(t, r_arc, ":", color="gray", lw=0.8, alpha=0.5)
+    ax.legend(loc="upper right", bbox_to_anchor=(1.35,1.1), fontsize=8)
+    plt.tight_layout(); plt.savefig(out/"taylor_diagram.png", dpi=200, bbox_inches="tight")
+    plt.close()
+
+# ── Figure 6: SHAP Interaction NS × SF ──────────────────────────────────────
+def _shap_interaction(sv, Xte, feats, ns_col, sf_col, prop, out):
+    ns_i = feats.index(ns_col) if (ns_col and ns_col in feats) else None
+    sf_i = feats.index(sf_col) if (sf_col and sf_col in feats) else None
+    if ns_i is None: return
+    ns_sv  = sv[:, ns_i]
+    ns_val = Xte[:, ns_i]
+    color_vals = Xte[:, sf_i] if sf_i is not None else np.zeros(len(Xte))
+    fig, ax = plt.subplots(figsize=(8,5))
+    sc = ax.scatter(ns_val, ns_sv, c=color_vals, cmap="RdYlGn",
+                    s=20, alpha=0.7, edgecolors="none")
+    plt.colorbar(sc, ax=ax, label=sf_col if sf_col else "")
+    ax.axhline(0, color="gray", lw=0.8, ls="--")
+    ax.set_xlabel(f"Nano Silica (scaled) — {ns_col}")
+    ax.set_ylabel("SHAP value for Nano Silica")
+    ax.set_title(f"{prop} — NS×SF SHAP Interaction\n"
+                 "(color = Silica Fume level: green=high, red=low)")
+    plt.tight_layout(); plt.savefig(out/"shap_ns_sf_interaction.png",dpi=200); plt.close()
+    print("  NS×SF interaction saved")
+
+# ── Figure 7: Sensitivity Analysis ─────────────────────────────────────────────
+def _sensitivity(model, Xtr_raw, feats, imp, sc, log_y, prop, unit, out, top_n=12):
+    med   = np.nanmedian(Xtr_raw, axis=0)
+    base  = model.predict(sc.transform(imp.transform(med.reshape(1,-1))))[0]
+    base  = float(np.expm1(base) if log_y else base)
+    deltas = []
+    for i, feat in enumerate(feats):
+        x = med.copy()
+        x[i] = med[i] * 1.10 + 1e-9          # +10%
+        p = model.predict(sc.transform(imp.transform(x.reshape(1,-1))))[0]
+        p = float(np.expm1(p) if log_y else p)
+        deltas.append((feat, (p - base) / (abs(base)+1e-9) * 100))
+    deltas.sort(key=lambda x: abs(x[1]), reverse=True)
+    deltas = deltas[:top_n]
+    names, vals = zip(*deltas)
+    colors = ["#2ecc71" if v>0 else "#e74c3c" for v in vals]
+    fig, ax = plt.subplots(figsize=(9,6))
+    ax.barh(names[::-1], [v for v in vals[::-1]], color=colors[::-1])
+    ax.axvline(0, color="black", lw=0.8)
+    ax.set_xlabel("% Change in predicted output  (per +10% feature increase)")
+    ax.set_title(f"{prop} — Sensitivity Analysis\n"
+                 "(green = positive effect, red = negative)")
+    plt.tight_layout(); plt.savefig(out/"sensitivity.png",dpi=200); plt.close()
+    print(f"  Sensitivity top-3: {deltas[:3]}")
 
 # ── Run one property ───────────────────────────────────────────────────────────────
-def run_property(cfg, df, mix_cols, ns_col):
+def run_property(cfg, df, mix_cols, ns_col, sf_col):
     target = _find_col(df, cfg["kw"])
     if target is None:
         print(f"  [{cfg['name']}] column not found — skip"); return None
-
     df_t  = df[mix_cols + [target]].dropna(subset=[target]).copy()
     n     = len(df_t)
     print(f"\n{'='*60}")
-    print(f"  Property : {cfg['name']}  |  column='{target}'  |  n={n}")
+    print(f"  {cfg['name']}  |  col='{target}'  |  n={n}")
     print(f"{'='*60}")
     if n < cfg["min_n"]:
-        print(f"  Skipped: {n} < {cfg['min_n']} minimum"); return None
-
-    # Remove columns >60% missing
+        print(f"  Skip: {n} < {cfg['min_n']}"); return None
     df_t  = df_t.loc[:, df_t.isnull().mean() < 0.60]
     feats = [c for c in df_t.columns if c != target]
     X_raw = df_t[feats].to_numpy(float)
     y_raw = df_t[target].to_numpy(float)
     ns_i  = feats.index(ns_col) if (ns_col and ns_col in feats) else None
-    print(f"  Features : {len(feats)}  |  NS feature : {'yes' if ns_i is not None else 'NO'}")
-
+    print(f"  Features={len(feats)}  NS={'yes' if ns_i is not None else 'NO'}")
     out = ROOT_OUT / cfg["name"]; out.mkdir(exist_ok=True)
-    gate = cfg["gate"]
 
     def _run(n_trials):
         art  = _pipeline(X_raw, y_raw, n_trials)
         best = max(art["results"], key=lambda k: art["results"][k]["R2"])
         r2   = art["results"][best]["R2"]
-        return art, best, r2, r2 >= gate
+        return art, best, r2, r2 >= cfg["gate"]
 
     art, best_name, best_r2, passed = _run(TRIALS_BASE)
     if not passed:
-        print(f"  Gate {gate} not met (R²={best_r2:.4f}) — retry {TRIALS_RETRY} trials")
+        print(f"  Gate {cfg['gate']} not met — retry {TRIALS_RETRY} trials")
         art, best_name, best_r2, passed = _run(TRIALS_RETRY)
 
-    # SHAP on best tree model
-    shap_m = max((nm for nm in ["CatBoost","XGBoost","RF","GBR"] if nm in art["results"]),
+    # Best tree model for SHAP / NS / Sensitivity
+    shap_m = max((nm for nm in ["CatBoost","XGBoost","RF","GBR"]
+                  if nm in art["results"]),
                  key=lambda k: art["results"][k]["R2"])
-    ns_rank = _shap(art["models"][shap_m], art["Xte"], feats, ns_col, cfg["name"], out)
-    opt_ns  = _ns_curve(art["models"][shap_m], art["Xtr_raw"],
-                        ns_i, art["imp"], art["sc"], art["log_y"],
-                        cfg["name"], cfg["unit"], out)
+    m = art["results"][best_name]
 
-    # Scatter
+    # Fig 1 — Scatter
     bm = art["models"][best_name]
-    p  = np.expm1(bm.predict(art["Xte"])) if art["log_y"] else bm.predict(art["Xte"])
-    _scatter(art["yte_r"], p, best_name, best_r2,
-             art["results"][best_name]["MAPE"], cfg["name"], cfg["unit"], out)
+    yp = np.expm1(bm.predict(art["Xte"])) if art["log_y"] else bm.predict(art["Xte"])
+    _scatter(art["yte_r"], yp, best_name, best_r2, m["MAPE"], cfg["name"], cfg["unit"], out)
+
+    # Fig 2+3 — SHAP bar + summary
+    sv, df_shap, ns_rank = _shap_plots(
+        art["models"][shap_m], art["Xte"], feats, ns_col, cfg["name"], out)
+
+    # Fig 4 — NS Curve
+    opt_ns = _ns_curve(art["models"][shap_m], art["Xtr_raw"],
+                       ns_i, art["imp"], art["sc"], art["log_y"],
+                       cfg["name"], cfg["unit"], out)
+
+    # Fig 5 — Taylor Diagram
+    model_preds = {}
+    for nm, mod in art["models"].items():
+        p = np.expm1(mod.predict(art["Xte"])) if art["log_y"] else mod.predict(art["Xte"])
+        model_preds[nm] = p
+    _taylor(art["yte_r"], model_preds, cfg["name"], out)
+
+    # Fig 6 — SHAP NS×SF Interaction
+    _shap_interaction(sv, art["Xte"], feats, ns_col, sf_col, cfg["name"], out)
+
+    # Fig 7 — Sensitivity
+    _sensitivity(art["models"][shap_m], art["Xtr_raw"],
+                 feats, art["imp"], art["sc"], art["log_y"],
+                 cfg["name"], cfg["unit"], out)
 
     summary = {
-        "property": cfg["name"], "unit": cfg["unit"], "n_samples": n,
-        "gate": gate, "gate_passed": passed,
-        "best_model": best_name, "metrics": art["results"][best_name],
-        "all_models": art["results"],
-        "ns_rank": ns_rank, "ns_optimal_kg_m3": opt_ns,
+        "property":cfg["name"], "unit":cfg["unit"], "n_samples":n,
+        "gate":cfg["gate"], "gate_passed":passed,
+        "best_model":best_name, "metrics":m,
+        "all_models":art["results"],
+        "ns_rank":ns_rank, "ns_optimal_kg_m3":opt_ns,
     }
-    (out / "metrics.json").write_text(json.dumps(summary, indent=2))
+    (out/"metrics.json").write_text(json.dumps(summary, indent=2))
     return summary
+
+# ── Final comparison chart (all properties) ─────────────────────────────────
+def _summary_chart(all_results):
+    if not all_results: return
+    names = [r["property"] for r in all_results]
+    r2s   = [r["metrics"]["R2"]   for r in all_results]
+    mapes = [r["metrics"]["MAPE"] for r in all_results]
+    fig, (ax1,ax2) = plt.subplots(1,2,figsize=(12,5))
+    colors = ["#2ecc71" if r["gate_passed"] else "#e74c3c" for r in all_results]
+    ax1.bar(names, r2s, color=colors)
+    ax1.set_ylim(0.85,1.0); ax1.set_ylabel("R²")
+    ax1.set_title("R² per Property  (green=gate passed)")
+    for i,v in enumerate(r2s):
+        ax1.text(i, v+0.002, f"{v:.3f}", ha="center", fontsize=9)
+    ax2.bar(names, mapes, color=colors)
+    ax2.set_ylabel("MAPE (%)"); ax2.set_title("MAPE per Property")
+    for i,v in enumerate(mapes):
+        ax2.text(i, v+0.1, f"{v:.1f}%", ha="center", fontsize=9)
+    plt.suptitle("Multi-Property UHPC Model — Summary", fontsize=13, fontweight="bold")
+    plt.tight_layout(); plt.savefig(ROOT_OUT/"summary_chart.png",dpi=200); plt.close()
 
 # ── Main ─────────────────────────────────────────────────────────────────────────────
 def main():
     df = load_data()
-    print(f"\nDataset: {df.shape[0]} rows × {df.shape[1]} columns")
-
+    print(f"\nDataset: {df.shape[0]} rows × {df.shape[1]} cols")
     mix_cols = get_mix_features(df)
     ns_col   = _find_col(df, NS_KW)
-    print(f"Mix-design features : {len(mix_cols)}")
-    print(f"Nano Silica column  : '{ns_col}'")
-
+    sf_col   = _find_col(df, SF_KW)
+    print(f"Mix features: {len(mix_cols)}  |  NS='{ns_col}'  |  SF='{sf_col}'")
     all_results = []
     for cfg in MULTI_TARGETS:
-        res = run_property(cfg, df, mix_cols, ns_col)
+        res = run_property(cfg, df, mix_cols, ns_col, sf_col)
         if res: all_results.append(res)
-
-    # ── Final summary table ──────────────────────────────────────────────────────
-    print(f"\n{'='*70}")
-    print(f"  MULTI-PROPERTY SUMMARY")
-    print(f"{'='*70}")
-    print(f"  {'Property':<12} {'n':>5} {'Best Model':<12} {'R²':>7} {'MAPE%':>7} {'Gate':>7} {'NS Rank':>8} {'Opt NS':>8}")
-    print(f"  {'-'*68}")
+    _summary_chart(all_results)
+    # Console table
+    print(f"\n{'='*72}")
+    print("  MULTI-PROPERTY SUMMARY")
+    print(f"{'='*72}")
+    print(f"  {'Property':<12}{'n':>6}{'Best':>12}{'R²':>8}{'MAPE':>7}{'Gate':>7}{'NS★':>7}{'OptNS':>8}")
+    print(f"  {'-'*70}")
     for r in all_results:
-        m    = r["metrics"]
-        tick = "✅" if r["gate_passed"] else "❌"
-        ns_r = f"#{r['ns_rank']}" if r["ns_rank"] else "N/A"
-        ns_o = f"{r['ns_optimal_kg_m3']:.0f}" if r["ns_optimal_kg_m3"] else "N/A"
-        print(f"  {r['property']:<12} {r['n_samples']:>5} {r['best_model']:<12} "
-              f"{m['R2']:>7.4f} {m['MAPE']:>7.2f} {tick:>7}  {ns_r:>7}  {ns_o:>7}")
-    print(f"{'='*70}")
-    print(f"  Outputs → outputs/<property>/")
-
-    # Save combined JSON
-    (ROOT_OUT / "all_metrics.json").write_text(json.dumps(all_results, indent=2))
-    print("  Combined → outputs/all_metrics.json")
-
+        m  = r["metrics"]
+        tk = "✅" if r["gate_passed"] else "❌"
+        ns = f"#{r['ns_rank']}" if r["ns_rank"] else "--"
+        op = f"{r['ns_optimal_kg_m3']:.0f}" if r["ns_optimal_kg_m3"] else "--"
+        print(f"  {r['property']:<12}{r['n_samples']:>6}{r['best_model']:>12}"
+              f"{m['R2']:>8.4f}{m['MAPE']:>7.2f}{tk:>7}{ns:>7}{op:>8}")
+    print(f"{'='*72}")
+    (ROOT_OUT/"all_metrics.json").write_text(json.dumps(all_results,indent=2))
+    print(f"  Outputs → outputs/<property>/  (7 figures each)")
+    print(f"  Summary → outputs/summary_chart.png + all_metrics.json")
 
 if __name__ == "__main__":
     main()
