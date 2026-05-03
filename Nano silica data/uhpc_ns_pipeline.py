@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 UHPC Nano-Silica Compressive Strength — ML Ensemble Pipeline
-─────────────────────────────────────────────────────────────
+─────────────────────────────────────────────
 Preprocessing : KNN Imputation (k=5) + Log-Transform + StandardScaler
 Models        : CatBoost | XGBoost | RF | GBR | MLP → Stacking (Ridge meta)
 HPO           : Optuna TPE — 5-fold CV objective
@@ -40,7 +40,7 @@ from xgboost import XGBRegressor
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 warnings.filterwarnings("ignore")
 
-# ── Configuration ──────────────────────────────────────────────────────────────
+# ── Configuration ────────────────────────────────────────────────────────────────
 SEED         = 42
 TEST_SIZE    = 0.20
 L1_GATE      = 0.90
@@ -51,7 +51,6 @@ KNN_K        = 5
 OUT          = Path("outputs")
 OUT.mkdir(exist_ok=True)
 
-# GitHub repository — data is read directly from here
 GITHUB_RAW = (
     "https://raw.githubusercontent.com/"
     "Dr-Yehia/corrosion-rc-beam-optimizer/nano-silica/"
@@ -59,7 +58,6 @@ GITHUB_RAW = (
 )
 EXCEL_FILE = "UHPC Dataset  (Version-2).xlsx"
 
-# Fallback local paths (if GitHub is unreachable)
 LOCAL_PATHS = [
     EXCEL_FILE,
     f"Nano silica data/{EXCEL_FILE}",
@@ -68,13 +66,15 @@ LOCAL_PATHS = [
 ]
 
 TARGET_KW = ["28d", "28-d", "cs28", "fc28", "f'c28",
-             "compressive strength 28", "28 day", "28day", "28 d"]
+             "compressive strength 28", "28 day", "28day", "28 d",
+             "fc,28", "f'c,28", "fcu28", "fcu,28"]
 NS_KW     = ["nano-sio2", "nanosio2", "nano sio2", "nano silica",
-             "ns ", " ns", "nano_sio", "nsio2", "nano-si"]
+             "ns ", " ns", "nano_sio", "nsio2", "nano-si", "ns%",
+             "sio2", "silica fume"]
 
 CV = KFold(n_splits=5, shuffle=True, random_state=SEED)
 
-# ── Utilities ──────────────────────────────────────────────────────────────────
+# ── Utilities ────────────────────────────────────────────────────────────────
 def _mape(y: np.ndarray, yp: np.ndarray) -> float:
     return float(np.mean(np.abs((y - yp) / np.maximum(np.abs(y), 1e-9))) * 100)
 
@@ -95,40 +95,69 @@ def report(y: np.ndarray, yp: np.ndarray, label: str = "") -> dict:
     return m
 
 def find_col(df: pd.DataFrame, keywords: list[str]) -> str | None:
-    cols_lower = {c.lower().replace(" ", ""): c for c in df.columns}
+    cols_lower = {str(c).lower().replace(" ", "").replace(",", "").replace("'", ""): c
+                  for c in df.columns}
     for kw in keywords:
-        kw_clean = kw.lower().replace(" ", "")
+        kw_clean = kw.lower().replace(" ", "").replace(",", "").replace("'", "")
         for cl, orig in cols_lower.items():
             if kw_clean in cl:
                 return orig
     return None
 
-# ── Data Loading — GitHub first, local fallback ────────────────────────────────
+# ── Excel parsing — handles merged-cell / multi-row headers ───────────────────
+def _parse_best(xf: pd.ExcelFile, sheet: str) -> pd.DataFrame | None:
+    """Try header rows 0, 1, 2 and return the parse with fewest Unnamed cols."""
+    best_df, best_score = None, -1
+    for h in range(3):
+        try:
+            df = xf.parse(sheet, header=h)
+            if len(df) < 20:
+                continue
+            # Count non-Unnamed numeric columns (higher = better)
+            n_named = sum(
+                1 for c in df.columns
+                if not str(c).startswith("Unnamed") and
+                   pd.api.types.is_numeric_dtype(df[c])
+            )
+            if n_named > best_score:
+                best_score = n_named
+                best_df = df
+        except Exception:
+            pass
+    return best_df
+
+# ── Data Loading — GitHub first, local fallback ────────────────────────────
 def load_data() -> pd.DataFrame:
     # 1. Try GitHub raw URL
     url = GITHUB_RAW + requests.utils.quote(EXCEL_FILE)
     try:
-        print(f"Downloading from GitHub ...")
+        print("Downloading from GitHub ...")
         r = requests.get(url, timeout=120)
         r.raise_for_status()
         xf = pd.ExcelFile(io.BytesIO(r.content))
         for sheet in xf.sheet_names:
-            df = xf.parse(sheet)
-            if len(df) > 50:
+            df = _parse_best(xf, sheet)
+            if df is not None and len(df) > 20:
+                # Drop fully-unnamed columns
+                df = df.loc[:, [c for c in df.columns
+                                if not str(c).startswith("Unnamed")]]
                 print(f"  OK — sheet='{sheet}'  shape={df.shape}")
+                print(f"  Columns: {list(df.columns[:8])} ...")
                 return df
     except Exception as e:
         print(f"  GitHub download failed: {e}")
 
-    # 2. Fallback — local / Kaggle dataset paths
+    # 2. Fallback — local / Kaggle paths
     for path in LOCAL_PATHS:
         p = Path(path)
         if p.exists():
             print(f"Loading local: {p}")
             xf = pd.ExcelFile(p)
             for sheet in xf.sheet_names:
-                df = xf.parse(sheet)
-                if len(df) > 50:
+                df = _parse_best(xf, sheet)
+                if df is not None and len(df) > 20:
+                    df = df.loc[:, [c for c in df.columns
+                                    if not str(c).startswith("Unnamed")]]
                     print(f"  sheet='{sheet}'  shape={df.shape}")
                     return df
 
@@ -138,15 +167,24 @@ def load_data() -> pd.DataFrame:
     )
 
 def prepare(df: pd.DataFrame) -> tuple:
+    print(f"\nAll columns ({len(df.columns)}): {list(df.columns)}")
+
     target = find_col(df, TARGET_KW)
     ns_col = find_col(df, NS_KW)
 
+    # Fallback: pick the column containing '28' with highest numeric mean
     if target is None:
-        cands = [c for c in df.select_dtypes(include=[np.number]).columns if "28" in c]
-        target = cands[0] if cands else None
+        cands = [c for c in df.select_dtypes(include=[np.number]).columns
+                 if "28" in str(c).lower()]
+        if cands:
+            target = max(cands, key=lambda c: df[c].dropna().mean())
+
     if target is None:
-        print("Available columns:", list(df.columns))
-        raise ValueError("28-day CS column not found. Check TARGET_KW.")
+        raise ValueError(
+            "28-day CS column not found.\n"
+            f"Available columns: {list(df.columns)}\n"
+            "Add the exact column name to TARGET_KW."
+        )
 
     print(f"  Target : '{target}'  |  NS : '{ns_col}'")
 
@@ -162,7 +200,7 @@ def prepare(df: pd.DataFrame) -> tuple:
     print(f"  Ready : {X.shape[0]} samples × {X.shape[1]} features")
     return X.to_numpy(float), y, feats, ns_i, ns_col
 
-# ── Optuna model factories ─────────────────────────────────────────────────────
+# ── Optuna model factories ─────────────────────────────────────────────────────────────
 def _cb(t):
     return CatBoostRegressor(
         iterations=t.suggest_int("n", 300, 1500),
@@ -219,7 +257,7 @@ def tune(name: str, maker, X: np.ndarray, y: np.ndarray, n_trials: int):
     print(f"  {name:10s}  CV R²={study.best_value:.4f}")
     return best
 
-# ── Core pipeline ──────────────────────────────────────────────────────────────
+# ── Core pipeline ─────────────────────────────────────────────────────────────────
 def run_pipeline(X_raw: np.ndarray, y_raw: np.ndarray,
                  feats: list[str], n_trials: int) -> dict:
     q = pd.qcut(y_raw, q=5, labels=False, duplicates="drop")
@@ -256,7 +294,7 @@ def run_pipeline(X_raw: np.ndarray, y_raw: np.ndarray,
     return dict(models=models, results=results, Xtr=Xtr, Xte=Xte,
                 Xtr_raw=Xtr_r, yte_r=yte_r, imp=imp, sc=sc, log_y=log_y)
 
-# ── SHAP ───────────────────────────────────────────────────────────────────────
+# ── SHAP ────────────────────────────────────────────────────────────────────────────
 def run_shap(model, Xte, feats, ns_col, model_name) -> tuple:
     print(f"\nSHAP — {model_name}")
     try:
@@ -287,7 +325,7 @@ def run_shap(model, Xte, feats, ns_col, model_name) -> tuple:
     plt.close()
     return df_s, ns_rank
 
-# ── NS Curve ───────────────────────────────────────────────────────────────────
+# ── NS Curve ───────────────────────────────────────────────────────────────────────
 def ns_curve(model, Xtr_raw, ns_i, imp, sc, log_y, ns_col) -> float | None:
     if ns_i is None:
         print("NS column not found — skipping curve"); return None
@@ -316,7 +354,7 @@ def ns_curve(model, Xtr_raw, ns_i, imp, sc, log_y, ns_col) -> float | None:
     plt.tight_layout(); plt.savefig(OUT / "ns_effect_curve.png", dpi=200); plt.close()
     return opt_ns
 
-# ── Main ───────────────────────────────────────────────────────────────────────
+# ── Main ──────────────────────────────────────────────────────────────────────────────
 def main() -> None:
     df = load_data()
     X_raw, y_raw, feats, ns_i, ns_col = prepare(df)
@@ -337,8 +375,7 @@ def main() -> None:
         print(f"\nL2 not met — retrying with {TRIALS_RETRY} trials ...")
         art, best_name, best_r2, l1, l2 = _run(TRIALS_RETRY)
 
-    # Best tree model for SHAP
-    shap_name  = max(
+    shap_name = max(
         (n for n in ["CatBoost", "XGBoost", "RF", "GBR"] if n in art["results"]),
         key=lambda k: art["results"][k]["R2"])
     shap_df, ns_rank = run_shap(art["models"][shap_name], art["Xte"],
@@ -346,7 +383,6 @@ def main() -> None:
     opt_ns = ns_curve(art["models"][shap_name], art["Xtr_raw"],
                       ns_i, art["imp"], art["sc"], art["log_y"], ns_col)
 
-    # Scatter plot
     bm = art["models"][best_name]
     p  = np.expm1(bm.predict(art["Xte"])) if art["log_y"] else bm.predict(art["Xte"])
     lo, hi = min(art["yte_r"].min(), p.min()), max(art["yte_r"].max(), p.max())
@@ -357,7 +393,6 @@ def main() -> None:
     plt.title(f"{best_name}  R²={best_r2:.4f}  MAPE={art['results'][best_name]['MAPE']:.2f}%")
     plt.tight_layout(); plt.savefig(OUT / "scatter.png", dpi=200); plt.close()
 
-    # Save JSON
     (OUT / "metrics.json").write_text(json.dumps({
         "best_model": best_name, "gate_L1": l1, "gate_L2": l2,
         "targets": {"R2": f">={L2_GATE}", "MAE": "<=4.0",
@@ -367,7 +402,6 @@ def main() -> None:
         "ns_optimal_kg_m3": opt_ns, "ns_shap_rank": ns_rank,
     }, indent=2))
 
-    # Publication summary
     m = art["results"][best_name]
     print(f"\n{'═'*55}\n  PUBLICATION SUMMARY\n{'═'*55}")
     print(f"  Model  : {best_name}")
