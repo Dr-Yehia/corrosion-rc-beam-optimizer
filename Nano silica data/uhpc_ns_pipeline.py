@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
 """
-UHPC Multi-Property ML Pipeline v2 — Maximum Performance
-──────────────────────────────────────────────────
-New vs v1:
-  [1] Target Encoding  — Cement type / Fiber type / Slag / SP (CV, no leakage)
-  [2] Outlier Removal  — Isolation Forest 5%
-  [3] Physics Features — W/C, NS/Cement, Fiber Index, Total Binder
-  [4] LightGBM         — replaces MLP in Stacking
-  [5] Cluster Feature  — KMeans(3) label as extra input
-  [+] No Log1p         — disabled (was hurting R²)
-  [+] Realistic Gates  — 0.93 / 0.90 / 0.88 / 0.88 / 0.85
+UHPC Multi-Property ML Pipeline v3 — Maximum Performance
+────────────────────────────────────────────────────
+v3 improvements over v2:
+  [A] Trials ×2           — 100 base / 200 retry  (was 50/100)
+  [B] 7 base models       — add ExtraTrees + HistGBM (was 5)
+  [C] GBR meta-learner    — replaces Ridge; learns non-linear blending
+  [D] Bayesian smooth TE  — prevents overfit in rare categories (m=30)
+  [E] GPU auto-detect     — CatBoost / XGBoost / LightGBM use CUDA
+  [F] OUT_CONTAM 0.05→0.03 — keep more clean data
+  [G] KNN_K 5→7           — richer neighbour imputation
+  [H] All 7 models stack  — RF + ExtraTrees + HistGBM now in STACK_MODELS
 
 Targets : CS_28d | Flexural | Tensile | E_Modulus | Porosity
 Outputs : scatter | shap_bar | shap_summary | ns_curve
           taylor_diagram | shap_ns_sf | sensitivity | summary_chart
 """
 from __future__ import annotations
-import io, json, warnings
+import io, json, subprocess, warnings
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -28,10 +29,13 @@ import shap
 from catboost import CatBoostRegressor
 from lightgbm import LGBMRegressor
 from sklearn.cluster import KMeans
-from sklearn.ensemble import (GradientBoostingRegressor, IsolationForest,
-                               RandomForestRegressor, StackingRegressor)
+from sklearn.ensemble import (ExtraTreesRegressor,
+                               GradientBoostingRegressor,
+                               HistGradientBoostingRegressor,
+                               IsolationForest,
+                               RandomForestRegressor,
+                               StackingRegressor)
 from sklearn.impute import KNNImputer
-from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import KFold, train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -40,14 +44,26 @@ from xgboost import XGBRegressor
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 warnings.filterwarnings("ignore")
 
+# ── [E] GPU auto-detection ──────────────────────────────────────────
+try:
+    _r = subprocess.run(["nvidia-smi"], capture_output=True, timeout=5)
+    USE_GPU = _r.returncode == 0
+except Exception:
+    USE_GPU = False
+print(f"GPU acceleration: {'YES ✓' if USE_GPU else 'NO (CPU mode)'}")
+_cb_gpu   = "GPU"  if USE_GPU else "CPU"
+_xgb_dev  = "cuda" if USE_GPU else "cpu"
+_lgbm_dev = "gpu"  if USE_GPU else "cpu"
+
 # ── Config ──────────────────────────────────────────────────────────────────
 SEED          = 42
 TEST_SIZE     = 0.20
-TRIALS_BASE   = 50
-TRIALS_RETRY  = 100
-KNN_K         = 5
+TRIALS_BASE   = 100   # [A] was 50
+TRIALS_RETRY  = 200   # [A] was 100
+KNN_K         = 7     # [G] was 5
 N_CLUSTERS    = 3
-OUT_CONTAM    = 0.05          # Isolation Forest contamination
+OUT_CONTAM    = 0.03  # [F] was 0.05
+TE_SMOOTH     = 30    # [D] Bayesian smoothing factor
 ROOT_OUT      = Path("outputs")
 ROOT_OUT.mkdir(exist_ok=True)
 
@@ -65,7 +81,7 @@ LOCAL_PATHS = [
 
 MULTI_TARGETS = [
     {"kw":["28-day","28day","cs28","fc28"],  "name":"CS_28d",   "unit":"MPa","gate":0.930,"min_n":200},
-    {"kw":["peakstrength","mor("," mor"],    "name":"Flexural", "unit":"MPa","gate":0.900,"min_n":100},
+    {"kw":["peakstrength","mor("" mor"],    "name":"Flexural", "unit":"MPa","gate":0.900,"min_n":100},
     {"kw":["splittensile"],                  "name":"Tensile",  "unit":"MPa","gate":0.880,"min_n": 80},
     {"kw":["elasticmodulus","elasticmod"],   "name":"E_Modulus","unit":"GPa","gate":0.880,"min_n": 80},
     {"kw":["porosity"],                      "name":"Porosity", "unit":"% ", "gate":0.850,"min_n": 80},
@@ -77,7 +93,7 @@ SF_KW = ["silica fume","silicafume"]
 _RESULT_KW = [
     "1-day","3-day","7-day","14-day","21day","28-day","56-day","90-day",
     "elasticmodulus","splittensile","directtensile","tensileelastic",
-    "straincapacity","peaktensilestrain","lop(","mor("," mor","peakstrength",
+    "straincapacity","peaktensilestrain","lop(","mor("" mor","peakstrength",
     "residualstrength","toughness","aircontent","airvoid","porosity",
     "waterabsorption","shrinkage","cycles","totalcharge","surfaceresistivity",
     "crackingstrength","firstcracking",
@@ -90,7 +106,7 @@ _CAT_KW    = ["cement type","type of fiber","type of slag",
 
 CV = KFold(n_splits=5, shuffle=True, random_state=SEED)
 
-# ── Utilities ────────────────────────────────────────────────────────────────
+# ── Utilities ──────────────────────────────────────────────────────────────────
 def _c(s): return str(s).lower().replace(" ","").replace(",","").replace("'","").replace("-","")
 def _mape(y,yp): return float(np.mean(np.abs((y-yp)/np.maximum(np.abs(y),1e-9)))*100)
 def _a20(y,yp): r=yp/np.maximum(y,1e-9); return float(np.mean((r>=0.8)&(r<=1.2)))
@@ -100,7 +116,7 @@ def _report(y,yp,label=""):
              MAE=round(mean_absolute_error(y,yp),3),
              RMSE=round(float(np.sqrt(mean_squared_error(y,yp))),3),
              MAPE=round(_mape(y,yp),2), a20=round(_a20(y,yp),4))
-    print(f"  {label:12s}  R²={m['R2']:.4f}  MAE={m['MAE']:.2f}  "
+    print(f"  {label:14s}  R²={m['R2']:.4f}  MAE={m['MAE']:.2f}  "
           f"RMSE={m['RMSE']:.2f}  MAPE={m['MAPE']:.2f}%  a20={m['a20']:.3f}")
     return m
 
@@ -114,7 +130,7 @@ def _find_col(df,keywords):
 def _is_result(col): return any(_c(kw) in _c(col) for kw in _RESULT_KW)
 def _is_cat(col):    return any(_c(kw) in _c(col) for kw in _CAT_KW)
 
-# ── Excel loading ────────────────────────────────────────────────────────────────
+# ── Excel loading ────────────────────────────────────────────────────────────────────
 def _read_sheet(xf,sheet):
     try: raw = xf.parse(sheet,header=None,nrows=8)
     except: return None
@@ -152,41 +168,49 @@ def load_data():
         except Exception as e: print(f"  Failed [{label}]: {e}")
     raise FileNotFoundError(f"Cannot load '{EXCEL_FILE}'.")
 
-# ── [1] Target Encoding for categorical columns ───────────────────────────────
+# ── [1+D] Target Encoding with Bayesian smoothing ─────────────────────────────
 def target_encode(df_all, cat_cols, target_col, train_idx, test_idx):
     """
-    CV-based target encoding on train only, then apply mapping to test.
-    No leakage: test rows never influence encoding of train rows.
+    CV-based target encoding with Bayesian smoothing.
+    [D] smooth = (n*cat_mean + m*global_mean) / (n+m)  — prevents overfit
+        on rare categories (e.g. cement types with only 3-4 samples).
     """
     if not cat_cols: return np.zeros((len(df_all),0)), []
     global_mean = df_all.iloc[train_idx][target_col].mean()
     enc_arr = np.full((len(df_all), len(cat_cols)), global_mean)
     feat_names = []
     for ci, col in enumerate(cat_cols):
-        # CV encoding for train rows
         enc_train = np.full(len(train_idx), global_mean)
         sub = df_all.iloc[train_idx][[col, target_col]].copy().reset_index(drop=True)
-        for tr, va in KFold(5,shuffle=True,random_state=SEED).split(sub):
-            means = sub.iloc[tr].groupby(col)[target_col].mean()
-            enc_train[va] = sub.iloc[va][col].map(means).fillna(global_mean).values
+        for tr, va in KFold(5, shuffle=True, random_state=SEED).split(sub):
+            grp = sub.iloc[tr].groupby(col)[target_col]
+            cnt = grp.count()
+            mn  = grp.mean()
+            # [D] Bayesian smoothing: rare categories pulled toward global mean
+            smooth = (cnt * mn + TE_SMOOTH * global_mean) / (cnt + TE_SMOOTH)
+            enc_train[va] = sub.iloc[va][col].map(smooth).fillna(global_mean).values
         enc_arr[train_idx, ci] = enc_train
-        # Test rows: use full-train mapping
-        full_map = df_all.iloc[train_idx].groupby(col)[target_col].mean()
-        enc_arr[test_idx, ci] = df_all.iloc[test_idx][col].map(full_map).fillna(global_mean).values
+        grp_f    = df_all.iloc[train_idx].groupby(col)[target_col]
+        cnt_f    = grp_f.count()
+        mn_f     = grp_f.mean()
+        smooth_f = (cnt_f * mn_f + TE_SMOOTH * global_mean) / (cnt_f + TE_SMOOTH)
+        enc_arr[test_idx, ci] = (
+            df_all.iloc[test_idx][col].map(smooth_f).fillna(global_mean).values
+        )
         feat_names.append(f"{col}_enc")
-    print(f"  Target-encoded {len(cat_cols)} categorical cols: {feat_names}")
+    print(f"  Bayesian-TE (m={TE_SMOOTH}) → {len(cat_cols)} cols encoded")
     return enc_arr, feat_names
 
-# ── [3] Physics-informed features ───────────────────────────────────────────────
+# ── [3] Physics-informed features ─────────────────────────────────────────────────
 def add_physics_features(df, ns_col, sf_col):
     eps = 1e-9
     feats, names = [], []
-    c_col = _find_col(df,["cement amount","cement(","cement ("])
-    w_col = _find_col(df,["water","w/c","w ("])
-    l_col = _find_col(df,["length (mm)"])
-    d_col = _find_col(df,["diameter (mm)"])
-    fv_col= _find_col(df,["amount / quantity of fiber"])
-    ft_col= _find_col(df,["tensile strength (mpa)"])
+    c_col  = _find_col(df,["cement amount","cement(","cement ("])
+    w_col  = _find_col(df,["water","w/c","w ("])
+    l_col  = _find_col(df,["length (mm)"])
+    d_col  = _find_col(df,["diameter (mm)"])
+    fv_col = _find_col(df,["amount / quantity of fiber"])
+    ft_col = _find_col(df,["tensile strength (mpa)"])
 
     def _s(col): return df[col].fillna(0).to_numpy(float) if col else np.zeros(len(df))
 
@@ -204,54 +228,52 @@ def add_physics_features(df, ns_col, sf_col):
         if ns_col:
             feats.append(ns / np.maximum(c+sf+eps,eps)); names.append("NS_binder_ratio")
     if l_col and d_col and fv_col and ft_col:
-        aspect = l / d
-        feats.append(fv * aspect * ft / 1e6); names.append("Fiber_index")
+        feats.append(fv * (l/d) * ft / 1e6); names.append("Fiber_index")
 
     if not feats: return pd.DataFrame(index=df.index)
     df_phys = pd.DataFrame(np.column_stack(feats), columns=names, index=df.index)
-    print(f"  Physics features added: {names}")
+    print(f"  Physics features: {names}")
     return df_phys
 
-# ── [2] Outlier removal ───────────────────────────────────────────────────────────
+# ── [2] Outlier removal ──────────────────────────────────────────────────────────────────────
 def remove_outliers(X, y, contamination=OUT_CONTAM):
     iso  = IsolationForest(contamination=contamination,random_state=SEED,n_jobs=-1)
     mask = iso.fit_predict(np.column_stack([X,y.reshape(-1,1)])) == 1
     print(f"  Outliers removed: {(~mask).sum()} ({(~mask).mean()*100:.1f}%)")
     return X[mask], y[mask]
 
-# ── [5] Cluster feature ────────────────────────────────────────────────────────────
+# ── [5] Cluster feature ────────────────────────────────────────────────────────────────────
 def add_cluster(Xtr, Xte, n=N_CLUSTERS):
     km  = KMeans(n_clusters=n, random_state=SEED, n_init=10)
     ltr = km.fit_predict(Xtr).reshape(-1,1).astype(float)
     lte = km.predict(Xte).reshape(-1,1).astype(float)
-    print(f"  KMeans({n}) cluster sizes on train: "
-          f"{np.bincount(ltr.flatten().astype(int))}")
+    print(f"  KMeans({n}) cluster sizes: {np.bincount(ltr.flatten().astype(int))}")
     return np.hstack([Xtr,ltr]), np.hstack([Xte,lte])
 
-# ── [4] Optuna model factories ───────────────────────────────────────────────────────
+# ── [4+B+E] Optuna model factories (7 models) ───────────────────────────────────
 MAKERS = {
     "CatBoost": lambda t: CatBoostRegressor(
-        iterations    =t.suggest_int("n",300,2000),
-        learning_rate =t.suggest_float("lr",0.005,0.2,log=True),
-        depth         =t.suggest_int("d",5,10),
-        l2_leaf_reg   =t.suggest_float("l2",1,10),
-        random_seed=SEED, verbose=0),
+        iterations   =t.suggest_int("n",300,1500),
+        learning_rate=t.suggest_float("lr",0.005,0.2,log=True),
+        depth        =t.suggest_int("d",5,10),
+        l2_leaf_reg  =t.suggest_float("l2",1,10),
+        task_type=_cb_gpu, random_seed=SEED, verbose=0),   # [E]
     "XGBoost": lambda t: XGBRegressor(
-        n_estimators    =t.suggest_int("n",300,2000),
+        n_estimators    =t.suggest_int("n",300,1500),
         learning_rate   =t.suggest_float("lr",0.005,0.2,log=True),
         max_depth       =t.suggest_int("d",4,10),
         subsample       =t.suggest_float("ss",0.6,1.0),
         colsample_bytree=t.suggest_float("cs",0.6,1.0),
         min_child_weight=t.suggest_int("mcw",1,10),
-        random_state=SEED, verbosity=0),
+        device=_xgb_dev, random_state=SEED, verbosity=0),  # [E]
     "LightGBM": lambda t: LGBMRegressor(
-        n_estimators =t.suggest_int("n",300,2000),
-        learning_rate=t.suggest_float("lr",0.005,0.2,log=True),
-        max_depth    =t.suggest_int("d",4,12),
-        num_leaves   =t.suggest_int("nl",20,200),
-        subsample    =t.suggest_float("ss",0.6,1.0),
+        n_estimators    =t.suggest_int("n",300,1500),
+        learning_rate   =t.suggest_float("lr",0.005,0.2,log=True),
+        max_depth       =t.suggest_int("d",4,12),
+        num_leaves      =t.suggest_int("nl",20,200),
+        subsample       =t.suggest_float("ss",0.6,1.0),
         colsample_bytree=t.suggest_float("cs",0.6,1.0),
-        random_state=SEED, verbose=-1),
+        device=_lgbm_dev, random_state=SEED, verbose=-1),  # [E]
     "RF": lambda t: RandomForestRegressor(
         n_estimators    =t.suggest_int("n",200,800),
         max_depth       =t.suggest_int("d",5,30),
@@ -259,13 +281,28 @@ MAKERS = {
         max_features    =t.suggest_float("mf",0.4,1.0),
         random_state=SEED, n_jobs=-1),
     "GBR": lambda t: GradientBoostingRegressor(
-        n_estimators =t.suggest_int("n",200,1000),
+        n_estimators =t.suggest_int("n",200,800),
         learning_rate=t.suggest_float("lr",0.005,0.15,log=True),
-        max_depth    =t.suggest_int("d",3,8),
+        max_depth    =t.suggest_int("d",3,7),
         subsample    =t.suggest_float("ss",0.6,1.0),
         random_state=SEED),
+    # [B] New diverse models:
+    "ExtraTrees": lambda t: ExtraTreesRegressor(
+        n_estimators    =t.suggest_int("n",200,800),
+        max_depth       =t.suggest_int("d",5,40),
+        min_samples_split=t.suggest_int("mss",2,10),
+        max_features    =t.suggest_float("mf",0.3,1.0),
+        random_state=SEED, n_jobs=-1),
+    "HistGBM": lambda t: HistGradientBoostingRegressor(
+        max_iter         =t.suggest_int("n",200,1000),
+        learning_rate    =t.suggest_float("lr",0.01,0.2,log=True),
+        max_depth        =t.suggest_int("d",4,15),
+        min_samples_leaf =t.suggest_int("msl",10,100),
+        l2_regularization=t.suggest_float("l2",0.0,10.0),
+        random_state=SEED),
 }
-STACK_MODELS = ["CatBoost","XGBoost","LightGBM","GBR"]   # RF optional, MLP removed
+# [H] All 7 base models participate in Stacking
+STACK_MODELS = ["CatBoost","XGBoost","LightGBM","RF","GBR","ExtraTrees","HistGBM"]
 
 def _tune(name, maker, X, y, n_trials):
     def obj(trial):
@@ -277,12 +314,12 @@ def _tune(name, maker, X, y, n_trials):
                               sampler=optuna.samplers.TPESampler(seed=SEED))
     st.optimize(obj, n_trials=n_trials, show_progress_bar=False)
     best = maker(st.best_trial); best.fit(X,y)
-    print(f"  {name:10s}  CV R²={st.best_value:.4f}")
-    return best
+    print(f"  {name:12s}  CV R²={st.best_value:.4f}")
+    return best, st.best_value
 
-# ── Core pipeline ─────────────────────────────────────────────────────────────────
+# ── Core pipeline ───────────────────────────────────────────────────────────────────────
 def _pipeline(X_raw, y_raw, n_trials):
-    # Train/Test split (stratified)
+    # Stratified train/test split
     q    = pd.qcut(y_raw, q=min(5,len(y_raw)//20), labels=False, duplicates="drop")
     itr, ite = train_test_split(np.arange(len(y_raw)),
                                 test_size=TEST_SIZE, random_state=SEED, stratify=q)
@@ -292,12 +329,12 @@ def _pipeline(X_raw, y_raw, n_trials):
     # [2] Outlier removal on train only
     Xtr_r, ytr_r = remove_outliers(Xtr_r, ytr_r)
 
-    # KNN Imputation (fit on train)
+    # KNN Imputation (fit on train) [G] k=7
     imp   = KNNImputer(n_neighbors=KNN_K)
     Xtr_i = imp.fit_transform(Xtr_r)
     Xte_i = imp.transform(Xte_r)
 
-    # [+] No Log1p — direct target
+    # No Log1p — direct target
     ytr = ytr_r.copy()
 
     # StandardScaler
@@ -308,26 +345,33 @@ def _pipeline(X_raw, y_raw, n_trials):
     # [5] Cluster feature (fit on train)
     Xtr, Xte = add_cluster(Xtr, Xte)
 
-    print(f"  Optuna {n_trials} trials × {len(MAKERS)} models")
-    models = {n: _tune(n, m, Xtr, ytr, n_trials) for n,m in MAKERS.items()}
+    print(f"  Optuna {n_trials} trials × {len(MAKERS)} models ...")
+    models    = {}
+    cv_scores = {}
+    for nm, mk in MAKERS.items():
+        models[nm], cv_scores[nm] = _tune(nm, mk, Xtr, ytr, n_trials)
 
+    # [C] GBR meta-learner: learns non-linear combinations of 7 OOF predictions
+    meta = GradientBoostingRegressor(
+        n_estimators=200, learning_rate=0.05, max_depth=3,
+        subsample=0.8, random_state=SEED)
     stack = StackingRegressor(
-        estimators   =[(k,v) for k,v in models.items() if k in STACK_MODELS],
-        final_estimator=Ridge(alpha=1.0), cv=5, n_jobs=-1)
+        estimators    =[(k, models[k]) for k in STACK_MODELS],
+        final_estimator=meta,
+        cv=5, n_jobs=-1)
     stack.fit(Xtr, ytr)
     models["Stacking"] = stack
 
-    print("  Test Set:")
+    print("  ─ Test Set Results ─")
     results = {}
-    for nm,m in models.items():
-        p = m.predict(Xte)
-        results[nm] = _report(yte_r, p, nm)
+    for nm, m in models.items():
+        results[nm] = _report(yte_r, m.predict(Xte), nm)
 
-    return dict(models=models, results=results,
+    return dict(models=models, results=results, cv_scores=cv_scores,
                 Xtr=Xtr, Xte=Xte, Xtr_raw=Xtr_r, yte_r=yte_r,
                 imp=imp, sc=sc, log_y=False)
 
-# ── Figure 1: Scatter ────────────────────────────────────────────────────────────────
+# ── Figure 1: Scatter ───────────────────────────────────────────────────────────────────────
 def _scatter(yte,yp,best,r2,mape,prop,unit,out):
     lo=min(yte.min(),yp.min()); hi=max(yte.max(),yp.max())
     plt.figure(figsize=(6,6))
@@ -341,7 +385,7 @@ def _scatter(yte,yp,best,r2,mape,prop,unit,out):
     plt.legend(); plt.tight_layout()
     plt.savefig(out/"scatter.png",dpi=200); plt.close()
 
-# ── Figures 2+3: SHAP ────────────────────────────────────────────────────────────────
+# ── Figures 2+3: SHAP ──────────────────────────────────────────────────────────────────────
 def _shap_plots(model,Xte,feats,ns_col,prop,out):
     try:    sv = shap.TreeExplainer(model).shap_values(Xte)
     except: sv = shap.KernelExplainer(model.predict,shap.sample(Xte,80)).shap_values(Xte)
@@ -364,15 +408,14 @@ def _shap_plots(model,Xte,feats,ns_col,prop,out):
     plt.close()
     return sv,df_s,ns_rank
 
-# ── Figure 4: NS Curve ────────────────────────────────────────────────────────────────
+# ── Figure 4: NS Curve ───────────────────────────────────────────────────────────────────────
 def _ns_curve(model,Xtr_raw,ns_i,imp,sc,prop,unit,out):
     if ns_i is None: return None
     med=np.nanmedian(Xtr_raw,axis=0); rng=np.linspace(0,200,200); pred=[]
     for v in rng:
         x=med.copy(); x[ns_i]=v
         xi=sc.transform(imp.transform(x.reshape(1,-1)))
-        # append median cluster (0) for the cluster feature
-        xi=np.hstack([xi,[[0]]])
+        xi=np.hstack([xi,[[0]]])   # median cluster
         pred.append(float(model.predict(xi)[0]))
     pred=np.array(pred); opt_ns=float(rng[np.argmax(pred)])
     print(f"  Optimal NS: {opt_ns:.1f} kg/m³ → {pred.max():.2f} {unit}")
@@ -387,7 +430,7 @@ def _ns_curve(model,Xtr_raw,ns_i,imp,sc,prop,unit,out):
     plt.tight_layout(); plt.savefig(out/"ns_curve.png",dpi=200); plt.close()
     return opt_ns
 
-# ── Figure 5: Taylor Diagram ─────────────────────────────────────────────────────────
+# ── Figure 5: Taylor Diagram ──────────────────────────────────────────────────────────────────
 def _taylor(yte,model_preds,prop,out):
     std_ref=np.std(yte)
     fig=plt.figure(figsize=(7,6)); ax=fig.add_subplot(111,polar=True)
@@ -396,7 +439,7 @@ def _taylor(yte,model_preds,prop,out):
                       [f"{np.cos(np.deg2rad(a)):.2f}" for a in range(0,91,15)],fontsize=8)
     ax.set_title(f"Taylor Diagram — {prop}",pad=20)
     ax.plot(0,1,"k*",ms=14,label="Observed",zorder=5)
-    colors=["#e41a1c","#377eb8","#4daf4a","#984ea3","#ff7f00","#a65628"]
+    colors=["#e41a1c","#377eb8","#4daf4a","#984ea3","#ff7f00","#a65628","#f781bf","#999999"]
     for i,(nm,yp) in enumerate(model_preds.items()):
         r=float(np.corrcoef(yte,yp)[0,1]); std=np.std(yp)/std_ref
         ax.plot(np.arccos(np.clip(r,-1,1)),std,"o",ms=9,
@@ -404,11 +447,11 @@ def _taylor(yte,model_preds,prop,out):
     for rv in [0.5,1.0,1.5]:
         t=np.linspace(0,np.pi/2,200)
         ax.plot(t,np.sqrt(1+rv**2-2*rv*np.cos(t)),":",color="gray",lw=0.8,alpha=0.5)
-    ax.legend(loc="upper right",bbox_to_anchor=(1.35,1.1),fontsize=8)
+    ax.legend(loc="upper right",bbox_to_anchor=(1.35,1.1),fontsize=7)
     plt.tight_layout(); plt.savefig(out/"taylor_diagram.png",dpi=200,bbox_inches="tight")
     plt.close()
 
-# ── Figure 6: SHAP NS×SF Interaction ────────────────────────────────────────────
+# ── Figure 6: SHAP NS×SF Interaction ────────────────────────────────────────────────────
 def _shap_interaction(sv,Xte,feats,ns_col,sf_col,prop,out):
     ns_i=feats.index(ns_col) if (ns_col and ns_col in feats) else None
     sf_i=feats.index(sf_col) if (sf_col and sf_col in feats) else None
@@ -419,12 +462,12 @@ def _shap_interaction(sv,Xte,feats,ns_col,sf_col,prop,out):
                    cmap="RdYlGn",s=20,alpha=0.7,edgecolors="none")
     plt.colorbar(sc_,ax=ax,label=sf_col or "")
     ax.axhline(0,color="gray",lw=0.8,ls="--")
-    ax.set_xlabel(f"Nano Silica (scaled)")
+    ax.set_xlabel("Nano Silica (scaled)")
     ax.set_ylabel("SHAP value for Nano Silica")
     ax.set_title(f"{prop} — NS×SF Interaction  (green=high SF, red=low SF)")
     plt.tight_layout(); plt.savefig(out/"shap_ns_sf_interaction.png",dpi=200); plt.close()
 
-# ── Figure 7: Sensitivity ───────────────────────────────────────────────────────────
+# ── Figure 7: Sensitivity ─────────────────────────────────────────────────────────────────────
 def _sensitivity(model,Xtr_raw,feats,imp,sc,prop,unit,out,top_n=12):
     med=np.nanmedian(Xtr_raw,axis=0)
     xi_base=np.hstack([sc.transform(imp.transform(med.reshape(1,-1))),[[0]]])
@@ -445,16 +488,14 @@ def _sensitivity(model,Xtr_raw,feats,imp,sc,prop,unit,out,top_n=12):
     ax.set_title(f"{prop} — Sensitivity Analysis")
     plt.tight_layout(); plt.savefig(out/"sensitivity.png",dpi=200); plt.close()
 
-# ── Run one property ───────────────────────────────────────────────────────────────
+# ── Run one property ────────────────────────────────────────────────────────────────────────
 def run_property(cfg, df, ns_col, sf_col):
     target = _find_col(df, cfg["kw"])
     if target is None:
         print(f"  [{cfg['name']}] column not found — skip"); return None
 
-    # Numeric mix-design features (no result cols)
     num_cols = [c for c in df.select_dtypes(include=[np.number]).columns
                 if not _is_result(c) and c != target]
-    # Categorical mix-design features
     cat_cols  = [c for c in df.columns
                  if df[c].dtype == object and _is_cat(c) and not _is_result(c)]
 
@@ -462,20 +503,19 @@ def run_property(cfg, df, ns_col, sf_col):
     df_t = df[keep_cols].dropna(subset=[target]).copy().reset_index(drop=True)
     n    = len(df_t)
 
-    print(f"\n{'='*62}")
+    print(f"\n{'='*64}")
     print(f"  {cfg['name']}  |  target='{target}'  |  n={n}")
-    print(f"{'='*62}")
+    print(f"{'='*64}")
     if n < cfg["min_n"]:
         print(f"  Skip: {n} < {cfg['min_n']}"); return None
 
-    # Drop numeric cols with >60% missing
     df_t = df_t.loc[:,
         [c for c in df_t.columns
          if c in cat_cols or c == target or df_t[c].isnull().mean() < 0.60]]
     num_cols = [c for c in df_t.columns if c not in cat_cols and c != target]
 
-    # [3] Physics features
-    phys = add_physics_features(df_t, ns_col if ns_col in df_t.columns else None,
+    phys = add_physics_features(df_t,
+                                ns_col if ns_col in df_t.columns else None,
                                 sf_col if sf_col in df_t.columns else None)
     if not phys.empty:
         df_t = pd.concat([df_t, phys], axis=1)
@@ -486,7 +526,6 @@ def run_property(cfg, df, ns_col, sf_col):
     feats = num_cols.copy()
     ns_i  = feats.index(ns_col) if (ns_col and ns_col in feats) else None
 
-    # [1] Target Encoding — computed inside run_property using full index
     if cat_cols:
         itr_all, ite_all = train_test_split(
             np.arange(n), test_size=TEST_SIZE, random_state=SEED,
@@ -505,19 +544,18 @@ def run_property(cfg, df, ns_col, sf_col):
 
     art, best_name, best_r2, passed = _run(TRIALS_BASE)
     if not passed:
-        print(f"  Gate {cfg['gate']} not met (R²={best_r2:.4f}) — retry {TRIALS_RETRY}")
+        print(f"  Gate {cfg['gate']} not met (R²={best_r2:.4f}) — retry {TRIALS_RETRY} trials")
         art, best_name, best_r2, passed = _run(TRIALS_RETRY)
 
-    # Best tree model for analysis
-    shap_m = max((nm for nm in ["CatBoost","XGBoost","LightGBM","GBR"]
-                  if nm in art["results"]),
+    # Best tree model for SHAP (individual model, not Stacking)
+    tree_models = ["CatBoost","XGBoost","LightGBM","ExtraTrees","GBR","HistGBM","RF"]
+    shap_m = max((nm for nm in tree_models if nm in art["results"]),
                  key=lambda k: art["results"][k]["R2"])
     m = art["results"][best_name]
 
-    # All figures
-    feats_ext = feats + ["cluster"]          # cluster feature appended last
-    bm = art["models"][best_name]
-    yp = bm.predict(art["Xte"])
+    feats_ext = feats + ["cluster"]
+    bm  = art["models"][best_name]
+    yp  = bm.predict(art["Xte"])
     _scatter(art["yte_r"],yp,best_name,best_r2,m["MAPE"],cfg["name"],cfg["unit"],out)
 
     sv,df_shap,ns_rank = _shap_plots(
@@ -526,25 +564,26 @@ def run_property(cfg, df, ns_col, sf_col):
     opt_ns = _ns_curve(art["models"][shap_m],art["Xtr_raw"],
                        ns_i,art["imp"],art["sc"],cfg["name"],cfg["unit"],out)
 
-    model_preds={nm:art["models"][nm].predict(art["Xte"]) for nm in art["results"]}
+    model_preds = {nm:art["models"][nm].predict(art["Xte"]) for nm in art["results"]}
     _taylor(art["yte_r"],model_preds,cfg["name"],out)
     _shap_interaction(sv,art["Xte"],feats_ext,ns_col,sf_col,cfg["name"],out)
     _sensitivity(art["models"][shap_m],art["Xtr_raw"],
                  feats,art["imp"],art["sc"],cfg["name"],cfg["unit"],out)
 
-    summary=dict(property=cfg["name"],unit=cfg["unit"],n_samples=n,
-                 gate=cfg["gate"],gate_passed=passed,
-                 best_model=best_name,metrics=m,all_models=art["results"],
-                 ns_rank=ns_rank,ns_optimal_kg_m3=opt_ns)
+    summary = dict(property=cfg["name"],unit=cfg["unit"],n_samples=n,
+                   gate=cfg["gate"],gate_passed=passed,
+                   best_model=best_name,metrics=m,all_models=art["results"],
+                   cv_scores=art["cv_scores"],
+                   ns_rank=ns_rank,ns_optimal_kg_m3=opt_ns)
     (out/"metrics.json").write_text(json.dumps(summary,indent=2))
     return summary
 
-# ── Summary chart ───────────────────────────────────────────────────────────────────
+# ── Summary chart ───────────────────────────────────────────────────────────────────────
 def _summary_chart(all_results):
     if not all_results: return
-    names  = [r["property"]         for r in all_results]
-    r2s    = [r["metrics"]["R2"]    for r in all_results]
-    mapes  = [r["metrics"]["MAPE"]  for r in all_results]
+    names  = [r["property"]        for r in all_results]
+    r2s    = [r["metrics"]["R2"]   for r in all_results]
+    mapes  = [r["metrics"]["MAPE"] for r in all_results]
     colors = ["#2ecc71" if r["gate_passed"] else "#e74c3c" for r in all_results]
     fig,(ax1,ax2)=plt.subplots(1,2,figsize=(12,5))
     ax1.bar(names,r2s,color=colors); ax1.set_ylim(0.80,1.0)
@@ -553,15 +592,17 @@ def _summary_chart(all_results):
     ax2.bar(names,mapes,color=colors)
     ax2.set_ylabel("MAPE (%)"); ax2.set_title("MAPE per Property")
     for i,v in enumerate(mapes): ax2.text(i,v+0.1,f"{v:.1f}%",ha="center",fontsize=9)
-    plt.suptitle("UHPC Multi-Property v2 Summary",fontsize=13,fontweight="bold")
+    plt.suptitle("UHPC Multi-Property v3 Summary",fontsize=13,fontweight="bold")
     plt.tight_layout(); plt.savefig(ROOT_OUT/"summary_chart.png",dpi=200); plt.close()
 
-# ── Main ─────────────────────────────────────────────────────────────────────────────
+# ── Main ────────────────────────────────────────────────────────────────────────────────────
 def main():
     df     = load_data()
     ns_col = _find_col(df, NS_KW)
     sf_col = _find_col(df, SF_KW)
     print(f"\nDataset: {df.shape}  |  NS='{ns_col}'  |  SF='{sf_col}'")
+    print(f"Config: TRIALS={TRIALS_BASE}/{TRIALS_RETRY}  KNN_K={KNN_K}  "
+          f"CONTAM={OUT_CONTAM}  TE_SMOOTH={TE_SMOOTH}  GPU={USE_GPU}\n")
 
     all_results = []
     for cfg in MULTI_TARGETS:
@@ -571,21 +612,21 @@ def main():
     _summary_chart(all_results)
     (ROOT_OUT/"all_metrics.json").write_text(json.dumps(all_results,indent=2))
 
-    print(f"\n{'='*68}")
-    print("  MULTI-PROPERTY SUMMARY v2")
-    print(f"{'='*68}")
-    print(f"  {'Property':<12}{'n':>6}{'Best':>12}{'R²':>8}"
+    print(f"\n{'='*70}")
+    print("  MULTI-PROPERTY SUMMARY v3")
+    print(f"{'='*70}")
+    print(f"  {'Property':<12}{'n':>6}{'Best':>14}{'R²':>8}"
           f"{'MAPE':>7}{'Gate':>7}{'NS★':>7}{'OptNS':>8}")
-    print(f"  {'-'*66}")
+    print(f"  {'-'*68}")
     for r in all_results:
         m  = r["metrics"]
         tk = "✅" if r["gate_passed"] else "❌"
         ns = f"#{r['ns_rank']}" if r["ns_rank"] else "--"
         op = f"{r['ns_optimal_kg_m3']:.0f}" if r["ns_optimal_kg_m3"] else "--"
-        print(f"  {r['property']:<12}{r['n_samples']:>6}{r['best_model']:>12}"
+        print(f"  {r['property']:<12}{r['n_samples']:>6}{r['best_model']:>14}"
               f"{m['R2']:>8.4f}{m['MAPE']:>7.2f}{tk:>7}{ns:>7}{op:>8}")
-    print(f"{'='*68}")
-    print(f"  7 figures per property | outputs/summary_chart.png")
+    print(f"{'='*70}")
+    print(f"  8 figures per property | outputs/summary_chart.png")
 
 if __name__ == "__main__":
     main()
