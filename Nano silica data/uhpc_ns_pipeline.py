@@ -509,7 +509,8 @@ MAKERS = {
         learning_rate = t.suggest_float("lr", 0.005, 0.2, log=True),
         depth         = t.suggest_int("d", 5, 10),
         l2_leaf_reg   = t.suggest_float("l2", 1, 10),
-        task_type=_cb_gpu, random_seed=SEED, verbose=0,
+        task_type="CPU",   # CPU avoids CUDA conflicts on multi-GPU Kaggle
+        random_seed=SEED, verbose=0,
     ),
     "XGBoost": lambda t: XGBRegressor(
         n_estimators     = t.suggest_int("n", 300, 1500),
