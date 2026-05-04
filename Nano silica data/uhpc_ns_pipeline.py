@@ -184,9 +184,46 @@ def _read_sheet(xf, sheet):
     try:
         df = xf.parse(sheet, header=best_h)
         print(f"    header row={best_h}  score={best_sc}  shape={df.shape}")
-        return df if len(df) >= 10 else None
+        if len(df) < 10:
+            return None
+        # Fix duplicate 'Amount (kg/m³)' columns using group-header row
+        if best_h >= 2 and len(raw) > 1:
+            df = _resolve_amount_cols(df, raw.iloc[1])
+        return df
     except Exception:
         return None
+
+
+def _resolve_amount_cols(df, group_row):
+    """
+    Rename ambiguous duplicate 'Amount (kg/m³)' columns using the group
+    header row (row 1 in multi-level Excel headers).
+    e.g. group='Water' + col='Amount (kg/m³)' → 'Water (kg/m³)'
+    """
+    # Forward-fill group names across merged cells
+    last_g = ""
+    groups = {}
+    for i, v in enumerate(group_row):
+        s = str(v).strip()
+        if s not in ("nan", "None", "") and not s.lower().startswith("unnamed"):
+            last_g = s
+        groups[i] = last_g
+
+    new_cols = list(df.columns)
+    for i, col in enumerate(new_cols):
+        if i >= len(groups):
+            break
+        g   = groups[i].lower()
+        col_c = _c(str(col))
+        if "amount" in col_c and "kg" in col_c:
+            if "water" in g:
+                new_cols[i] = "Water (kg/m³)"
+                print(f"  [fix] col[{i}] '{col}' → 'Water (kg/m³)'")
+            elif "super" in g or "plastic" in g:
+                new_cols[i] = "SP Amount (kg/m³)"
+                print(f"  [fix] col[{i}] '{col}' → 'SP Amount (kg/m³)'")
+    df.columns = new_cols
+    return df
 
 
 def load_data():
