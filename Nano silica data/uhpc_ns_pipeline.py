@@ -581,9 +581,15 @@ MAKERS = {
         random_state=SEED,
     ),
 }
+# On multi-GPU: remove CatBoost entirely — it loads CUDA libs at fit() time
+# even with task_type="CPU", causing a kernel crash on Kaggle T4 x2.
+if _N_GPUS > 1:
+    MAKERS.pop("CatBoost", None)
+    print("  [multi-GPU] CatBoost removed from tuning (CUDA libs conflict)")
+
 # CatBoost excluded from stacking on GPU to avoid multi-process CUDA conflict
 STACK_MODELS = (["XGBoost", "LightGBM", "RF", "GBR", "ExtraTrees", "HistGBM"]
-                if _cb_gpu == "GPU"
+                if _cb_gpu == "GPU" or _N_GPUS > 1
                 else ["CatBoost", "XGBoost", "LightGBM", "RF", "GBR", "ExtraTrees", "HistGBM"])
 
 
