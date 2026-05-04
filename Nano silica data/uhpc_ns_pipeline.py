@@ -37,7 +37,7 @@ from sklearn.ensemble import (ExtraTreesRegressor,
                                IsolationForest,
                                RandomForestRegressor,
                                StackingRegressor)
-from sklearn.impute import KNNImputer
+from sklearn.impute import KNNImputer, SimpleImputer
 from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import KFold, train_test_split
@@ -238,6 +238,11 @@ def fit_physics_baseline(X_num_raw, y_all, train_idx,
     M0_best  = None
     r2_best  = -999.0
     tag_best = "none"
+
+    # Impute NaNs with train-column medians before any fitting
+    _si = SimpleImputer(strategy="median")
+    _si.fit(X_num_raw[train_idx])
+    X_num_raw = _si.transform(X_num_raw)
 
     # ── Option A: Power's Law OOF ────────────────────────────────────────────
     if c_feat_idx is not None and wc_feat_idx is not None:
