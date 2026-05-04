@@ -399,7 +399,10 @@ def target_encode(df_all, cat_cols, target_col, train_idx, test_idx):
 def add_physics_features(df, ns_col, sf_col):
     feats, names = [], []
     c_col  = _find_col(df, ["cement amount", "cement(", "cement (", "cement (kg", "cement content"])
-    w_col  = _find_col(df, ["water", "w/c", "w (", "water content", "water (", "free water"])
+    w_col  = _find_col(df, ["water", "w/c", "w/b", "w (", "w/binder",
+                            "water content", "water (", "free water",
+                            "water-binder", "waterbinder", "wb ratio",
+                            "wc ratio", "w_c", "w_b"])
     l_col  = _find_col(df, ["length (mm)", "fiber length"])
     d_col  = _find_col(df, ["diameter (mm)", "fiber diameter"])
     fv_col = _find_col(df, ["amount / quantity of fiber", "fiber volume", "fiber content"])
@@ -413,6 +416,7 @@ def add_physics_features(df, ns_col, sf_col):
     l  = _s(l_col);  d  = np.maximum(_s(d_col), EPS)
     fv = _s(fv_col); ft = _s(ft_col)
 
+    print(f"  [phys] cement='{c_col}'  water='{w_col}'  ns='{ns_col}'  sf='{sf_col}'")
     if c_col and w_col:
         feats.append(w / np.maximum(c, EPS));             names.append("WC_ratio")
     if c_col and ns_col:
