@@ -59,16 +59,25 @@ try:
 except Exception:
     USE_GPU, _N_GPUS = False, 0
 
-# On multi-GPU (e.g., Kaggle T4 x2), pin to GPU 0 to avoid CUDA conflicts
+# On multi-GPU (e.g., Kaggle T4 x2): force CPU-only.
+# CUDA contexts on 2 GPUs conflict inside Optuna trials even with
+# CUDA_VISIBLE_DEVICES restriction. Dataset n≈2073 is small, so
+# CPU tuning takes ~25 min — well within the 12 h Kaggle limit.
 if _N_GPUS > 1:
     import os as _os
     _os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    USE_GPU = False
 
-print(f"GPU: {'YES ✓' if USE_GPU else 'NO (CPU)'}  (detected {_N_GPUS} GPU(s)"
-      f"{', pinned to GPU 0' if _N_GPUS > 1 else ''})")
 _cb_gpu   = "GPU"  if USE_GPU else "CPU"
 _xgb_dev  = "cuda" if USE_GPU else "cpu"
 _lgbm_dev = "gpu"  if USE_GPU else "cpu"
+
+if _N_GPUS > 1:
+    print(f"GPU: YES ({_N_GPUS} GPUs detected) → CPU-only to avoid multi-GPU CUDA conflict")
+elif USE_GPU:
+    print(f"GPU: YES ✓  (single GPU)")
+else:
+    print("GPU: NO (CPU)")
 
 # ── Config ──────────────────────────────────────────────────────────────────
 SEED         = 42
