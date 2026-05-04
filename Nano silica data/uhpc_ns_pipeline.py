@@ -513,7 +513,10 @@ MAKERS = {
         random_state=SEED,
     ),
 }
-STACK_MODELS = ["CatBoost", "XGBoost", "LightGBM", "RF", "GBR", "ExtraTrees", "HistGBM"]
+# CatBoost excluded from stacking on GPU to avoid multi-process CUDA conflict
+STACK_MODELS = (["XGBoost", "LightGBM", "RF", "GBR", "ExtraTrees", "HistGBM"]
+                if _cb_gpu == "GPU"
+                else ["CatBoost", "XGBoost", "LightGBM", "RF", "GBR", "ExtraTrees", "HistGBM"])
 
 
 def _tune(name, maker, X, y, n_trials):
@@ -583,7 +586,7 @@ def _pipeline(X_raw, y_raw, n_trials, M0_all=None):
     )
     stack = StackingRegressor(
         estimators      = [(k, models[k]) for k in STACK_MODELS],
-        final_estimator = meta, cv=5, n_jobs=-1,
+        final_estimator = meta, cv=5, n_jobs=1,
     )
     stack.fit(Xtr, y_target)
     models["Stacking"] = stack
