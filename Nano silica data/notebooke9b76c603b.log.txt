@@ -1,0 +1,578 @@
+5.8s 1 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+5.8s 2 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+5.8s 3 0.00s - to python to disable frozen modules.
+5.8s 4 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+6.4s 5 0.00s - Debugger warning: It seems that frozen modules are being used, which may
+6.4s 6 0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off
+6.4s 7 0.00s - to python to disable frozen modules.
+6.4s 8 0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.
+18.3s 9 GPU: YES ✓
+18.3s 10 ✅ utilities OK
+18.3s 11 Physics features: ['WC_ratio', 'NS_cement_ratio', 'Total_binder', 'NS_binder_ratio', 'NS_binder_sq', 'log_NS_cement', 'log_WC_ratio', 'NS_SF_product']
+18.3s 12 ✅ add_physics_features OK: ['WC_ratio', 'NS_cement_ratio', 'Total_binder', 'NS_binder_ratio', 'NS_binder_sq', 'log_NS_cement', 'log_WC_ratio', 'NS_SF_product']
+18.3s 13 
+18.3s 14 🎉 كود 1 اجتاز جميع الاختبارات
+18.9s 15 GPU: YES ✓
+18.9s 16 Outliers removed: 2 (3.1%)
+19.1s 17 KMeans(3) cluster sizes: [19 21 22]
+19.1s 18 Direct prediction (no physics baseline)
+19.1s 19 Optuna 2 trials × 7 models ...
+63.7s 20 CatBoost      CV R²=0.7830
+67.7s 21 XGBoost       CV R²=0.8377
+68.2s 22 1 warning generated.
+68.3s 23 1 warning generated.
+68.4s 24 1 warning generated.
+68.4s 25 1 warning generated.
+68.4s 26 
+68.4s 27 1 warning generated.
+68.4s 28 1 warning generated.
+68.5s 29 1 warning generated.
+68.6s 30 1 warning generated.
+68.6s 31 1 warning generated.
+68.7s 32 1 warning generated.
+68.7s 33 1 warning generated.
+68.7s 34 1 warning generated.
+68.7s 35 
+68.7s 36 1 warning generated.
+68.7s 37 1 warning generated.
+68.7s 38 1 warning generated.
+68.7s 39 1 warning generated.
+68.8s 40 1 warning generated.
+68.9s 41 1 warning generated.
+68.9s 42 1 warning generated.
+68.9s 43 1 warning generated.
+68.9s 44 1 warning generated.
+68.9s 45 
+68.9s 46 1 warning generated.
+68.9s 47 1 warning generated.
+68.9s 48 1 warning generated.
+69.0s 49 1 warning generated.
+69.1s 50 1 warning generated.
+69.2s 51 1 warning generated.
+69.2s 52 1 warning generated.
+69.2s 53 1 warning generated.
+69.2s 54 1 warning generated.
+69.2s 55 
+69.2s 56 1 warning generated.
+69.2s 57 1 warning generated.
+69.2s 58 1 warning generated.
+69.3s 59 1 warning generated.
+69.4s 60 1 warning generated.
+69.5s 61 1 warning generated.
+69.5s 62 1 warning generated.
+69.5s 63 1 warning generated.
+69.5s 64 1 warning generated.
+69.5s 65 
+69.5s 66 1 warning generated.
+69.5s 67 1 warning generated.
+69.5s 68 1 warning generated.
+69.6s 69 1 warning generated.
+69.7s 70 1 warning generated.
+69.8s 71 1 warning generated.
+69.8s 72 1 warning generated.
+69.8s 73 1 warning generated.
+69.8s 74 1 warning generated.
+69.8s 75 
+69.8s 76 1 warning generated.
+69.8s 77 1 warning generated.
+69.8s 78 1 warning generated.
+69.9s 79 1 warning generated.
+70.0s 80 1 warning generated.
+70.0s 81 1 warning generated.
+70.1s 82 1 warning generated.
+70.1s 83 1 warning generated.
+70.1s 84 1 warning generated.
+70.1s 85 
+70.1s 86 1 warning generated.
+70.1s 87 1 warning generated.
+70.1s 88 1 warning generated.
+70.1s 89 1 warning generated.
+70.2s 90 1 warning generated.
+70.3s 91 1 warning generated.
+70.3s 92 1 warning generated.
+70.3s 93 1 warning generated.
+70.3s 94 1 warning generated.
+70.3s 95 
+70.3s 96 1 warning generated.
+70.3s 97 1 warning generated.
+70.3s 98 1 warning generated.
+70.4s 99 1 warning generated.
+70.5s 100 1 warning generated.
+70.6s 101 1 warning generated.
+70.6s 102 1 warning generated.
+70.6s 103 1 warning generated.
+70.6s 104 1 warning generated.
+70.6s 105 
+70.6s 106 1 warning generated.
+70.6s 107 1 warning generated.
+70.6s 108 1 warning generated.
+70.7s 109 1 warning generated.
+70.8s 110 1 warning generated.
+70.9s 111 1 warning generated.
+70.9s 112 1 warning generated.
+70.9s 113 1 warning generated.
+70.9s 114 1 warning generated.
+70.9s 115 
+70.9s 116 1 warning generated.
+70.9s 117 1 warning generated.
+70.9s 118 1 warning generated.
+71.0s 119 1 warning generated.
+71.1s 120 1 warning generated.
+71.2s 121 1 warning generated.
+71.2s 122 1 warning generated.
+71.2s 123 
+71.2s 124 1 warning generated.
+71.2s 125 1 warning generated.
+71.2s 126 1 warning generated.
+71.3s 127 1 warning generated.
+71.4s 128 1 warning generated.
+71.4s 129 1 warning generated.
+71.4s 130 
+71.4s 131 1 warning generated.
+71.4s 132 1 warning generated.
+75.0s 133 LightGBM      CV R²=0.7458
+81.0s 134 RF            CV R²=0.8560
+84.0s 135 GBR           CV R²=0.8774
+88.3s 136 ExtraTrees    CV R²=0.8840
+89.0s 137 HistGBM       CV R²=-0.0574
+98.8s 138 ─ Test Set Results ─
+98.8s 139 CatBoost        R²=0.8344  MAE=5.69  RMSE=7.93  MAPE=7.84%  a20=0.938
+98.8s 140 XGBoost         R²=0.9160  MAE=3.99  RMSE=5.65  MAPE=5.70%  a20=0.938
+98.8s 141 LightGBM        R²=0.9186  MAE=4.70  RMSE=5.56  MAPE=6.72%  a20=1.000
+98.8s 142 RF              R²=0.8821  MAE=5.22  RMSE=6.69  MAPE=7.56%  a20=0.938
+98.8s 143 GBR             R²=0.8690  MAE=5.67  RMSE=7.06  MAPE=8.43%  a20=0.875
+98.8s 144 ExtraTrees      R²=0.9218  MAE=3.86  RMSE=5.45  MAPE=5.69%  a20=0.938
+98.8s 145 HistGBM         R²=-0.0015  MAE=17.25  RMSE=19.51  MAPE=25.68%  a20=0.438
+98.9s 146 Stacking        R²=0.8717  MAE=4.79  RMSE=6.98  MAPE=7.09%  a20=0.875
+98.9s 147 Ensemble_W      R²=0.9067  MAE=4.28  RMSE=5.95  MAPE=6.14%  a20=0.938
+98.9s 148 
+98.9s 149 ✅ Pipeline OK — Best: ExtraTrees  R²=0.9218
+99.5s 150 GPU: YES ✓
+99.5s 151 Downloading from GitHub ...
+107.3s 152 header row=2  score=47  shape=(2188, 92)
+107.3s 153 OK [GitHub] sheet='UHPC Dataset '
+107.3s 154 
+107.3s 155 Dataset: (2188, 92)  |  NS='Nano Silica (kg/m3)'  |  SF='Silica Fume (kg/m³)'
+107.3s 156 Config v6: TRIALS=5/5  GPU=True
+107.3s 157 [★] M0: Power's Law = a*cement^b*exp(-c*W/C)  [Abrams/Powers 1947]
+107.3s 158 [★] Fallback: OOF Ridge + calibration k
+107.3s 159 [★] z = log(f_c/M0_calib)  =>  z_std ~0.10-0.12
+107.3s 160 [★] Weighted ensemble over 8 models (CV-R² weights)
+107.3s 161 
+107.3s 162 
+107.3s 163 ================================================================
+107.3s 164 CS_28d  |  target='28-Day'  |  n=2073
+107.3s 165 ================================================================
+107.3s 166 Physics features: ['NS_cement_ratio', 'Total_binder', 'NS_binder_ratio', 'Fiber_index', 'NS_binder_sq', 'log_NS_cement', 'NS_fiber_synergy', 'NS_SF_product']
+107.3s 167 Bayesian-TE (m=30) → 8 cols
+107.3s 168 [★] Ridge OOF: k=1.0040  R²=0.6287  MAPE=11.4%  z_std=0.1452
+107.3s 169 [★] Selected: Ridge OOF  R²=0.6287
+107.3s 170 [★] z_train: mean=-0.0045  std=0.1452  range=[-0.508, 0.543]
+107.3s 171 [★] Expected R²(f_c) if R²(z)=0.90: 0.9629
+107.3s 172 [★] Expected R²(f_c) if R²(z)=0.93: 0.9740
+107.7s 173 Outliers removed: 50 (3.0%)
+108.1s 174 KMeans(3) cluster sizes: [1475   31  102]
+108.1s 175 [★] z_mean=-0.0039  z_std=0.1462  range=[-0.508,0.543]
+108.1s 176 Optuna 5 trials × 7 models ...
+400.8s 177 CatBoost      CV R²=0.5306
+434.6s 178 1 warning generated.
+434.6s 179 XGBoost       CV R²=0.5550
+434.7s 180 1 warning generated.
+434.8s 181 1 warning generated.
+434.8s 182 1 warning generated.
+434.8s 183 
+434.8s 184 1 warning generated.
+434.8s 185 1 warning generated.
+434.8s 186 1 warning generated.
+434.9s 187 1 warning generated.
+435.0s 188 1 warning generated.
+435.0s 189 1 warning generated.
+435.0s 190 
+435.0s 191 1 warning generated.
+435.0s 192 1 warning generated.
+435.0s 193 1 warning generated.
+435.1s 194 1 warning generated.
+435.2s 195 1 warning generated.
+435.2s 196 1 warning generated.
+435.2s 197 
+435.2s 198 1 warning generated.
+435.2s 199 1 warning generated.
+435.2s 200 1 warning generated.
+435.3s 201 1 warning generated.
+435.4s 202 1 warning generated.
+435.4s 203 1 warning generated.
+435.4s 204 
+435.4s 205 1 warning generated.
+435.4s 206 1 warning generated.
+435.5s 207 1 warning generated.
+435.6s 208 1 warning generated.
+435.7s 209 1 warning generated.
+435.7s 210 1 warning generated.
+435.7s 211 
+435.7s 212 1 warning generated.
+435.7s 213 1 warning generated.
+435.7s 214 1 warning generated.
+435.8s 215 1 warning generated.
+435.9s 216 1 warning generated.
+435.9s 217 1 warning generated.
+435.9s 218 
+435.9s 219 1 warning generated.
+435.9s 220 1 warning generated.
+435.9s 221 1 warning generated.
+436.1s 222 1 warning generated.
+436.1s 223 1 warning generated.
+436.1s 224 1 warning generated.
+436.1s 225 
+436.1s 226 1 warning generated.
+436.1s 227 1 warning generated.
+436.2s 228 1 warning generated.
+436.3s 229 1 warning generated.
+436.4s 230 1 warning generated.
+436.4s 231 1 warning generated.
+436.4s 232 
+436.4s 233 1 warning generated.
+436.4s 234 1 warning generated.
+436.4s 235 1 warning generated.
+436.6s 236 1 warning generated.
+436.6s 237 1 warning generated.
+436.6s 238 1 warning generated.
+436.6s 239 
+436.6s 240 1 warning generated.
+436.6s 241 1 warning generated.
+436.7s 242 1 warning generated.
+436.8s 243 1 warning generated.
+436.9s 244 1 warning generated.
+436.9s 245 1 warning generated.
+436.9s 246 
+436.9s 247 1 warning generated.
+436.9s 248 1 warning generated.
+436.9s 249 1 warning generated.
+437.0s 250 1 warning generated.
+437.1s 251 1 warning generated.
+437.1s 252 1 warning generated.
+437.1s 253 
+437.1s 254 1 warning generated.
+437.1s 255 1 warning generated.
+437.1s 256 1 warning generated.
+437.2s 257 1 warning generated.
+437.3s 258 1 warning generated.
+437.3s 259 1 warning generated.
+437.3s 260 
+437.3s 261 1 warning generated.
+437.3s 262 1 warning generated.
+437.4s 263 1 warning generated.
+437.5s 264 1 warning generated.
+437.6s 265 1 warning generated.
+437.6s 266 1 warning generated.
+437.6s 267 
+437.6s 268 1 warning generated.
+437.6s 269 1 warning generated.
+437.6s 270 1 warning generated.
+437.7s 271 1 warning generated.
+437.8s 272 1 warning generated.
+437.8s 273 1 warning generated.
+437.8s 274 
+437.8s 275 1 warning generated.
+437.8s 276 1 warning generated.
+437.8s 277 1 warning generated.
+438.0s 278 1 warning generated.
+438.0s 279 1 warning generated.
+438.0s 280 1 warning generated.
+438.0s 281 
+438.0s 282 1 warning generated.
+438.0s 283 1 warning generated.
+438.1s 284 1 warning generated.
+438.2s 285 1 warning generated.
+438.3s 286 1 warning generated.
+438.3s 287 1 warning generated.
+438.3s 288 
+438.3s 289 1 warning generated.
+438.3s 290 1 warning generated.
+438.4s 291 1 warning generated.
+438.6s 292 1 warning generated.
+438.6s 293 
+438.6s 294 1 warning generated.
+476.7s 295 LightGBM      CV R²=0.5528
+533.3s 296 RF            CV R²=0.5209
+609.4s 297 GBR           CV R²=0.5479
+639.9s 298 ExtraTrees    CV R²=0.5527
+659.7s 299 HistGBM       CV R²=0.5542
+748.0s 300 ─ Test Set Results ─
+748.0s 301 CatBoost        R²=0.8392  MAE=10.07  RMSE=14.25  MAPE=6.88%  a20=0.937
+748.0s 302 XGBoost         R²=0.8523  MAE=9.48  RMSE=13.65  MAPE=6.44%  a20=0.947
+748.0s 303 LightGBM        R²=0.8414  MAE=9.97  RMSE=14.15  MAPE=6.82%  a20=0.940
+748.3s 304 RF              R²=0.8412  MAE=9.94  RMSE=14.16  MAPE=6.79%  a20=0.940
+748.3s 305 GBR             R²=0.8511  MAE=9.24  RMSE=13.71  MAPE=6.26%  a20=0.959
+748.3s 306 ExtraTrees      R²=0.8555  MAE=9.19  RMSE=13.51  MAPE=6.30%  a20=0.949
+748.5s 307 HistGBM         R²=0.8475  MAE=10.05  RMSE=13.88  MAPE=6.79%  a20=0.954
+749.0s 308 Stacking        R²=0.8340  MAE=9.98  RMSE=14.47  MAPE=6.76%  a20=0.940
+749.0s 309 Ensemble_W      R²=0.8591  MAE=9.19  RMSE=13.34  MAPE=6.27%  a20=0.949
+749.0s 310 Gate 0.96 not met (R²=0.8591) — retry 5 trials
+749.2s 311 Outliers removed: 50 (3.0%)
+749.6s 312 KMeans(3) cluster sizes: [1475   31  102]
+749.6s 313 [★] z_mean=-0.0039  z_std=0.1462  range=[-0.508,0.543]
+749.6s 314 Optuna 5 trials × 7 models ...
+1043.3s 315 CatBoost      CV R²=0.5306
+1077.6s 316 XGBoost       CV R²=0.5550
+1116.1s 317 LightGBM      CV R²=0.5528
+1172.6s 318 RF            CV R²=0.5209
+1248.7s 319 GBR           CV R²=0.5479
+1279.2s 320 ExtraTrees    CV R²=0.5527
+1299.0s 321 HistGBM       CV R²=0.5542
+1387.1s 322 ─ Test Set Results ─
+1387.1s 323 CatBoost        R²=0.8392  MAE=10.07  RMSE=14.25  MAPE=6.88%  a20=0.937
+1387.1s 324 XGBoost         R²=0.8523  MAE=9.48  RMSE=13.65  MAPE=6.44%  a20=0.947
+1387.1s 325 LightGBM        R²=0.8414  MAE=9.97  RMSE=14.15  MAPE=6.82%  a20=0.940
+1387.4s 326 RF              R²=0.8412  MAE=9.94  RMSE=14.16  MAPE=6.79%  a20=0.940
+1387.4s 327 GBR             R²=0.8511  MAE=9.24  RMSE=13.71  MAPE=6.26%  a20=0.959
+1387.4s 328 ExtraTrees      R²=0.8555  MAE=9.19  RMSE=13.51  MAPE=6.30%  a20=0.949
+1387.6s 329 HistGBM         R²=0.8475  MAE=10.05  RMSE=13.88  MAPE=6.79%  a20=0.954
+1388.1s 330 Stacking        R²=0.8378  MAE=9.92  RMSE=14.31  MAPE=6.70%  a20=0.940
+1388.1s 331 Ensemble_W      R²=0.8593  MAE=9.19  RMSE=13.33  MAPE=6.26%  a20=0.949
+1755.6s 332 NS SHAP rank: #37
+1779.7s 333 Optimal NS: 0.0 kg/m³ → 161.06 MPa
+1785.9s 334 
+1785.9s 335 ================================================================
+1785.9s 336 Flexural  |  target='Peak Strength (MPa)'  |  n=1024
+1785.9s 337 ================================================================
+1785.9s 338 Physics features: ['NS_cement_ratio', 'Total_binder', 'NS_binder_ratio', 'Fiber_index', 'NS_binder_sq', 'log_NS_cement', 'NS_fiber_synergy', 'NS_SF_product']
+1785.9s 339 Bayesian-TE (m=30) → 8 cols
+1785.9s 340 [★] Ridge OOF: k=1.0076  R²=0.5999  MAPE=19.8%  z_std=0.2509
+1785.9s 341 [★] Selected: Ridge OOF  R²=0.5999
+1785.9s 342 [★] z_train: mean=-0.0098  std=0.2509  range=[-1.298, 0.870]
+1785.9s 343 [★] Expected R²(f_c) if R²(z)=0.90: 0.9600
+1785.9s 344 [★] Expected R²(f_c) if R²(z)=0.93: 0.9720
+1786.3s 345 Outliers removed: 25 (3.1%)
+1786.3s 346 KMeans(3) cluster sizes: [ 38 709  47]
+1786.3s 347 [★] z_mean=-0.0082  z_std=0.2430  range=[-0.800,0.800]
+1786.3s 348 Optuna 5 trials × 7 models ...
+2042.1s 349 CatBoost      CV R²=0.5215
+2070.9s 350 XGBoost       CV R²=0.5498
+2099.1s 351 LightGBM      CV R²=0.5369
+2133.8s 352 RF            CV R²=0.4716
+2175.1s 353 GBR           CV R²=0.5449
+2195.9s 354 ExtraTrees    CV R²=0.4931
+2207.3s 355 HistGBM       CV R²=0.5209
+2257.5s 356 ─ Test Set Results ─
+2257.5s 357 CatBoost        R²=0.8279  MAE=2.74  RMSE=3.88  MAPE=10.98%  a20=0.873
+2257.5s 358 XGBoost         R²=0.8380  MAE=2.64  RMSE=3.77  MAPE=10.79%  a20=0.854
+2257.5s 359 LightGBM        R²=0.8410  MAE=2.64  RMSE=3.73  MAPE=10.79%  a20=0.873
+2257.8s 360 RF              R²=0.8239  MAE=2.71  RMSE=3.93  MAPE=11.07%  a20=0.863
+2257.8s 361 GBR             R²=0.8286  MAE=2.71  RMSE=3.87  MAPE=10.69%  a20=0.888
+2257.8s 362 ExtraTrees      R²=0.8042  MAE=2.73  RMSE=4.14  MAPE=10.70%  a20=0.863
+2257.8s 363 HistGBM         R²=0.8343  MAE=2.73  RMSE=3.81  MAPE=11.12%  a20=0.863
+2258.4s 364 Stacking        R²=0.8290  MAE=2.76  RMSE=3.87  MAPE=11.04%  a20=0.863
+2258.4s 365 Ensemble_W      R²=0.8486  MAE=2.55  RMSE=3.64  MAPE=10.23%  a20=0.883
+2258.4s 366 Gate 0.92 not met (R²=0.8486) — retry 5 trials
+2258.6s 367 Outliers removed: 25 (3.1%)
+2258.6s 368 KMeans(3) cluster sizes: [ 38 709  47]
+2258.6s 369 [★] z_mean=-0.0082  z_std=0.2430  range=[-0.800,0.800]
+2258.6s 370 Optuna 5 trials × 7 models ...
+2512.2s 371 CatBoost      CV R²=0.5215
+2541.0s 372 XGBoost       CV R²=0.5498
+2568.6s 373 LightGBM      CV R²=0.5370
+2603.7s 374 RF            CV R²=0.4716
+2645.3s 375 GBR           CV R²=0.5449
+2666.6s 376 ExtraTrees    CV R²=0.4931
+2678.0s 377 HistGBM       CV R²=0.5209
+2728.7s 378 ─ Test Set Results ─
+2728.7s 379 CatBoost        R²=0.8279  MAE=2.74  RMSE=3.88  MAPE=10.98%  a20=0.873
+2728.7s 380 XGBoost         R²=0.8380  MAE=2.64  RMSE=3.77  MAPE=10.79%  a20=0.854
+2728.7s 381 LightGBM        R²=0.8411  MAE=2.64  RMSE=3.73  MAPE=10.79%  a20=0.873
+2728.9s 382 RF              R²=0.8239  MAE=2.71  RMSE=3.93  MAPE=11.07%  a20=0.863
+2728.9s 383 GBR             R²=0.8286  MAE=2.71  RMSE=3.87  MAPE=10.69%  a20=0.888
+2728.9s 384 ExtraTrees      R²=0.8042  MAE=2.73  RMSE=4.14  MAPE=10.70%  a20=0.863
+2728.9s 385 HistGBM         R²=0.8343  MAE=2.73  RMSE=3.81  MAPE=11.12%  a20=0.863
+2729.5s 386 Stacking        R²=0.8266  MAE=2.77  RMSE=3.90  MAPE=11.03%  a20=0.868
+2729.5s 387 Ensemble_W      R²=0.8482  MAE=2.55  RMSE=3.65  MAPE=10.22%  a20=0.883
+2730.2s 388 NS SHAP rank: #35
+2731.6s 389 Optimal NS: 13.1 kg/m³ → 26.79 MPa
+2733.1s 390 
+2733.1s 391 ================================================================
+2733.1s 392 Tensile  |  target='Split Tensile Strength (Mpa)'  |  n=237
+2733.1s 393 ================================================================
+2733.1s 394 Physics features: ['NS_cement_ratio', 'Total_binder', 'NS_binder_ratio', 'Fiber_index', 'NS_binder_sq', 'log_NS_cement', 'NS_fiber_synergy', 'NS_SF_product']
+2733.1s 395 Bayesian-TE (m=30) → 8 cols
+2733.1s 396 [★] Ridge OOF: k=1.0250  R²=0.6170  MAPE=14.5%  z_std=0.1854
+2733.1s 397 [★] Selected: Ridge OOF  R²=0.6170
+2733.1s 398 [★] z_train: mean=-0.0380  std=0.1854  range=[-0.954, 0.309]
+2733.1s 399 [★] Expected R²(f_c) if R²(z)=0.90: 0.9617
+2733.1s 400 [★] Expected R²(f_c) if R²(z)=0.93: 0.9732
+2733.3s 401 Outliers removed: 6 (3.2%)
+2733.3s 402 KMeans(3) cluster sizes: [ 52  21 110]
+2733.3s 403 [★] z_mean=-0.0361  z_std=0.1834  range=[-0.800,0.309]
+2733.3s 404 Optuna 5 trials × 7 models ...
+2924.6s 405 CatBoost      CV R²=0.3390
+2944.2s 406 XGBoost       CV R²=0.3400
+2958.7s 407 LightGBM      CV R²=0.1545
+2980.4s 408 RF            CV R²=0.3092
+2995.1s 409 GBR           CV R²=0.3270
+3009.7s 410 ExtraTrees    CV R²=0.3759
+3013.1s 411 HistGBM       CV R²=0.1127
+3035.3s 412 ─ Test Set Results ─
+3035.3s 413 CatBoost        R²=0.4894  MAE=2.01  RMSE=5.42  MAPE=13.16%  a20=0.896
+3035.3s 414 XGBoost         R²=0.6542  MAE=1.85  RMSE=4.46  MAPE=12.15%  a20=0.875
+3035.3s 415 LightGBM        R²=0.6216  MAE=1.80  RMSE=4.66  MAPE=11.80%  a20=0.896
+3035.3s 416 RF              R²=0.6632  MAE=1.74  RMSE=4.40  MAPE=11.74%  a20=0.896
+3035.3s 417 GBR             R²=0.5674  MAE=2.10  RMSE=4.98  MAPE=12.96%  a20=0.896
+3035.6s 418 ExtraTrees      R²=0.5801  MAE=2.07  RMSE=4.91  MAPE=12.86%  a20=0.875
+3035.6s 419 HistGBM         R²=0.6732  MAE=1.91  RMSE=4.33  MAPE=12.47%  a20=0.854
+3036.0s 420 Stacking        R²=0.7629  MAE=1.70  RMSE=3.69  MAPE=11.63%  a20=0.875
+3036.0s 421 Ensemble_W      R²=0.6576  MAE=1.72  RMSE=4.43  MAPE=11.37%  a20=0.917
+3036.0s 422 Gate 0.9 not met (R²=0.7629) — retry 5 trials
+3036.0s 423 Outliers removed: 6 (3.2%)
+3036.2s 424 KMeans(3) cluster sizes: [ 52  21 110]
+3036.2s 425 [★] z_mean=-0.0361  z_std=0.1834  range=[-0.800,0.309]
+3036.2s 426 Optuna 5 trials × 7 models ...
+3227.5s 427 CatBoost      CV R²=0.3390
+3247.1s 428 XGBoost       CV R²=0.3400
+3261.5s 429 LightGBM      CV R²=0.1547
+3282.9s 430 RF            CV R²=0.3092
+3297.5s 431 GBR           CV R²=0.3270
+3312.2s 432 ExtraTrees    CV R²=0.3759
+3315.5s 433 HistGBM       CV R²=0.1127
+3337.3s 434 ─ Test Set Results ─
+3337.3s 435 CatBoost        R²=0.4894  MAE=2.01  RMSE=5.42  MAPE=13.16%  a20=0.896
+3337.3s 436 XGBoost         R²=0.6542  MAE=1.85  RMSE=4.46  MAPE=12.15%  a20=0.875
+3337.3s 437 LightGBM        R²=0.6216  MAE=1.80  RMSE=4.66  MAPE=11.80%  a20=0.896
+3337.3s 438 RF              R²=0.6632  MAE=1.74  RMSE=4.40  MAPE=11.74%  a20=0.896
+3337.3s 439 GBR             R²=0.5674  MAE=2.10  RMSE=4.98  MAPE=12.96%  a20=0.896
+3337.7s 440 ExtraTrees      R²=0.5801  MAE=2.07  RMSE=4.91  MAPE=12.86%  a20=0.875
+3337.7s 441 HistGBM         R²=0.6732  MAE=1.91  RMSE=4.33  MAPE=12.47%  a20=0.854
+3338.0s 442 Stacking        R²=0.7557  MAE=1.72  RMSE=3.75  MAPE=11.67%  a20=0.875
+3338.0s 443 Ensemble_W      R²=0.6564  MAE=1.72  RMSE=4.44  MAPE=11.38%  a20=0.917
+3338.3s 444 NS SHAP rank: #31
+3339.8s 445 Optimal NS: 0.0 kg/m³ → 16.98 MPa
+3341.3s 446 
+3341.3s 447 ================================================================
+3341.3s 448 E_Modulus  |  target='Elastic Modulus (Gpa)'  |  n=261
+3341.3s 449 ================================================================
+3341.3s 450 Physics features: ['NS_cement_ratio', 'Total_binder', 'NS_binder_ratio', 'Fiber_index', 'NS_binder_sq', 'log_NS_cement', 'NS_fiber_synergy', 'NS_SF_product']
+3341.3s 451 Bayesian-TE (m=30) → 8 cols
+3341.3s 452 [★] Ridge OOF: k=0.9957  R²=0.5534  MAPE=9.5%  z_std=0.1328
+3341.3s 453 [★] Selected: Ridge OOF  R²=0.5534
+3341.3s 454 [★] z_train: mean=-0.0029  std=0.1328  range=[-0.719, 0.502]
+3341.3s 455 [★] Expected R²(f_c) if R²(z)=0.90: 0.9553
+3341.3s 456 [★] Expected R²(f_c) if R²(z)=0.93: 0.9687
+3341.5s 457 Outliers removed: 7 (3.4%)
+3341.5s 458 KMeans(3) cluster sizes: [  7 186   8]
+3341.5s 459 [★] z_mean=-0.0015  z_std=0.1341  range=[-0.719,0.502]
+3341.5s 460 Optuna 5 trials × 7 models ...
+3536.0s 461 CatBoost      CV R²=0.1448
+3555.3s 462 XGBoost       CV R²=0.2265
+3570.5s 463 LightGBM      CV R²=0.1449
+3592.5s 464 RF            CV R²=0.0464
+3609.7s 465 GBR           CV R²=-0.0974
+3624.4s 466 ExtraTrees    CV R²=0.0377
+3627.9s 467 HistGBM       CV R²=0.0805
+3650.4s 468 ─ Test Set Results ─
+3650.4s 469 CatBoost        R²=0.8098  MAE=2.47  RMSE=3.69  MAPE=5.51%  a20=0.943
+3650.4s 470 XGBoost         R²=0.7693  MAE=2.55  RMSE=4.07  MAPE=5.39%  a20=0.943
+3650.4s 471 LightGBM        R²=0.7636  MAE=2.80  RMSE=4.11  MAPE=6.36%  a20=0.924
+3650.6s 472 RF              R²=0.8169  MAE=2.50  RMSE=3.62  MAPE=5.48%  a20=0.981
+3650.6s 473 GBR             R²=0.7990  MAE=2.47  RMSE=3.79  MAPE=5.38%  a20=0.943
+3650.6s 474 ExtraTrees      R²=0.8000  MAE=2.48  RMSE=3.78  MAPE=5.58%  a20=0.962
+3650.6s 475 HistGBM         R²=0.7012  MAE=3.21  RMSE=4.63  MAPE=7.10%  a20=0.924
+3651.0s 476 Stacking        R²=0.7410  MAE=2.99  RMSE=4.31  MAPE=6.81%  a20=0.924
+3651.0s 477 Ensemble_W      R²=0.8040  MAE=2.55  RMSE=3.75  MAPE=5.63%  a20=0.943
+3651.0s 478 Gate 0.9 not met (R²=0.8169) — retry 5 trials
+3651.2s 479 Outliers removed: 7 (3.4%)
+3651.2s 480 KMeans(3) cluster sizes: [  7 186   8]
+3651.2s 481 [★] z_mean=-0.0015  z_std=0.1341  range=[-0.719,0.502]
+3651.2s 482 Optuna 5 trials × 7 models ...
+3845.5s 483 CatBoost      CV R²=0.1448
+3865.2s 484 XGBoost       CV R²=0.2265
+3880.1s 485 LightGBM      CV R²=0.1422
+3902.3s 486 RF            CV R²=0.0464
+3919.6s 487 GBR           CV R²=-0.0974
+3934.2s 488 ExtraTrees    CV R²=0.0377
+3937.7s 489 HistGBM       CV R²=0.0805
+3960.1s 490 ─ Test Set Results ─
+3960.1s 491 CatBoost        R²=0.8098  MAE=2.47  RMSE=3.69  MAPE=5.51%  a20=0.943
+3960.1s 492 XGBoost         R²=0.7693  MAE=2.55  RMSE=4.07  MAPE=5.39%  a20=0.943
+3960.1s 493 LightGBM        R²=0.7632  MAE=2.81  RMSE=4.12  MAPE=6.38%  a20=0.924
+3960.3s 494 RF              R²=0.8169  MAE=2.50  RMSE=3.62  MAPE=5.48%  a20=0.981
+3960.3s 495 GBR             R²=0.7990  MAE=2.47  RMSE=3.79  MAPE=5.38%  a20=0.943
+3960.3s 496 ExtraTrees      R²=0.8000  MAE=2.48  RMSE=3.78  MAPE=5.58%  a20=0.962
+3960.3s 497 HistGBM         R²=0.7012  MAE=3.21  RMSE=4.63  MAPE=7.10%  a20=0.924
+3960.7s 498 Stacking        R²=0.7328  MAE=2.94  RMSE=4.37  MAPE=6.68%  a20=0.924
+3960.7s 499 Ensemble_W      R²=0.8025  MAE=2.55  RMSE=3.76  MAPE=5.62%  a20=0.943
+3961.6s 500 NS SHAP rank: #32
+3989.8s 501 Optimal NS: 25.1 kg/m³ → 46.46 GPa
+3996.8s 502 
+3996.8s 503 ================================================================
+3996.8s 504 Porosity  |  target='Porosity '  |  n=239
+3996.8s 505 ================================================================
+3996.8s 506 Physics features: ['NS_cement_ratio', 'Total_binder', 'NS_binder_ratio', 'NS_binder_sq', 'log_NS_cement', 'NS_fiber_synergy', 'NS_SF_product']
+3996.8s 507 Bayesian-TE (m=30) → 8 cols
+3996.8s 508 [★] Ridge OOF: k=0.9916  R²=0.6199  MAPE=30.2%  z_std=0.3874
+3996.8s 509 [★] Selected: Ridge OOF  R²=0.6199
+3996.8s 510 [★] z_train: mean=0.0101  std=0.3874  range=[-0.980, 1.241]
+3996.8s 511 [★] Expected R²(f_c) if R²(z)=0.90: 0.9620
+3996.8s 512 [★] Expected R²(f_c) if R²(z)=0.93: 0.9734
+3997.0s 513 Outliers removed: 6 (3.1%)
+3997.0s 514 KMeans(3) cluster sizes: [149  26  10]
+3997.0s 515 [★] z_mean=0.0044  z_std=0.3687  range=[-0.800,0.800]
+3997.0s 516 Optuna 5 trials × 7 models ...
+4191.3s 517 CatBoost      CV R²=0.4207
+4211.8s 518 XGBoost       CV R²=0.4371
+4226.1s 519 LightGBM      CV R²=0.2691
+4247.7s 520 RF            CV R²=0.3852
+4264.0s 521 GBR           CV R²=0.4252
+4278.9s 522 ExtraTrees    CV R²=0.4691
+4282.3s 523 HistGBM       CV R²=0.2548
+4304.4s 524 ─ Test Set Results ─
+4304.4s 525 CatBoost        R²=0.7608  MAE=1.41  RMSE=2.53  MAPE=20.58%  a20=0.583
+4304.4s 526 XGBoost         R²=0.6583  MAE=1.58  RMSE=3.02  MAPE=21.84%  a20=0.646
+4304.4s 527 LightGBM        R²=0.7905  MAE=1.45  RMSE=2.37  MAPE=23.14%  a20=0.521
+4304.4s 528 RF              R²=0.8163  MAE=1.33  RMSE=2.22  MAPE=19.81%  a20=0.583
+4304.4s 529 GBR             R²=0.7125  MAE=1.42  RMSE=2.77  MAPE=20.74%  a20=0.625
+4304.8s 530 ExtraTrees      R²=0.7770  MAE=1.33  RMSE=2.44  MAPE=19.23%  a20=0.646
+4304.8s 531 HistGBM         R²=0.7680  MAE=1.31  RMSE=2.49  MAPE=21.43%  a20=0.583
+4305.1s 532 Stacking        R²=0.8285  MAE=1.27  RMSE=2.14  MAPE=19.98%  a20=0.604
+4305.1s 533 Ensemble_W      R²=0.7820  MAE=1.35  RMSE=2.42  MAPE=20.00%  a20=0.583
+4305.1s 534 Gate 0.87 not met (R²=0.8285) — retry 5 trials
+4305.1s 535 Outliers removed: 6 (3.1%)
+4305.3s 536 KMeans(3) cluster sizes: [149  26  10]
+4305.3s 537 [★] z_mean=0.0044  z_std=0.3687  range=[-0.800,0.800]
+4305.3s 538 Optuna 5 trials × 7 models ...
+4500.6s 539 CatBoost      CV R²=0.4207
+4520.3s 540 XGBoost       CV R²=0.4371
+4533.6s 541 LightGBM      CV R²=0.2694
+4554.6s 542 RF            CV R²=0.3852
+4570.7s 543 GBR           CV R²=0.4252
+4585.5s 544 ExtraTrees    CV R²=0.4691
+4588.8s 545 HistGBM       CV R²=0.2548
+4610.4s 546 ─ Test Set Results ─
+4610.4s 547 CatBoost        R²=0.7608  MAE=1.41  RMSE=2.53  MAPE=20.58%  a20=0.583
+4610.4s 548 XGBoost         R²=0.6583  MAE=1.58  RMSE=3.02  MAPE=21.84%  a20=0.646
+4610.4s 549 LightGBM        R²=0.7905  MAE=1.45  RMSE=2.37  MAPE=23.14%  a20=0.521
+4610.4s 550 RF              R²=0.8163  MAE=1.33  RMSE=2.22  MAPE=19.81%  a20=0.583
+4610.4s 551 GBR             R²=0.7125  MAE=1.42  RMSE=2.77  MAPE=20.74%  a20=0.625
+4610.7s 552 ExtraTrees      R²=0.7770  MAE=1.33  RMSE=2.44  MAPE=19.23%  a20=0.646
+4610.7s 553 HistGBM         R²=0.7680  MAE=1.31  RMSE=2.49  MAPE=21.43%  a20=0.583
+4611.1s 554 Stacking        R²=0.8348  MAE=1.24  RMSE=2.10  MAPE=19.75%  a20=0.604
+4611.1s 555 Ensemble_W      R²=0.7831  MAE=1.35  RMSE=2.41  MAPE=19.93%  a20=0.583
+4612.8s 556 NS SHAP rank: #31
+4636.2s 557 Optimal NS: 26.1 kg/m³ → 4.17 %
+4642.3s 558 
+4642.3s 559 ========================================================================
+4642.3s 560 MULTI-PROPERTY SUMMARY v6
+4642.3s 561 ========================================================================
+4642.3s 562 Property         n          Best      R²   MAPE   Gate  LogSp   NS★   OptNS
+4642.3s 563 ----------------------------------------------------------------------
+4642.3s 564 CS_28d        2073    Ensemble_W  0.8593   6.26      ❌      ★   #37      --
+4642.3s 565 Flexural      1024    Ensemble_W  0.8482  10.22      ❌      ★   #35      13
+4642.3s 566 Tensile        237      Stacking  0.7557  11.67      ❌      ★   #31      --
+4642.3s 567 E_Modulus      261            RF  0.8169   5.48      ❌      ★   #32      25
+4642.3s 568 Porosity       239      Stacking  0.8348  19.75      ❌      ★   #31      26
+4642.3s 569 ========================================================================
+4642.3s 570 7 figures per property | outputs/summary_chart.png
+4646.9s 571 /usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\|'
+4646.9s 572 cells[i][c] = re.sub('\\\\\|', '|', cell)
+4647.0s 573 /usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\_'
+4647.0s 574 text = re.sub(r'_', '\_', text) # Escape underscores in display text
+4647.6s 575 [NbConvertApp] Converting notebook __notebook__.ipynb to notebook
+4647.9s 576 [NbConvertApp] Writing 28891 bytes to __notebook__.ipynb
+4650.2s 577 [NbConvertApp] Converting notebook __notebook__.ipynb to html
+4651.0s 578 [NbConvertApp] Writing 306540 bytes to __results__.html
