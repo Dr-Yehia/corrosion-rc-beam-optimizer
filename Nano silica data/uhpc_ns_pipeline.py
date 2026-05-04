@@ -817,9 +817,18 @@ def run_property(cfg, df, ns_col, sf_col):
         print(f"  Skip: {n} < {cfg['min_n']}")
         return None
 
+    # Keep physics-critical columns even if >60% missing (imputer handles them)
+    _phys_critical_kw = ["water", "w/c", "w/b", "w (", "wc", "wb",
+                         "cement", "fiber", "nano", "silica", "sand"]
+    def _is_critical(col):
+        cl = _c(col)
+        return any(_c(kw) in cl for kw in _phys_critical_kw)
+
     df_t = df_t.loc[:, [
         c for c in df_t.columns
-        if c in cat_cols or c == target or df_t[c].isnull().mean() < 0.60
+        if c in cat_cols or c == target
+        or _is_critical(c)
+        or df_t[c].isnull().mean() < 0.60
     ]]
     num_cols = [c for c in df_t.columns if c not in cat_cols and c != target]
 
@@ -869,7 +878,7 @@ def run_property(cfg, df, ns_col, sf_col):
         return art, best, r2, r2 >= cfg["gate"]
 
     art, best_name, best_r2, passed = _run(TRIALS_BASE)
-    if not passed:
+    if not passed and TRIALS_RETRY > TRIALS_BASE:
         print(f"  Gate {cfg['gate']} not met (R²={best_r2:.4f}) — retry {TRIALS_RETRY} trials")
         art, best_name, best_r2, passed = _run(TRIALS_RETRY)
 
