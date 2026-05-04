@@ -47,13 +47,25 @@ from xgboost import XGBRegressor
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 warnings.filterwarnings("ignore")
 
-# ── GPU auto-detection ──────────────────────────────────────────────────────
+# ── GPU auto-detection (multi-GPU safe) ─────────────────────────────────────
 try:
-    _r = subprocess.run(["nvidia-smi"], capture_output=True, timeout=5)
-    USE_GPU = _r.returncode == 0
+    _r = subprocess.run(
+        ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+        capture_output=True, timeout=5,
+    )
+    _gpu_lines = [l for l in _r.stdout.decode().strip().splitlines() if l.strip()]
+    USE_GPU   = _r.returncode == 0 and len(_gpu_lines) > 0
+    _N_GPUS   = len(_gpu_lines) if USE_GPU else 0
 except Exception:
-    USE_GPU = False
-print(f"GPU: {'YES ✓' if USE_GPU else 'NO (CPU)'}")
+    USE_GPU, _N_GPUS = False, 0
+
+# On multi-GPU (e.g., Kaggle T4 x2), pin to GPU 0 to avoid CUDA conflicts
+if _N_GPUS > 1:
+    import os as _os
+    _os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
+print(f"GPU: {'YES ✓' if USE_GPU else 'NO (CPU)'}  (detected {_N_GPUS} GPU(s)"
+      f"{', pinned to GPU 0' if _N_GPUS > 1 else ''})")
 _cb_gpu   = "GPU"  if USE_GPU else "CPU"
 _xgb_dev  = "cuda" if USE_GPU else "cpu"
 _lgbm_dev = "gpu"  if USE_GPU else "cpu"
