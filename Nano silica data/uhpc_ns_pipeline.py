@@ -589,16 +589,23 @@ MAKERS = {
         random_state=SEED,
     ),
 }
-# On multi-GPU: remove CatBoost entirely — it loads CUDA libs at fit() time
-# even with task_type="CPU", causing a kernel crash on Kaggle T4 x2.
+# On multi-GPU (Kaggle T4 x2): remove ALL external GPU-compiled libraries.
+# CatBoost, XGBoost, LightGBM are built with CUDA and probe for GPU at
+# fit() time — even with CPU flags set — causing a kernel SEGFAULT.
+# Pure-sklearn models (RF, GBR, ExtraTrees, HistGBM) have zero CUDA
+# dependency and are guaranteed safe. With n=2073 they're fast enough.
+_CUDA_LIBS = ("CatBoost", "XGBoost", "LightGBM")
 if _N_GPUS > 1:
-    MAKERS.pop("CatBoost", None)
-    print("  [multi-GPU] CatBoost removed from tuning (CUDA libs conflict)")
+    for _m in _CUDA_LIBS:
+        MAKERS.pop(_m, None)
+    print(f"  [multi-GPU] {list(_CUDA_LIBS)} removed — using sklearn-only models")
 
-# CatBoost excluded from stacking on GPU to avoid multi-process CUDA conflict
-STACK_MODELS = (["XGBoost", "LightGBM", "RF", "GBR", "ExtraTrees", "HistGBM"]
-                if _cb_gpu == "GPU" or _N_GPUS > 1
-                else ["CatBoost", "XGBoost", "LightGBM", "RF", "GBR", "ExtraTrees", "HistGBM"])
+_SAFE_SKLEARN = ["RF", "GBR", "ExtraTrees", "HistGBM"]
+STACK_MODELS = (
+    _SAFE_SKLEARN                                                    if _N_GPUS > 1 else
+    ["XGBoost", "LightGBM", "RF", "GBR", "ExtraTrees", "HistGBM"]  if _cb_gpu == "GPU" else
+    ["CatBoost", "XGBoost", "LightGBM", "RF", "GBR", "ExtraTrees", "HistGBM"]
+)
 
 
 def _tune(name, maker, X, y, n_trials):
