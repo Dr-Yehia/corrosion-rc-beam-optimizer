@@ -562,7 +562,9 @@ MAKERS = {
         max_depth         = t.suggest_int("d", 5, 30),
         min_samples_split = t.suggest_int("mss", 2, 10),
         max_features      = t.suggest_float("mf", 0.4, 1.0),
-        random_state=SEED, n_jobs=-1,
+        # n_jobs=1 on multi-GPU: avoids joblib worker processes inheriting
+        # CUDA state from parent (can SEGFAULT on Kaggle T4 x2)
+        random_state=SEED, n_jobs=(1 if _N_GPUS > 1 else -1),
     ),
     "GBR": lambda t: GradientBoostingRegressor(
         n_estimators  = t.suggest_int("n", 200, 800),
@@ -576,7 +578,7 @@ MAKERS = {
         max_depth         = t.suggest_int("d", 5, 40),
         min_samples_split = t.suggest_int("mss", 2, 10),
         max_features      = t.suggest_float("mf", 0.3, 1.0),
-        random_state=SEED, n_jobs=-1,
+        random_state=SEED, n_jobs=(1 if _N_GPUS > 1 else -1),
     ),
     "HistGBM": lambda t: HistGradientBoostingRegressor(
         max_iter          = t.suggest_int("n", 200, 1000),
@@ -1034,7 +1036,7 @@ def main():
     print(f"[★] M0: Power's Law = a*cement^b*exp(-c*W/C)  [Abrams/Powers 1947]")
     print(f"[★] Fallback: OOF Ridge + calibration k")
     print(f"[★] z = log(f_c/M0_calib)  =>  z_std ~0.10-0.12")
-    print(f"[★] Weighted ensemble over 8 models (CV-R² weights)\n")
+    print(f"[★] Weighted ensemble over {len(MAKERS)+1} models (CV-R² weights)\n")
 
     all_results = []
     for cfg in MULTI_TARGETS:
