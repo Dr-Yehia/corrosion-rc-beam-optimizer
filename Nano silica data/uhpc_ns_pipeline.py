@@ -544,7 +544,7 @@ MAKERS = {
         learning_rate = t.suggest_float("lr", 0.005, 0.2, log=True),
         depth         = t.suggest_int("d", 5, 10),
         l2_leaf_reg   = t.suggest_float("l2", 1, 10),
-        task_type=_cb_gpu,
+        task_type=_cb_gpu, thread_count=2,
         random_seed=SEED, verbose=0,
     ),
     "XGBoost": lambda t: XGBRegressor(
@@ -554,7 +554,7 @@ MAKERS = {
         subsample        = t.suggest_float("ss", 0.6, 1.0),
         colsample_bytree = t.suggest_float("cs", 0.6, 1.0),
         min_child_weight = t.suggest_int("mcw", 1, 10),
-        device=_xgb_dev,
+        device=_xgb_dev, nthread=2,
         random_state=SEED, verbosity=0,
     ),
     "LightGBM": lambda t: LGBMRegressor(
@@ -564,7 +564,7 @@ MAKERS = {
         num_leaves       = t.suggest_int("nl", 20, 200),
         subsample        = t.suggest_float("ss", 0.6, 1.0),
         colsample_bytree = t.suggest_float("cs", 0.6, 1.0),
-        device=_lgbm_dev,
+        device=_lgbm_dev, num_threads=2,
         random_state=SEED, verbose=-1,
     ),
     "RF": lambda t: RandomForestRegressor(
@@ -572,7 +572,7 @@ MAKERS = {
         max_depth         = t.suggest_int("d", 5, 30),
         min_samples_split = t.suggest_int("mss", 2, 10),
         max_features      = t.suggest_float("mf", 0.4, 1.0),
-        random_state=SEED, n_jobs=-1,
+        random_state=SEED, n_jobs=2,
     ),
     "GBR": lambda t: GradientBoostingRegressor(
         n_estimators  = t.suggest_int("n", 200, 800),
@@ -586,7 +586,7 @@ MAKERS = {
         max_depth         = t.suggest_int("d", 5, 40),
         min_samples_split = t.suggest_int("mss", 2, 10),
         max_features      = t.suggest_float("mf", 0.3, 1.0),
-        random_state=SEED, n_jobs=-1,
+        random_state=SEED, n_jobs=2,
     ),
     "HistGBM": lambda t: HistGradientBoostingRegressor(
         max_iter          = t.suggest_int("n", 200, 1000),
@@ -694,8 +694,14 @@ def _pipeline(X_raw, y_raw, n_trials, M0_all=None):
     del _wu_X, _wu_y, _warmups
 
     models, cv_scores = {}, {}
-    for nm, mk in MAKERS.items():
-        models[nm], cv_scores[nm] = _tune(nm, mk, Xtr, y_target, n_trials)
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    print(f"  Running {len(MAKERS)} models in parallel (ThreadPoolExecutor) ...")
+    with ThreadPoolExecutor(max_workers=len(MAKERS)) as pool:
+        futures = {pool.submit(_tune, nm, mk, Xtr, y_target, n_trials): nm
+                   for nm, mk in MAKERS.items()}
+        for fut in as_completed(futures):
+            nm = futures[fut]
+            models[nm], cv_scores[nm] = fut.result()
 
     meta  = GradientBoostingRegressor(
         n_estimators=200, learning_rate=0.05, max_depth=3,
