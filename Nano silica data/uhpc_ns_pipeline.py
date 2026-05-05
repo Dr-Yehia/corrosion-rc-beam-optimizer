@@ -663,19 +663,22 @@ def _pipeline(X_raw, y_raw, n_trials, M0_all=None):
 
     print(f"  Optuna {n_trials} trials × {len(MAKERS)} models ...")
 
-    # Warmup: Kaggle T4 x2 CUDA runtime takes ~30 s to stabilise after kernel
-    # start. Each GPU-compiled library (CatBoost, XGBoost, LightGBM) triggers
-    # its OWN crash window when first used. Warm up all three here so every
-    # subsequent Optuna trial is safe.
-    _wu_X = Xtr[:min(200, len(Xtr))]
-    _wu_y = y_target[:min(200, len(y_target))]
+    # Warmup: Kaggle T4 x2 CUDA runtime needs ~35 s to stabilise after kernel
+    # start. Tiny 10-iter fits finish in <1 s — not enough. Use 400-iter fits
+    # on 400 rows so the three warmups together take ~15-20 s and push us
+    # safely past the crash window before any real Optuna trial starts.
+    _wu_X = Xtr[:min(400, len(Xtr))]
+    _wu_y = y_target[:min(400, len(y_target))]
     _warmups = [
         ("CatBoost", lambda: CatBoostRegressor(
-            iterations=10, task_type="CPU", random_seed=SEED, verbose=0).fit(_wu_X, _wu_y)),
+            iterations=400, depth=6, task_type="CPU",
+            random_seed=SEED, verbose=0).fit(_wu_X, _wu_y)),
         ("XGBoost",  lambda: XGBRegressor(
-            n_estimators=10, device="cpu", random_state=SEED, verbosity=0).fit(_wu_X, _wu_y)),
+            n_estimators=400, device="cpu", tree_method="hist",
+            random_state=SEED, verbosity=0).fit(_wu_X, _wu_y)),
         ("LightGBM", lambda: LGBMRegressor(
-            n_estimators=10, device="cpu", random_state=SEED, verbose=-1).fit(_wu_X, _wu_y)),
+            n_estimators=400, device="cpu",
+            random_state=SEED, verbose=-1).fit(_wu_X, _wu_y)),
     ]
     for _wu_name, _wu_fn in _warmups:
         try:
