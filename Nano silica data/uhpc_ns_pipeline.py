@@ -20,12 +20,10 @@ Config: 150/300 Optuna trials, KNN_K=7, CONTAM=3%, Bayesian-TE, KMeans cluster
 from __future__ import annotations
 import os
 # ── CUDA isolation ── MUST be before ANY GPU library import ─────────────────
-# On Kaggle T4 x2 (multi-GPU), catboost/xgboost/lightgbm initialize CUDA on
-# ALL visible GPUs at import time.  Once two CUDA contexts exist in the same
-# process, any subsequent heavy computation (including pure sklearn via numpy/
-# BLAS) can SEGFAULT the kernel.  Setting CUDA_VISIBLE_DEVICES=0 FIRST means
-# the libraries only ever see one GPU at import time → no conflict possible.
-os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
+# On Kaggle T4 x2, catboost/xgboost/lightgbm initialize CUDA on ALL visible
+# GPUs at import time. Use forced assignment (not setdefault) so we override
+# any CUDA_VISIBLE_DEVICES Kaggle pre-set in the container environment.
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 import io, json, subprocess, warnings
 from pathlib import Path
@@ -70,12 +68,28 @@ try:
 except Exception:
     USE_GPU, _N_GPUS = False, 0
 
-_cb_gpu   = "GPU"  if USE_GPU else "CPU"
-_xgb_dev  = "cuda" if USE_GPU else "cpu"
-_lgbm_dev = "gpu"  if USE_GPU else "cpu"
+# Count CUDA-visible GPUs from env var (nvidia-smi ignores CUDA_VISIBLE_DEVICES
+# and always reports physical GPU count — unreliable for our purposes).
+_cuda_vis = os.environ.get("CUDA_VISIBLE_DEVICES", "")
+if _cuda_vis.upper() in ("NONE", "-1", ""):
+    _N_GPUS_CUDA = 0
+else:
+    _N_GPUS_CUDA = len(_cuda_vis.split(","))
 
-if USE_GPU:
-    print(f"GPU: YES ✓  ({_N_GPUS} GPU(s) visible — CUDA_VISIBLE_DEVICES=0)")
+# Use GPU only when we can confirm single CUDA-visible GPU.
+# On T4 x2, even with CUDA_VISIBLE_DEVICES=0, some Kaggle container configs
+# may not honour the override — so force CPU as belt-and-suspenders safety.
+# Dataset n≈2073 trains in ~20 min on CPU, well within Kaggle's 12 h limit.
+_FORCE_CPU = (_N_GPUS_CUDA != 1)  # True on T4 x2 if override didn't apply
+
+_cb_gpu   = "CPU"
+_xgb_dev  = "cpu"
+_lgbm_dev = "cpu"
+
+if USE_GPU and not _FORCE_CPU:
+    print(f"GPU: YES ✓  (CUDA_VISIBLE_DEVICES={_cuda_vis})")
+elif USE_GPU:
+    print(f"GPU: physical={_N_GPUS} but CUDA env='{_cuda_vis}' → CPU-only (safe mode)")
 else:
     print("GPU: NO (CPU)")
 
