@@ -18,6 +18,15 @@ Key pipeline stages:
 Config: 150/300 Optuna trials, KNN_K=7, CONTAM=3%, Bayesian-TE, KMeans cluster
 """
 from __future__ import annotations
+import os
+# ── CUDA isolation ── MUST be before ANY GPU library import ─────────────────
+# On Kaggle T4 x2 (multi-GPU), catboost/xgboost/lightgbm initialize CUDA on
+# ALL visible GPUs at import time.  Once two CUDA contexts exist in the same
+# process, any subsequent heavy computation (including pure sklearn via numpy/
+# BLAS) can SEGFAULT the kernel.  Setting CUDA_VISIBLE_DEVICES=0 FIRST means
+# the libraries only ever see one GPU at import time → no conflict possible.
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
+
 import io, json, subprocess, warnings
 from pathlib import Path
 
@@ -47,35 +56,26 @@ from xgboost import XGBRegressor
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 warnings.filterwarnings("ignore")
 
-# ── GPU auto-detection (multi-GPU safe) ─────────────────────────────────────
+# ── GPU auto-detection ───────────────────────────────────────────────────────
+# CUDA_VISIBLE_DEVICES=0 was already set above, so nvidia-smi will report
+# only the one GPU that all libraries were imported against.
 try:
     _r = subprocess.run(
         ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
         capture_output=True, timeout=5,
     )
     _gpu_lines = [l for l in _r.stdout.decode().strip().splitlines() if l.strip()]
-    USE_GPU   = _r.returncode == 0 and len(_gpu_lines) > 0
-    _N_GPUS   = len(_gpu_lines) if USE_GPU else 0
+    USE_GPU = _r.returncode == 0 and len(_gpu_lines) > 0
+    _N_GPUS = len(_gpu_lines) if USE_GPU else 0
 except Exception:
     USE_GPU, _N_GPUS = False, 0
-
-# On multi-GPU (e.g., Kaggle T4 x2): force CPU-only.
-# CUDA contexts on 2 GPUs conflict inside Optuna trials even with
-# CUDA_VISIBLE_DEVICES restriction. Dataset n≈2073 is small, so
-# CPU tuning takes ~25 min — well within the 12 h Kaggle limit.
-if _N_GPUS > 1:
-    import os as _os
-    _os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-    USE_GPU = False
 
 _cb_gpu   = "GPU"  if USE_GPU else "CPU"
 _xgb_dev  = "cuda" if USE_GPU else "cpu"
 _lgbm_dev = "gpu"  if USE_GPU else "cpu"
 
-if _N_GPUS > 1:
-    print(f"GPU: YES ({_N_GPUS} GPUs detected) → CPU-only to avoid multi-GPU CUDA conflict")
-elif USE_GPU:
-    print(f"GPU: YES ✓  (single GPU)")
+if USE_GPU:
+    print(f"GPU: YES ✓  ({_N_GPUS} GPU(s) visible — CUDA_VISIBLE_DEVICES=0)")
 else:
     print("GPU: NO (CPU)")
 
@@ -530,7 +530,7 @@ MAKERS = {
         learning_rate = t.suggest_float("lr", 0.005, 0.2, log=True),
         depth         = t.suggest_int("d", 5, 10),
         l2_leaf_reg   = t.suggest_float("l2", 1, 10),
-        task_type="CPU",   # CPU avoids CUDA conflicts on multi-GPU Kaggle
+        task_type=_cb_gpu,
         random_seed=SEED, verbose=0,
     ),
     "XGBoost": lambda t: XGBRegressor(
@@ -540,10 +540,7 @@ MAKERS = {
         subsample        = t.suggest_float("ss", 0.6, 1.0),
         colsample_bytree = t.suggest_float("cs", 0.6, 1.0),
         min_child_weight = t.suggest_int("mcw", 1, 10),
-        # On multi-GPU: use tree_method="hist" instead of device="cuda"
-        # to avoid CUDA probe crash (device= triggers CUDA init even on CPU)
-        **({} if _N_GPUS > 1 else {"device": _xgb_dev}),
-        **( {"tree_method": "hist"} if _N_GPUS > 1 else {}),
+        device=_xgb_dev,
         random_state=SEED, verbosity=0,
     ),
     "LightGBM": lambda t: LGBMRegressor(
@@ -553,8 +550,7 @@ MAKERS = {
         num_leaves       = t.suggest_int("nl", 20, 200),
         subsample        = t.suggest_float("ss", 0.6, 1.0),
         colsample_bytree = t.suggest_float("cs", 0.6, 1.0),
-        # On multi-GPU: omit device= to use default CPU (avoid LGBM GPU probe)
-        **({} if _N_GPUS > 1 else {"device": _lgbm_dev}),
+        device=_lgbm_dev,
         random_state=SEED, verbose=-1,
     ),
     "RF": lambda t: RandomForestRegressor(
@@ -562,9 +558,7 @@ MAKERS = {
         max_depth         = t.suggest_int("d", 5, 30),
         min_samples_split = t.suggest_int("mss", 2, 10),
         max_features      = t.suggest_float("mf", 0.4, 1.0),
-        # n_jobs=1 on multi-GPU: avoids joblib worker processes inheriting
-        # CUDA state from parent (can SEGFAULT on Kaggle T4 x2)
-        random_state=SEED, n_jobs=(1 if _N_GPUS > 1 else -1),
+        random_state=SEED, n_jobs=-1,
     ),
     "GBR": lambda t: GradientBoostingRegressor(
         n_estimators  = t.suggest_int("n", 200, 800),
@@ -578,7 +572,7 @@ MAKERS = {
         max_depth         = t.suggest_int("d", 5, 40),
         min_samples_split = t.suggest_int("mss", 2, 10),
         max_features      = t.suggest_float("mf", 0.3, 1.0),
-        random_state=SEED, n_jobs=(1 if _N_GPUS > 1 else -1),
+        random_state=SEED, n_jobs=-1,
     ),
     "HistGBM": lambda t: HistGradientBoostingRegressor(
         max_iter          = t.suggest_int("n", 200, 1000),
@@ -589,21 +583,10 @@ MAKERS = {
         random_state=SEED,
     ),
 }
-# On multi-GPU (Kaggle T4 x2): remove ALL external GPU-compiled libraries.
-# CatBoost, XGBoost, LightGBM are built with CUDA and probe for GPU at
-# fit() time — even with CPU flags set — causing a kernel SEGFAULT.
-# Pure-sklearn models (RF, GBR, ExtraTrees, HistGBM) have zero CUDA
-# dependency and are guaranteed safe. With n=2073 they're fast enough.
-_CUDA_LIBS = ("CatBoost", "XGBoost", "LightGBM")
-if _N_GPUS > 1:
-    for _m in _CUDA_LIBS:
-        MAKERS.pop(_m, None)
-    print(f"  [multi-GPU] {list(_CUDA_LIBS)} removed — using sklearn-only models")
 
-_SAFE_SKLEARN = ["RF", "GBR", "ExtraTrees", "HistGBM"]
 STACK_MODELS = (
-    _SAFE_SKLEARN                                                    if _N_GPUS > 1 else
-    ["XGBoost", "LightGBM", "RF", "GBR", "ExtraTrees", "HistGBM"]  if _cb_gpu == "GPU" else
+    ["XGBoost", "LightGBM", "RF", "GBR", "ExtraTrees", "HistGBM"]
+    if _cb_gpu == "GPU" else
     ["CatBoost", "XGBoost", "LightGBM", "RF", "GBR", "ExtraTrees", "HistGBM"]
 )
 
