@@ -616,8 +616,7 @@ def _tune(name, maker, X, y, n_trials):
 
     def _progress(study, trial):
         n = trial.number + 1
-        if n % 10 == 0 or n == n_trials:
-            print(f"    {name} trial {n:3d}/{n_trials}  best R²={study.best_value:.4f}")
+        print(f"    {name} trial {n:3d}/{n_trials}  best R²={study.best_value:.4f}")
 
     st = optuna.create_study(
         direction="maximize",
