@@ -662,6 +662,20 @@ def _pipeline(X_raw, y_raw, n_trials, M0_all=None):
         print("  Direct prediction (no physics baseline)")
 
     print(f"  Optuna {n_trials} trials × {len(MAKERS)} models ...")
+
+    # Warmup: Kaggle T4 x2 needs ~30 s for CUDA runtime to stabilise after
+    # kernel start. Running one tiny fit here flushes that window so the
+    # first real Optuna trial never hits the non-deterministic CUDA init crash.
+    _wu_X = Xtr[:min(200, len(Xtr))]
+    _wu_y = y_target[:min(200, len(y_target))]
+    try:
+        CatBoostRegressor(iterations=10, task_type="CPU",
+                          random_seed=SEED, verbose=0).fit(_wu_X, _wu_y)
+        print("  Warmup OK (CatBoost initialised)")
+    except Exception as _e:
+        print(f"  Warmup skipped ({_e})")
+    del _wu_X, _wu_y
+
     models, cv_scores = {}, {}
     for nm, mk in MAKERS.items():
         models[nm], cv_scores[nm] = _tune(nm, mk, Xtr, y_target, n_trials)
