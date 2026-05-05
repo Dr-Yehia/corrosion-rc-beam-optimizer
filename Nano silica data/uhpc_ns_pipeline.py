@@ -540,7 +540,11 @@ MAKERS = {
         subsample        = t.suggest_float("ss", 0.6, 1.0),
         colsample_bytree = t.suggest_float("cs", 0.6, 1.0),
         min_child_weight = t.suggest_int("mcw", 1, 10),
-        device=_xgb_dev, random_state=SEED, verbosity=0,
+        # On multi-GPU: use tree_method="hist" instead of device="cuda"
+        # to avoid CUDA probe crash (device= triggers CUDA init even on CPU)
+        **({} if _N_GPUS > 1 else {"device": _xgb_dev}),
+        **( {"tree_method": "hist"} if _N_GPUS > 1 else {}),
+        random_state=SEED, verbosity=0,
     ),
     "LightGBM": lambda t: LGBMRegressor(
         n_estimators     = t.suggest_int("n", 300, 1500),
@@ -549,7 +553,9 @@ MAKERS = {
         num_leaves       = t.suggest_int("nl", 20, 200),
         subsample        = t.suggest_float("ss", 0.6, 1.0),
         colsample_bytree = t.suggest_float("cs", 0.6, 1.0),
-        device=_lgbm_dev, random_state=SEED, verbose=-1,
+        # On multi-GPU: omit device= to use default CPU (avoid LGBM GPU probe)
+        **({} if _N_GPUS > 1 else {"device": _lgbm_dev}),
+        random_state=SEED, verbose=-1,
     ),
     "RF": lambda t: RandomForestRegressor(
         n_estimators      = t.suggest_int("n", 200, 800),
